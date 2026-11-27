@@ -52,6 +52,7 @@ from common import (
     Security,
     check,
     check_manifest_succeeded,
+    check_version,
     client_context,
     exercise_run,
     refuse_without_client_certificate,
@@ -86,6 +87,8 @@ DEFAULT_CONTEXT = "kind-kind"
 KIND_CONTEXT_PREFIX = "kind-"
 CHART = REPOSITORY / "deploy" / "helm" / "servtuner"
 E2E_VALUES = REPOSITORY / "deploy" / "kind" / "e2e-values.yaml"
+# The version just images stamps into the images: the Justfile's image_version.
+IMAGE_VERSION = os.environ.get("SERVTUNER_VERSION", "0.0.0-dev")
 LOAD_VALUES = REPOSITORY / "deploy" / "kind" / "e2e-load-values.yaml"
 JOBS_VALUES = REPOSITORY / "deploy" / "kind" / "e2e-jobs-values.yaml"
 # A tuning session against the mock as a managed vLLM (e2e/tuning.py).
@@ -534,6 +537,15 @@ def forward_port(
             break
         time.sleep(0.2)
     raise E2EError(f"port-forward to {target} did not start:\n{log_path.read_text()}")
+
+
+def git_head() -> str:
+    return subprocess.run(
+        ["git", "-C", str(REPOSITORY), "rev-parse", "HEAD"],  # noqa: S607 - git on PATH
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
 
 
 def ingress_client(deployment: Deployment, port: int, path: str = "") -> httpx2.Client:
@@ -1152,6 +1164,8 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
                     lambda: api.get("/healthz").is_success,
                     ROUTE_TIMEOUT_SECONDS,
                 )
+                # The images were built from this checkout (just images stamps HEAD).
+                check_version(api, IMAGE_VERSION, git_head())
 
                 if deployment.gateway and mode is Security.MUTUAL_TLS:
                     check_backend_hostname_is_verified(deployment, api)

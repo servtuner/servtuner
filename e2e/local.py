@@ -26,6 +26,7 @@ from common import (
     auth_environment,
     check,
     check_manifest_succeeded,
+    check_version,
     client_context,
     create_first_admin,
     exercise_run,
@@ -39,6 +40,7 @@ from testcontainers.community.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 
 from servtuner_api.datadir import run_bundle_dir
+from servtuner_api.version import DEV_VERSION, UNKNOWN_COMMIT
 from tests.support.certs import LOOPBACK, CertificateAuthority, create_authority
 from tests.support.postgres_tls import (
     DATABASE_NAME,
@@ -157,6 +159,8 @@ def run_e2e(mode: Security) -> None:
                 refuse_without_client_certificate(f"https://localhost:{port}", authority.cert_file)
             with httpx2.Client(**client_options) as client:  # type: ignore[arg-type]
                 create_first_admin(client)
+                # The api runs from source here, so no release stamped it.
+                check_version(client, DEV_VERSION, UNKNOWN_COMMIT)
                 with httpx2.Client(**client_options) as stranger:  # type: ignore[arg-type]
                     refused = stranger.get("/runs")
                     check(

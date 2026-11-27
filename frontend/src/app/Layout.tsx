@@ -11,6 +11,7 @@ import {
 import { Link, Outlet } from "react-router";
 import { AuthGate } from "../features/auth/AuthGate";
 import { UserMenu } from "../features/auth/UserMenu";
+import { VersionBadge } from "./VersionBadge";
 
 function ColorSchemeToggle() {
   const { setColorScheme } = useMantineColorScheme();
@@ -76,6 +77,7 @@ export function Layout() {
               </Menu>
             </Group>
             <Group gap="md" wrap="nowrap" style={{ flexShrink: 0 }}>
+              <VersionBadge />
               <UserMenu />
               <ColorSchemeToggle />
             </Group>

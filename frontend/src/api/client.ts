@@ -65,6 +65,7 @@ import type {
   TuningSession,
   TuningSessionCreate,
   UnsavedTargetCheck,
+  VersionResource,
   VllmKnobs,
   WorkloadPreset,
 } from "./types";
@@ -118,6 +119,8 @@ async function apiError(response: Response, url: string, method: string): Promis
 }
 
 export interface ApiClient {
+  /** The running api build, for the header and the version check. */
+  getVersion(): Promise<VersionResource>;
   /** Which screen the app shows: setup, login, or the app. */
   getAuthStatus(): Promise<AuthStatus>;
   login(body: LoginRequest): Promise<AuthUser>;
@@ -280,6 +283,7 @@ export function createApiClient(baseUrl: string): ApiClient {
   const managedTarget = (id: string) => `/managed-targets/${encodeURIComponent(id)}`;
   const user = (id: string) => `/users/${encodeURIComponent(id)}`;
   return {
+    getVersion: () => get<VersionResource>("/version"),
     getAuthStatus: () => get<AuthStatus>("/auth/status"),
     login: (body) => post<AuthUser>("/auth/login", body),
     logout: async () => {

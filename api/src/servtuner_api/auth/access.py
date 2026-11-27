@@ -26,6 +26,7 @@ LOGS_READ, USERS_ADMIN, EVENTS_WRITE = Action.LOGS_READ, Action.USERS_ADMIN, Act
 
 ROUTE_ACCESS: dict[tuple[str, str], RouteAccess] = {
     ("GET", "/healthz"): Open.PUBLIC,
+    ("GET", "/version"): READ,
     # A user's own account
     ("GET", "/auth/status"): Open.PUBLIC,
     ("POST", "/auth/login"): Open.PUBLIC,

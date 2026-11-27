@@ -15087,6 +15087,25 @@
         "title": "Verdict",
         "type": "string"
       },
+      "VersionResource": {
+        "description": "The running build: the release version (0.0.0-dev unstamped) and its full commit.",
+        "properties": {
+          "commit": {
+            "title": "Commit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "commit"
+        ],
+        "title": "VersionResource",
+        "type": "object"
+      },
       "Warning": {
         "minLength": 1,
         "title": "Warning",
@@ -19351,6 +19370,25 @@
           }
         },
         "summary": "Revoke User Sessions"
+      }
+    },
+    "/version": {
+      "get": {
+        "description": "The running build. Signed-in users only, so an unauthenticated scan learns nothing.",
+        "operationId": "version_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResource"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Version"
       }
     },
     "/workload-presets": {

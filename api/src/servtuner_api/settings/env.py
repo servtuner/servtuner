@@ -4,6 +4,9 @@ from servtuner_api.settings.models import Connection
 
 # Environment variable names, defined once.
 ENV_API_PORT = "SERVTUNER_API_PORT"
+# The build, set in the api image by docker-bake.hcl: the release version and the commit.
+ENV_VERSION = "SERVTUNER_VERSION"
+ENV_COMMIT = "SERVTUNER_COMMIT"
 
 
 ENV_API_URL = "SERVTUNER_API_URL"

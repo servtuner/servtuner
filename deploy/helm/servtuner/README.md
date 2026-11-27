@@ -79,6 +79,7 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | Name | Meaning | Values | Read by |
 |---|---|---|---|
 | `SERVTUNER_BASE_PATH` | context path the UI is hosted under (`frontend.basePath`); validated at start, an invalid value stops the container. Served under this path and also at `/`, so an ingress may pass the prefix through or strip it | `/` (default), `/servtuner/`, `/tools/servtuner/ui/` | frontend |
+| `SERVTUNER_VERSION`, `SERVTUNER_COMMIT` | the build, reported by `GET /version`; the api image sets them from the release tag and commit, the chart does not | version (`0.0.0-dev` unstamped), full commit (`unknown`) | api |
 | `SERVTUNER_SCHEMA_DIR` | directory of the RunSpec and event schemas (`schema/json`); the api image sets it, the chart does not | path | api |
 | `SERVTUNER_API_PORT` | api listen port | integer | api |
 | `SERVTUNER_SECRET_STORE` | where saved targets' keys live (`secretStore`): Secrets in the runs namespace, files under the data directory (local development only), or nowhere | `kubernetes` (chart default), `file`, `none` (the api's own default) | api |

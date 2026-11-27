@@ -165,6 +165,7 @@ export type UnsavedTargetCheck = {
 
 // User auth.
 export type AuthStatus = components["schemas"]["AuthStatus"];
+export type VersionResource = components["schemas"]["VersionResource"];
 export type AuthUser = components["schemas"]["UserView"];
 export type Action = components["schemas"]["Action"];
 export type Role = components["schemas"]["Role"];

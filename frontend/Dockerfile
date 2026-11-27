@@ -8,7 +8,9 @@ RUN npm ci
 COPY index.html tsconfig.json vite.config.ts ./
 COPY public ./public
 COPY src ./src
-RUN npm run build
+# The release version (docker-bake.hcl sets it from the tag), shown in the header and checked against the api.
+ARG SERVTUNER_VERSION=0.0.0-dev
+RUN VITE_SERVTUNER_VERSION="$SERVTUNER_VERSION" npm run build
 
 # Runtime stage: unprivileged nginx, listening on 8080 (chart value frontend.port).
 FROM nginxinc/nginx-unprivileged:1.31.7-alpine3.24

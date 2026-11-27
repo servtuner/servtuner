@@ -16,6 +16,7 @@ def test_document_embeds_the_generated_models_and_routes() -> None:
     document = json.loads(render_openapi())
     assert set(document["paths"]) == {
         "/healthz",
+        "/version",
         "/auth/status",
         "/auth/login",
         "/auth/logout",

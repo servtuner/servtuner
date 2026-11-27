@@ -115,6 +115,9 @@ wins, so a pod killed by OOM becomes `failed` even if it never reported.
 ### Endpoints (v1)
 
 ```
+GET    /healthz                   liveness; public
+GET    /version                   the running build {version, commit}, stamped into the image
+                                  (SERVTUNER_VERSION, SERVTUNER_COMMIT); signed-in users only (read)
 POST   /runs                      create and launch (body: RunSpec)
 GET    /runs?experiment=&target_type=&status=&label=   list and filter; each run carries its usable
                                   slo_max_rps from run_metrics (one query for the page)

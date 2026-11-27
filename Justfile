@@ -127,7 +127,7 @@ kind-up:
 # The images are defined once, in docker-bake.hcl; these build them for this machine and load them into docker.
 [private]
 _bake +targets:
-    TAG={{image_tag}} VERSION={{image_version}} docker buildx bake --load {{targets}}
+    TAG={{image_tag}} VERSION={{image_version}} COMMIT="$(git rev-parse HEAD)" docker buildx bake --load {{targets}}
 
 [private]
 _image-bench: (_bake "bench")

@@ -24,6 +24,8 @@ export const authOff: AuthStatus = { mode: "none", methods: [], setup_required: 
 
 export const defaultHandlers = [
   http.get(`${TEST_API_BASE_URL}/auth/status`, () => HttpResponse.json<AuthStatus>(authOff)),
+  // An unstamped api, as in development.
+  http.get(`${TEST_API_BASE_URL}/version`, () => HttpResponse.json({ version: "0.0.0-dev", commit: "unknown" })),
   // New run lists saved targets for its picker; none unless a test says so.
   http.get(`${TEST_API_BASE_URL}/targets`, () => HttpResponse.json([])),
   // Experiment inputs suggest existing experiments; none unless a test says so.

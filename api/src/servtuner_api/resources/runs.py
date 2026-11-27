@@ -130,6 +130,13 @@ class HealthResource(BaseModel):
     status: str
 
 
+class VersionResource(BaseModel):
+    """The running build: the release version (0.0.0-dev unstamped) and its full commit."""
+
+    version: str
+    commit: str
+
+
 def event_from_row(row: RunEventRow) -> Event:
     return Event.model_validate(
         {
