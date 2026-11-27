@@ -96,6 +96,16 @@ def create_first_admin(client: httpx2.Client) -> None:
     )
 
 
+def check_version(client: httpx2.Client, version: str, commit: str) -> None:
+    """GET /version reports the build that is running: the version and commit it was built from."""
+    reported = client.get("/version")
+    check(
+        reported.status_code == 200 and reported.json() == {"version": version, "commit": commit},
+        f"GET /version reports {version} at {commit[:12]} "
+        f"({reported.status_code}: {reported.text})",
+    )
+
+
 def scratch_directory() -> tempfile.TemporaryDirectory[str]:
     return tempfile.TemporaryDirectory(prefix=SCRATCH_PREFIX)
 

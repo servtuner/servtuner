@@ -82,6 +82,7 @@ jobs:
       id-token: write # cosign keyless signing
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
+      COMMIT: ${{ github.sha }} # docker-bake.hcl stamps it into the api (GET /version)
       PUBLISH: ${{ needs.prepare.outputs.publish }}
     outputs:
       bench: ${{ steps.digests.outputs.bench }}

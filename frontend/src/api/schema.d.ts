@@ -1477,6 +1477,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Version
+         * @description The running build. Signed-in users only, so an unauthenticated scan learns nothing.
+         */
+        get: operations["version_version_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workload-presets": {
         parameters: {
             query?: never;
@@ -6982,6 +7002,16 @@ export interface components {
          * @enum {string}
          */
         Verdict: "pending" | "failed" | "unmeasured" | "baseline" | "no_baseline" | "steady" | "improved" | "regressed";
+        /**
+         * VersionResource
+         * @description The running build: the release version (0.0.0-dev unstamped) and its full commit.
+         */
+        VersionResource: {
+            /** Commit */
+            commit: string;
+            /** Version */
+            version: string;
+        };
         /** Warning */
         Warning: string;
         /** Workload */
@@ -10062,6 +10092,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    version_version_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionResource"];
                 };
             };
         };

@@ -12,7 +12,11 @@ variable "TAG" {
 }
 
 variable "VERSION" {
-  default = "0.0.0-dev" # the release version, stamped into the binary and the api (the tag without its v)
+  default = "0.0.0-dev" # the release version, stamped into the binary, the api and the UI (the tag without its v)
+}
+
+variable "COMMIT" {
+  default = "unknown" # the full commit, reported by the api's GET /version
 }
 
 group "default" {
@@ -37,7 +41,7 @@ target "meta-frontend" {
 }
 
 target "_version" {
-  args = { SERVTUNER_VERSION = VERSION }
+  args = { SERVTUNER_VERSION = VERSION, SERVTUNER_COMMIT = COMMIT }
 }
 
 target "bench" {
@@ -56,7 +60,7 @@ target "api" {
 }
 
 target "frontend" {
-  inherits = ["meta-frontend"]
+  inherits = ["_version", "meta-frontend"]
   context  = "frontend"
 }
 
