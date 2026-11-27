@@ -1,0 +1,22 @@
+{{- /* The data directory is ONE claim, in the release namespace (a PersistentVolume binds to a
+       single claim, and an RWO volume cannot be shared across namespaces). Validated in _validate.tpl. */ -}}
+{{- if and (eq .Values.storage.backend "file") .Values.storage.file.pvc.create }}
+{{- $pvc := .Values.storage.file.pvc }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "servtuner.dataClaimName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [{{ $pvc.accessMode }}]
+  {{- if $pvc.storageClass }}
+  storageClassName: {{ $pvc.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $pvc.size }}
+{{- end }}

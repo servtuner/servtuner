@@ -1,0 +1,62 @@
+{
+  "analyzer_version": "1.14.0",
+  "start": "2026-10-30T12:00:00Z",
+  "bucket_seconds": 5,
+  "panels": [
+    {
+      "id": "kv_cache_usage",
+      "group": "server",
+      "title": "KV cache usage",
+      "unit": "percent",
+      "definition": "vLLM kv_cache_usage_perc of the fullest replica, 0 to 1.",
+      "series": [
+        {
+          "name": "KV cache",
+          "points": [
+            {
+              "offset_seconds": 0,
+              "mean": 0.1,
+              "min": 0.08,
+              "max": 0.12
+            },
+            {
+              "offset_seconds": 5,
+              "mean": 0.3,
+              "min": 0.25,
+              "max": 0.35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cpu/llm/vllm",
+      "group": "resources",
+      "title": "CPU, llm/vllm",
+      "unit": "cores",
+      "series": [
+        {
+          "name": "busiest pod",
+          "points": [
+            {
+              "offset_seconds": 0,
+              "mean": 1.2,
+              "min": 1.1,
+              "max": 1.4
+            }
+          ]
+        }
+      ],
+      "reference_lines": [
+        {
+          "name": "request",
+          "value": 2
+        },
+        {
+          "name": "limit",
+          "value": 4
+        }
+      ]
+    }
+  ]
+}

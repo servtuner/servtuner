@@ -1,0 +1,52 @@
+{
+  "analyzer_version": "1.1.0",
+  "run_id": "01M66764GY448MGTBJGSJG7A1X",
+  "identity": {
+    "target_type": "bifrost",
+    "knobs": {
+      "bifrost.concurrency": 1000
+    },
+    "workload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "arrival_process": "poisson",
+    "quality_grade": "good"
+  },
+  "ready_replicas": 1,
+  "stages": [
+    {
+      "stage_index": 0,
+      "rps_per_replica": 49.1,
+      "is_usable": true,
+      "error_rate": 0,
+      "ttft_seconds": {
+        "p50": 0.21,
+        "p95": 0.24,
+        "p99": 0.25
+      },
+      "e2e_seconds": {
+        "p50": 0.85,
+        "p95": 0.9,
+        "p99": 0.95
+      }
+    },
+    {
+      "stage_index": 1,
+      "rps_per_replica": 151.2,
+      "is_usable": true,
+      "error_rate": 0,
+      "ttft_seconds": {
+        "p50": 0.3,
+        "p95": 0.35
+      }
+    }
+  ],
+  "per_replica": {
+    "cpu_request_cores": 1.05,
+    "memory_request_bytes": 384827392,
+    "hpa_cpu_utilization_percent": 65
+  },
+  "queueing": {
+    "w_mean_seconds": 0.887,
+    "w_p99_seconds": 1.099,
+    "cv": 0.12
+  }
+}

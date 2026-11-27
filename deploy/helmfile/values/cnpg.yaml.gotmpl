@@ -1,0 +1,11 @@
+# The CloudNativePG operator. servtuner's chart names the Postgres image itself (postgres.cnpg.imageName).
+{{- with .Values.registry }}
+image:
+  repository: {{ . }}/cloudnative-pg/cloudnative-pg
+{{- end }}
+{{- with .Values.imagePullSecrets }}
+imagePullSecrets:
+  {{- range . }}
+  - name: {{ . }}
+  {{- end }}
+{{- end }}

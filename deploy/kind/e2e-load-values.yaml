@@ -1,0 +1,16 @@
+# Layered over e2e-values.yaml by `e2e/cluster.py --load`: real load from the
+# RunSpec's engine against the mock and servtuner's Bifrost (deploy/mocks/README.md), which must already be
+# installed. Helm replaces lists, so this empties api.extraEnv and with it the null engine override.
+api:
+  extraEnv: []
+  # bench runs inside the api pod here, and a load client needs fixed CPU: requests equal to
+  # limits (guaranteed QoS), and a limit for client_bound to compare usage against.
+  resources:
+    requests: {cpu: "2", memory: 1Gi}
+    limits: {cpu: "2", memory: 1Gi}
+
+rbac:
+  bench:
+    # The snapshot reads the targets' workloads; with the subprocess runner bench is the api's
+    # ServiceAccount, which the chart then binds to these read-only Roles.
+    targetNamespaces: [servtuner-mock, servtuner-bifrost]

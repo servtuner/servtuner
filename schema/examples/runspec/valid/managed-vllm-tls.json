@@ -1,0 +1,67 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "managed-vllm-tls",
+  "knobs": {
+    "vllm.gpu_memory_utilization": 0.75
+  },
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.servtuner-tune-qwen.svc:8000/v1",
+    "model": "tiny",
+    "auth": {
+      "secretRef": {
+        "name": "vllm-key",
+        "key": "token"
+      }
+    },
+    "tls": {
+      "mode": "tls",
+      "caSecretRef": {
+        "name": "vllm-qwen-tls"
+      }
+    },
+    "workload": {
+      "namespace": "servtuner-tune-qwen",
+      "selector": {
+        "servtuner.dev/managed-target": "qwen"
+      }
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "api": "chat",
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 256,
+        "stddev": 32
+      },
+      "output_tokens": {
+        "mean": 128,
+        "stddev": 16
+      }
+    }
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 2,
+        "duration": "60s"
+      },
+      {
+        "rate": 8,
+        "duration": "60s"
+      }
+    ]
+  },
+  "prometheus": {
+    "url": "http://prometheus.monitoring.svc:9090",
+    "tls": {
+      "mode": "platform"
+    }
+  }
+}

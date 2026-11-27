@@ -1,0 +1,10 @@
+{
+  "scheduled_at": "2026-10-28T12:00:00Z",
+  "sent_at": "2026-10-28T12:00:00Z",
+  "send_lag_seconds": 0,
+  "e2e_seconds": 30.0,
+  "status": 0,
+  "error": "timeout",
+  "phase": "stage",
+  "stage_index": 1
+}

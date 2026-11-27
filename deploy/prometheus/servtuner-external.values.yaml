@@ -1,0 +1,45 @@
+# Scrape job for targets outside the cluster (a bare-process vLLM on the LAN).
+# Merge this job into the release's existing
+# extraScrapeConfigs string; applying this file alone replaces it and drops the
+# other jobs. Replace VLLM_HOST:PORT with the target's address
+# and GPU_HOST:9400 with its dcgm-exporter's (4.9 or later, a GPU host only);
+# the address is kept out of the repository until the pre-remote leak check.
+#
+# Each static target carries namespace and pod labels, so bench selects its
+# series as it selects a pod's: a stable identity, not an address. Its list
+# items sit at the same indentation as the other jobs in the string; check the
+# rendered config with `promtool check config` before upgrading.
+extraScrapeConfigs: |
+  - job_name: servtuner-external
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["VLLM_HOST:PORT"]
+        labels:
+          namespace: servtuner-external
+          pod: vllm-lan
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "vllm:.*"
+        action: keep
+  # The off-cluster host's GPU (dcgm-exporter 4.9+; the dcgm catalog). The
+  # job name contains "dcgm", so bench reads it as the dcgm role. hostname is
+  # set to a stable name, which the RunSpec gives as target.metrics.node.
+  - job_name: servtuner-external-dcgm
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["GPU_HOST:9400"]
+        labels:
+          namespace: servtuner-external
+          pod: vllm-lan
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "DCGM_.*"
+        action: keep
+      - target_label: hostname
+        replacement: vllm-lan-gpu

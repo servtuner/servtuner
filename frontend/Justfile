@@ -1,0 +1,29 @@
+# frontend recipes. Run through the root Justfile, or directly with
+# `just --justfile frontend/Justfile --working-directory frontend <recipe>`.
+
+# Install the locked dependencies.
+setup:
+    npm ci
+
+# Regenerate the API types from the API's OpenAPI document.
+gen:
+    npm run gen
+
+# ESLint, tsc and Prettier's check.
+lint:
+    npm run lint
+
+# Rewrite every file in Prettier's style (.prettierrc.json).
+format:
+    npm run format
+
+test:
+    npm run test
+
+# Production build into dist/.
+build:
+    npm run build
+
+# Build the image and check context-path hosting. Needs docker, so it is not part of `test`.
+test-container:
+    ./test-container.sh

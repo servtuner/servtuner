@@ -1,0 +1,358 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/proposal.schema.json",
+  "title": "Proposal",
+  "description": "proposal.json, written by servtuner propose: the next configurations of a tuning session to boot or run, each with its ladder and a rationale, or a done verdict. A pure function of the search space, the boot results and the analysed bundles: the same inputs give the same bytes. The caller sets the labels of each proposal on the RunSpec it makes (servtuner.dev/tuning-ladder and servtuner.dev/tuning-config); servtuner propose classifies bundles by the ladder label.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "phase",
+    "objective",
+    "noise_floor",
+    "tiers",
+    "proposals",
+    "notes"
+  ],
+  "properties": {
+    "status": {
+      "description": "propose: there is more to run. done: the search ended; see done.",
+      "type": "string",
+      "enum": [
+        "propose",
+        "done"
+      ]
+    },
+    "phase": {
+      "$ref": "#/definitions/proposalPhase"
+    },
+    "objective": {
+      "$ref": "comparison.schema.json#/definitions/objectiveName"
+    },
+    "noise_floor": {
+      "type": "number"
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/proposalTierStatus"
+      }
+    },
+    "leader": {
+      "$ref": "#/definitions/proposalLeader"
+    },
+    "proposals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/proposalProposed"
+      }
+    },
+    "done": {
+      "$ref": "#/definitions/proposalDone"
+    },
+    "notes": {
+      "description": "Things the caller should know: an advisor that fired but could not act, a knob left out, a run excluded from ranking.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "proposalPhase": {
+      "type": "string",
+      "enum": [
+        "feasibility",
+        "baseline",
+        "screen",
+        "confirm",
+        "done"
+      ]
+    },
+    "proposalTierStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "state"
+      ],
+      "properties": {
+        "tier": {
+          "$ref": "search-space.schema.json#/definitions/tuningTier"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "active",
+            "converged"
+          ]
+        },
+        "reason": {
+          "description": "Why the tier converged.",
+          "type": "string"
+        }
+      }
+    },
+    "proposalLeader": {
+      "description": "The configuration to beat; absent before any run.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_id",
+        "knobs",
+        "slo_max_rps",
+        "objective_value",
+        "run_ids"
+      ],
+      "properties": {
+        "config_id": {
+          "description": "A short stable name of a knob set: \"c-\" and the first 8 hex digits of the sha256 of the knobs as JSON with sorted keys and no spaces (json.Marshal of the map). The tuning session stores it.",
+          "type": "string",
+          "pattern": "^c-[0-9a-f]{8}$"
+        },
+        "knobs": {
+          "$ref": "search-space.schema.json#/definitions/tuningKnobSet"
+        },
+        "slo_max_rps": {
+          "type": "number"
+        },
+        "objective_value": {
+          "type": "number"
+        },
+        "run_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "proposalProposed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_id",
+        "action",
+        "knobs",
+        "labels",
+        "rationale"
+      ],
+      "properties": {
+        "config_id": {
+          "description": "A short stable name of a knob set: \"c-\" and the first 8 hex digits of the sha256 of the knobs as JSON with sorted keys and no spaces (json.Marshal of the map). The tuning session stores it.",
+          "type": "string",
+          "pattern": "^c-[0-9a-f]{8}$"
+        },
+        "action": {
+          "description": "boot_probe: deploy with no load and report a boot result. run: benchmark with the ladder.",
+          "type": "string",
+          "enum": [
+            "boot_probe",
+            "run"
+          ]
+        },
+        "knobs": {
+          "$ref": "search-space.schema.json#/definitions/tuningKnobSet"
+        },
+        "ladder": {
+          "$ref": "#/definitions/proposalLadder"
+        },
+        "repeats": {
+          "description": "How many runs of the configuration to make; absent for a boot probe.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "labels": {
+          "description": "The RunSpec labels the caller must set: servtuner.dev/tuning-config is the config_id and servtuner.dev/tuning-ladder the ladder kind (absent for a boot probe).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "rationale": {
+          "$ref": "#/definitions/proposalRationale"
+        }
+      }
+    },
+    "proposalLadder": {
+      "description": "The offered load of the run: requests per second of each stage, ascending.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "rps"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/proposalLadderKind"
+        },
+        "rps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "centre_rps": {
+          "description": "The SLO-max the ladder is centred on; absent for the probe ladder.",
+          "type": "number"
+        }
+      }
+    },
+    "proposalLadderKind": {
+      "type": "string",
+      "enum": [
+        "probe",
+        "screen",
+        "full"
+      ]
+    },
+    "proposalRationale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "based_on_runs",
+        "text"
+      ],
+      "properties": {
+        "kind": {
+          "description": "Why it was proposed.",
+          "type": "string",
+          "enum": [
+            "boot_probe",
+            "baseline",
+            "structural_ab",
+            "advisor",
+            "grid",
+            "scheduler_ab",
+            "fine_tuning_ab",
+            "confirm"
+          ]
+        },
+        "tier": {
+          "description": "Absent for the baseline and the confirmation.",
+          "$ref": "search-space.schema.json#/definitions/tuningTier"
+        },
+        "advisor": {
+          "description": "The vLLM advisor rule that fired (V1 to V7).",
+          "type": "string"
+        },
+        "grid_cell": {
+          "$ref": "#/definitions/proposalGridCell"
+        },
+        "against": {
+          "description": "The leader's config_id, for a step that is an A/B against it.",
+          "type": "string"
+        },
+        "based_on_runs": {
+          "description": "Run ids the proposal reads: the leader's, or the confirmed configuration's.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "proposalGridCell": {
+      "description": "Where a coordinate step moved from the leader (rationale kind grid): one of max_num_seqs and max_num_batched_tokens up or down, the other at the centre. Before 2026-11-24 a cell of a 3x3 grid around the leader.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_num_seqs",
+        "max_num_batched_tokens"
+      ],
+      "properties": {
+        "max_num_seqs": {
+          "$ref": "#/definitions/proposalPosition"
+        },
+        "max_num_batched_tokens": {
+          "$ref": "#/definitions/proposalPosition"
+        }
+      }
+    },
+    "proposalPosition": {
+      "type": "string",
+      "enum": [
+        "down",
+        "centre",
+        "up"
+      ]
+    },
+    "proposalDone": {
+      "description": "Set when status is done: how the search ended and the best configuration known.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "reason"
+      ],
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "winner",
+            "no_significant_winner",
+            "no_feasible_configuration",
+            "no_slo_met",
+            "no_usable_run"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "winner": {
+          "$ref": "#/definitions/proposalWinner"
+        }
+      }
+    },
+    "proposalWinner": {
+      "description": "The best confirmed configuration. is_significant is false when the confirmation could not separate it from the runner-up.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_id",
+        "knobs",
+        "objective_value",
+        "is_significant",
+        "confidence",
+        "run_ids"
+      ],
+      "properties": {
+        "config_id": {
+          "description": "A short stable name of a knob set: \"c-\" and the first 8 hex digits of the sha256 of the knobs as JSON with sorted keys and no spaces (json.Marshal of the map). The tuning session stores it.",
+          "type": "string",
+          "pattern": "^c-[0-9a-f]{8}$"
+        },
+        "knobs": {
+          "$ref": "search-space.schema.json#/definitions/tuningKnobSet"
+        },
+        "objective_value": {
+          "type": "number"
+        },
+        "is_significant": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "run_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

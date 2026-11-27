@@ -1,0 +1,8 @@
+# Optional overlay for the openai-mock release: the mock gets 1ms slower per request already in flight, so
+# the upstream slows down with load (rule B3). Needs a mock image with the fault knobs; see README.md.
+mock:
+  faults:
+    latencyPerInFlight: 1ms
+resources:
+  requests: {cpu: "1", memory: 128Mi}
+  limits: {cpu: "2", memory: 512Mi}

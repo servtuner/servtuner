@@ -1,0 +1,26 @@
+{
+  "workload": {
+    "api": "chat",
+    "dataset": {
+      "input_tokens": {
+        "mean": 4096,
+        "stddev": 1024
+      },
+      "output_tokens": {
+        "mean": 256,
+        "stddev": 64
+      },
+      "shared_prefix": {
+        "groups": 4,
+        "tokens": 512
+      },
+      "type": "synthetic"
+    },
+    "seed": 3,
+    "streaming": true
+  },
+  "workload_preset": {
+    "name": "rag-prefill",
+    "version": 1
+  }
+}

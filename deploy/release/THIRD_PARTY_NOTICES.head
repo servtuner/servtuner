@@ -1,0 +1,32 @@
+THIRD-PARTY NOTICES for the servtuner release archive
+
+The archive carries these third-party works, unmodified, each under its own licence. Licences
+were read from each project's repository on 2026-11-26.
+Container images also hold operating-system packages under their own licences; each image's
+/usr/share/doc (or the project's image build) lists them.
+
+The archive carries no price data: operators supply the token-price datasheet themselves.
+
+servtuner's own images are licensed under the Apache License, Version 2.0.
+
+Helm charts
+  cert-manager (jetstack/cert-manager)                 Apache-2.0   https://github.com/cert-manager/cert-manager
+  cloudnative-pg (cnpg/cloudnative-pg)                 Apache-2.0   https://github.com/cloudnative-pg/charts
+  gateway-helm (Envoy Gateway)                         Apache-2.0   https://github.com/envoyproxy/gateway
+  kube-prometheus-stack (prometheus-community)         Apache-2.0   https://github.com/prometheus-community/helm-charts
+
+Container images (the exact references and digests follow)
+  cert-manager controller, webhook, cainjector,
+    acmesolver, startupapicheck                        Apache-2.0   https://github.com/cert-manager/cert-manager
+  CloudNativePG operator                               Apache-2.0   https://github.com/cloudnative-pg/cloudnative-pg
+  CloudNativePG PostgreSQL image                       Apache-2.0 (image build), PostgreSQL Licence (PostgreSQL)
+                                                                    https://github.com/cloudnative-pg/postgres-containers
+  Envoy proxy                                          Apache-2.0   https://github.com/envoyproxy/envoy
+  Envoy Gateway                                        Apache-2.0   https://github.com/envoyproxy/gateway
+  Envoy ratelimit                                      Apache-2.0   https://github.com/envoyproxy/ratelimit
+  kube-webhook-certgen                                 Apache-2.0   https://github.com/jkroepke/kube-webhook-certgen
+  Prometheus, Alertmanager, node_exporter              Apache-2.0   https://github.com/prometheus
+  Prometheus Operator, config reloader                 Apache-2.0   https://github.com/prometheus-operator/prometheus-operator
+  kube-state-metrics                                   Apache-2.0   https://github.com/kubernetes/kube-state-metrics
+  vLLM (the optional vLLM archive only)                Apache-2.0   https://github.com/vllm-project/vllm
+

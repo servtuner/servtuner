@@ -1,0 +1,40 @@
+# Values snippet for the community `prometheus` chart.
+# Merge into your values: helm upgrade <release> prometheus-community/prometheus -f servtuner-targets.values.yaml
+# The global scrape_interval is deliberately left alone.
+extraScrapeConfigs: |
+  - job_name: servtuner-targets
+    scrape_interval: 5s
+    scrape_timeout: 4s
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      # Only pods labelled servtuner.dev/scrape=true are scraped this fast.
+      - source_labels: [__meta_kubernetes_pod_label_servtuner_io_scrape]
+        regex: "true"
+        action: keep
+      # Optional per-pod overrides via annotations; defaults are /metrics over http.
+      - source_labels: [__meta_kubernetes_pod_annotation_servtuner_io_metrics_scheme]
+        regex: (https?)
+        target_label: __scheme__
+      - source_labels: [__meta_kubernetes_pod_annotation_servtuner_io_metrics_path]
+        regex: (.+)
+        target_label: __metrics_path__
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_servtuner_io_metrics_port]
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+    # Keep only the metrics servtuner's catalogs use (cardinality).
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "vllm:.*|bifrost_.*|http_request.*|http_response.*|litellm_.*|openai_mock_.*"
+        action: keep
+  # Authenticated targets need one job each, with credentials mounted into Prometheus
+  # from a Secret (add the mount via the chart's server.extraSecretMounts):
+  #  - LiteLLM /metrics requires a key:  authorization: {credentials_file: /etc/servtuner/litellm/key}
+  #  - Bifrost with auth_config:         basic_auth: {username_file: ..., password_file: ...}
+  # Copy the job above as `servtuner-targets-litellm` / `servtuner-targets-bifrost`, narrow the
+  # `keep` rule to that target type's pods, and add the credentials block.

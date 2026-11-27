@@ -1,0 +1,16 @@
+{
+  "fetched_at": "2026-10-28T12:00:00Z",
+  "targets": [
+    {
+      "job": "servtuner-targets",
+      "role": "target",
+      "scrape_interval_seconds": 5
+    },
+    {
+      "job": "cadvisor",
+      "role": "cadvisor",
+      "scrape_interval_seconds": 10,
+      "scrape_timeout_seconds": 10
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# expect: ingress.apiPath "/" must be a path such as /api (never /)
+tls: {mode: platform}
+storage: {file: {pvc: {create: true}}}
+ingress: {enabled: true, host: servtuner.example.test, apiPath: /}

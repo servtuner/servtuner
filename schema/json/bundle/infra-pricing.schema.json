@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/infra-pricing.schema.json",
+  "title": "InfraPricing",
+  "description": "pricing/infra.json: the infrastructure prices a run resolved, so servtuner analyze prices from this copy and never from a live source. The manifest's checksum covers it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "resolved_at", "discount", "nodes", "gpus"],
+  "properties": {
+    "source": { "type": "string", "enum": ["static", "aws"] },
+    "resolved_at": { "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+    "discount": { "description": "Applied by the analysis, not folded into the prices below.", "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+    "query": { "description": "For aws: the Price List filters used, one per instance type.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "nodes": { "description": "Keyed by instance type.", "type": "object", "additionalProperties": { "$ref": "#/definitions/nodePrice" } },
+    "gpus": { "description": "Keyed by GPU model: per-GPU prices from the static table.", "type": "object", "additionalProperties": { "$ref": "#/definitions/gpuPrice" } },
+    "problems": { "description": "Instance types or models the source could not price, and why.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
+  "definitions": {
+    "nodePrice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usd_per_hour", "cores", "memory_gib", "gpus"],
+      "properties": {
+        "usd_per_hour": { "type": "number", "minimum": 0 },
+        "cores": { "type": "number", "exclusiveMinimum": 0 },
+        "memory_gib": { "type": "number", "exclusiveMinimum": 0 },
+        "gpus": { "type": "integer", "minimum": 0 },
+        "gpu_model": { "description": "From the source when it names one (aws: the gpu attribute's family).", "type": "string", "minLength": 1 }
+      }
+    },
+    "gpuPrice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usd_per_hour", "basis"],
+      "properties": {
+        "usd_per_hour": { "type": "number", "minimum": 0 },
+        "basis": { "description": "How the price was set: given, or the owned-hardware helper with its values.", "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

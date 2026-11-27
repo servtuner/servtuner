@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/request-record.schema.json",
+  "title": "RequestRecord",
+  "description": "One row of requests.parquet. Optional fields are absent (null in Parquet) when not measured.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sent_at", "e2e_seconds", "status", "phase"],
+  "properties": {
+    "scheduled_at": { "description": "When the pacer scheduled the send. Absent (null in Parquet) when the engine records no schedule, as inference-perf 0.7.0 does.", "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+    "sent_at": { "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+    "send_lag_seconds": { "description": "sent_at minus scheduled_at. Absent (null in Parquet) together with scheduled_at.", "type": "number", "minimum": 0 },
+    "ttfb_seconds": { "description": "Time to first response byte.", "type": "number", "minimum": 0 },
+    "ttft_seconds": { "description": "Time to first generated token of any kind (content, reasoning, tool calls, text).", "type": "number", "minimum": 0 },
+    "first_content_seconds": { "description": "Time to the first visible content token. Later than ttft_seconds when the model emits reasoning or tool-call tokens first. Absent when no content token arrived.", "type": "number", "minimum": 0 },
+    "itl_seconds": { "description": "Inter-token latencies; definitions are fixed in the normalize step.", "type": "array", "items": { "type": "number", "minimum": 0 } },
+    "e2e_seconds": { "type": "number", "minimum": 0 },
+    "input_tokens": { "type": "integer", "minimum": 0 },
+    "output_tokens": { "type": "integer", "minimum": 0 },
+    "request_bytes": { "description": "Size of the request body sent, in bytes. Absent when the engine does not report it.", "type": "integer", "minimum": 0 },
+    "status": { "description": "HTTP status, or 0 when no response arrived.", "type": "integer", "minimum": 0 },
+    "error": { "description": "Error class, absent on success.", "type": "string", "minLength": 1 },
+    "phase": { "description": "warmup rows are kept in the raw data but excluded from stage statistics.", "type": "string", "enum": ["warmup", "stage"] },
+    "stage_index": { "description": "Zero-based stage. Required when phase is stage; a warmup row may omit it.", "type": "integer", "minimum": 0 },
+    "worker": { "description": "Worker or shard that sent the request.", "type": "integer", "minimum": 0 }
+  },
+  "allOf": [
+    { "if": { "properties": { "phase": { "const": "stage" } }, "required": ["phase"] }, "then": { "required": ["stage_index"] } }
+  ]
+}

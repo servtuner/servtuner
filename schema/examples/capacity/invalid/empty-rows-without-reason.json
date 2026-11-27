@@ -1,0 +1,14 @@
+{
+  "analyzer_version": "1.1.0",
+  "rps_per_replica": 50,
+  "replica_headroom": 0.2,
+  "per_replica": {
+    "cpu_request_cores": 0.3,
+    "memory_request_bytes": 178257920
+  },
+  "is_scale_out_verified": false,
+  "rows": [],
+  "caveats": [
+    "Linear scale-out is assumed: run at two replica counts to verify it."
+  ]
+}

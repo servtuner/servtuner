@@ -1,0 +1,61 @@
+# Rendered by the image's envsubst entrypoint into /etc/nginx/conf.d/default.conf.
+# Variables set by docker-entrypoint.d/12-servtuner-base-path.envsh:
+#   SERVTUNER_BASE_PATH         validated context path, "/" or "/a/b/"
+#   SERVTUNER_BASE_PATH_PREFIX  the same without the trailing slash ("" at the root)
+
+# The context path from a proxy that strips its prefix. Only a strictly valid
+# value is used, so a hostile header is never reflected into the HTML. Dot-only
+# segments are refused, each segment is at most 64 characters, and duplicated
+# headers do not match (nginx joins them with a comma). An absent or invalid
+# header gives "", which falls back to SERVTUNER_BASE_PATH below.
+map $http_x_forwarded_prefix $servtuner_forwarded_base {
+    default "";
+    "/" "/";
+    "~^((?:/(?!\.{1,2}(?:/|$))[A-Za-z0-9._~-]{1,64})+)/?$" "$1/";
+}
+
+map $servtuner_forwarded_base $servtuner_base {
+    ""      "${SERVTUNER_BASE_PATH}";
+    default $servtuner_forwarded_base;
+}
+
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+    gzip on;
+    gzip_types text/css application/javascript application/json;
+
+    # A proxy that passes the prefix through: serve the app as if mounted at "/".
+    # "break" stops the rewrites and searches locations once, so there is no loop.
+    rewrite ^${SERVTUNER_BASE_PATH_PREFIX}$ / break;
+    rewrite ^${SERVTUNER_BASE_PATH_PREFIX}/(.*)$ /$1 break;
+
+    # Runtime config: never cached, so a changed config.json takes effect at once.
+    # Any depth, so a missing config is a 404 and never index.html.
+    location ~ /config\.json$ {
+        add_header Cache-Control "no-store";
+        try_files $uri =404;
+    }
+
+    # Vite output is content-hashed.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # index.html is the SPA fallback and carries the per-request <base href>.
+    # Its content depends on X-Forwarded-Prefix, so it is never cached, has no
+    # ETag and ignores If-Modified-Since (a 304 would skip the substitution), and says so in Vary.
+    location = /index.html {
+        sub_filter '<base href="/" />' '<base href="$servtuner_base" />';
+        sub_filter_once on;
+        etag off;
+        if_modified_since off;
+        add_header Cache-Control "no-cache";
+        add_header Vary "X-Forwarded-Prefix, Accept-Encoding";
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}

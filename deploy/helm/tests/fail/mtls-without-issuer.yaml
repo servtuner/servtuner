@@ -1,0 +1,3 @@
+# expect: tls.certManager.issuerRef.name is required
+tls: {mode: mtls, source: cert-manager}
+storage: {file: {pvc: {create: true}}}

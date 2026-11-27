@@ -1,0 +1,83 @@
+{{- $fullname := include "servtuner.fullname" . }}
+{{- $apiBaseUrl := include "servtuner.frontendApiBaseUrl" . }}
+{{- if $apiBaseUrl }}
+{{- /* Runtime config (frontend/CLAUDE.md): the image's config.json is replaced, so one image fits every environment. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-frontend-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+data:
+  config.json: {{ dict "apiBaseUrl" $apiBaseUrl | toJson | quote }}
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "servtuner.selectorLabels" (dict "root" . "component" "frontend") | nindent 4 }}
+  ports:
+    - {name: http, port: {{ .Values.frontend.port }}, targetPort: http}
+---
+{{- /* Static SPA served by nginx. Browser traffic is TLS-terminated at the ingress, outside servtuner. */}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "servtuner.selectorLabels" (dict "root" . "component" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "servtuner.selectorLabels" (dict "root" . "component" "frontend") | nindent 8 }}
+      {{- if $apiBaseUrl }}
+      annotations:
+        checksum/config: {{ $apiBaseUrl | sha256sum }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- include "servtuner.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: frontend
+          image: {{ include "servtuner.image" (dict "root" . "image" .Values.frontend.image) | quote }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: {{ .Values.frontend.port }}}
+          env:
+            - {name: SERVTUNER_BASE_PATH, value: {{ .Values.frontend.basePath | quote }}}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          {{- /* As the api: keep serving while the ingress drops this pod during a rolling update. */}}
+          lifecycle:
+            preStop:
+              sleep: {seconds: 5}
+          {{- with .Values.frontend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          {{- if $apiBaseUrl }}
+          volumeMounts:
+            - {name: config, mountPath: /usr/share/nginx/html/config.json, subPath: config.json, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: {{ $fullname }}-frontend-config}
+          {{- end }}

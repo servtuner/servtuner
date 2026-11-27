@@ -1,0 +1,17 @@
+{
+  "status": "ok",
+  "checked_at": "2026-11-22T21:00:00Z",
+  "target_type": "vllm",
+  "endpoint": "http://vllm-host.example:8080/v1",
+  "checks": [
+    {"name": "resolve", "status": "ok", "message": "vllm-host.example resolves to 192.0.2.10.", "duration_seconds": 0.002},
+    {"name": "connect", "status": "ok", "message": "Connected in 3 ms.", "duration_seconds": 0.003},
+    {"name": "tls", "status": "ok", "message": "Plain HTTP, as tls.mode platform declares.", "duration_seconds": 0},
+    {"name": "auth", "status": "ok", "message": "GET /v1/models with the API key returned 200.", "duration_seconds": 0.011},
+    {"name": "model", "status": "ok", "message": "Model tiny is served.", "duration_seconds": 0},
+    {"name": "generate", "status": "skipped", "message": "Not asked for.", "duration_seconds": 0},
+    {"name": "metrics", "status": "ok", "message": "Prometheus scrapes it: up is 1, and the vllm catalog's marker series is present.", "duration_seconds": 0.02},
+    {"name": "gpu_metrics", "status": "ok", "message": "DCGM series are present for node vllm-lan-gpu.", "duration_seconds": 0.015},
+    {"name": "workload", "status": "skipped", "message": "Not a Kubernetes workload (target.metrics names an off-cluster process).", "duration_seconds": 0}
+  ]
+}

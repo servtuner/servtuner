@@ -1,0 +1,41 @@
+# Run data and local state
+/data/
+bundles/
+*.parquet
+
+# Local config and credentials
+.env
+*.local.yaml
+*.pem
+*.key
+*.crt
+
+# Build output and toolchains
+/bench/bin/
+# `go build` in the mock directory writes its binary there.
+/deploy/mocks/openai-mock/openai-mock
+dist/
+.venv/
+__pycache__/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+node_modules/
+coverage/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Claude Code agent worktrees
+.claude/worktrees/
+
+# Toolchain output
+*.test
+*.out
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
+deploy/site-values.yaml

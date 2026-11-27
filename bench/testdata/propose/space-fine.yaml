@@ -1,0 +1,6 @@
+# Only the fine-tuning tier: api_server_count is screened only when V7 fires
+# on the leader.
+base: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75}
+knobs:
+  - {name: vllm.async_scheduling, tier: fine_tuning, values: [false, true], default: false}
+  - {name: vllm.api_server_count, tier: fine_tuning, values: [1, 2], default: 1}

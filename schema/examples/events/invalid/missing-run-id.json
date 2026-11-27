@@ -1,0 +1,8 @@
+{
+  "sequence": 3,
+  "time": "2026-10-28T12:05:00Z",
+  "step": "load",
+  "state": "running",
+  "phase": "stage-0",
+  "message": "stage 0 started"
+}

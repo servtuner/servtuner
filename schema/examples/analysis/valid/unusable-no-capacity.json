@@ -1,0 +1,31 @@
+{
+  "analyzer_version": "0.0.0",
+  "quality": {
+    "grade": "unusable",
+    "is_excluded_from_comparison": true,
+    "stages": [
+      {
+        "stage_index": 0,
+        "is_valid": false,
+        "is_client_bound": true,
+        "is_excluded": true,
+        "issues": [
+          {
+            "code": "client_bound",
+            "message": "bench CPU at its limit"
+          }
+        ]
+      }
+    ]
+  },
+  "stages": [
+    {
+      "stage_index": 0,
+      "offered_rps": 50,
+      "achieved_rps": 30,
+      "requests": 900,
+      "errors": 0
+    }
+  ],
+  "capacity": {}
+}

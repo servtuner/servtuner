@@ -1,0 +1,338 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/plan.schema.json",
+  "title": "Plan",
+  "description": "plan.json: what to deploy for the requested traffic, one tier per capacity model, each value a node of the derivation graph, with the checks the overrides caused.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analyzer_version",
+    "tiers",
+    "derivation",
+    "checks"
+  ],
+  "properties": {
+    "analyzer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/planTier"
+      }
+    },
+    "derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "bundle/recommendations.schema.json#/definitions/derivationNode"
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/planCheck"
+      }
+    }
+  },
+  "definitions": {
+    "planCheck": {
+      "description": "A consequence check of the plan: ok, a warning, a value that contradicts the measurements, or a guard rail that blocks the plan.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "text"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "warning",
+            "violates_measured",
+            "blocked"
+          ]
+        },
+        "tier": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "planTier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "run_id",
+        "target_type",
+        "is_blocked",
+        "scope",
+        "confidence"
+      ],
+      "properties": {
+        "key": {
+          "description": "The tier's prefix in the derivation node ids.",
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_type": {
+          "$ref": "runspec.schema.json#/definitions/targetType"
+        },
+        "is_blocked": {
+          "description": "A guard rail stops this tier; blocked_reason says which and what run would unblock it.",
+          "type": "boolean"
+        },
+        "blocked_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rps_per_replica": {
+          "description": "The SLO-max per replica at the requested SLO.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "is_interpolated": {
+          "type": "boolean"
+        },
+        "limiting_slo": {
+          "type": "string",
+          "minLength": 1
+        },
+        "replicas_peak": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "replicas_baseline": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "hpa": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "min_replicas",
+            "max_replicas"
+          ],
+          "properties": {
+            "min_replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "cpu_utilization_percent": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "per_replica": {
+          "$ref": "bundle/capacity-model.schema.json#/definitions/modelPerReplica"
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cpu_request_cores",
+            "memory_request_bytes"
+          ],
+          "properties": {
+            "cpu_request_cores": {
+              "type": "number",
+              "minimum": 0
+            },
+            "memory_request_bytes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "gpus": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "utilization_at_peak": {
+          "description": "Planned per-replica load over the per-replica SLO-max: the real headroom.",
+          "type": "number",
+          "minimum": 0
+        },
+        "sensitivity": {
+          "description": "Replicas at +25%, +50% and +100% traffic.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "traffic_factor",
+              "rps",
+              "replicas"
+            ],
+            "properties": {
+              "traffic_factor": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "rps": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "replicas": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "queue": {
+          "description": "Concurrency per replica at the planned load, from the model's W (Poisson-based: there is no measured L(t) at this load).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "concurrency"
+          ],
+          "properties": {
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "buffer_size": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "memory": {
+          "$ref": "#/definitions/planTierMemory"
+        },
+        "scope": {
+          "description": "Labels every number of the tier carries: hardware, workload, arrival process, scale-out.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "is_blocked": {
+                "const": true
+              }
+            },
+            "required": [
+              "is_blocked"
+            ]
+          },
+          "then": {
+            "required": [
+              "blocked_reason"
+            ]
+          },
+          "else": {
+            "required": [
+              "rps_per_replica",
+              "is_interpolated",
+              "replicas_peak",
+              "hpa",
+              "utilization_at_peak",
+              "sensitivity"
+            ]
+          }
+        }
+      ]
+    },
+    "planTierMemory": {
+      "description": "Bytes per in-flight request at the planned request size, m(s) = m_0 + k × s, and the working set it implies at the planned C plus the run's B.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "bytes_per_in_flight",
+        "working_set_bytes"
+      ],
+      "properties": {
+        "payload_bytes": {
+          "description": "The request size planned for; absent when the run reported no request sizes.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "basis": {
+          "description": "measured: the size the run used. fitted: within the sizes of a payload series. extrapolated: outside them. assumed: one measured size, so k is the 1× to 3× assumption and the values are a range.",
+          "type": "string",
+          "enum": [
+            "measured",
+            "fitted",
+            "extrapolated",
+            "assumed"
+          ]
+        },
+        "bytes_per_in_flight": {
+          "description": "m at the planned size; the upper end (k = 3×) when assumed.",
+          "type": "number",
+          "minimum": 0
+        },
+        "bytes_per_in_flight_low": {
+          "description": "The lower end (k = 1×), only when assumed.",
+          "type": "number",
+          "minimum": 0
+        },
+        "working_set_bytes": {
+          "description": "WS_0 + m × (C + B) with the limit headroom; the upper end when assumed.",
+          "type": "number",
+          "minimum": 0
+        },
+        "working_set_bytes_low": {
+          "type": "number",
+          "minimum": 0
+        },
+        "runs": {
+          "description": "Runs the line m(s) came from.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+# A dedicated Bifrost for servtuner runs, separate from any other Bifrost in the cluster.
+# Release `servtuner-bifrost`, namespace `servtuner-bifrost`. The chart is the nuclio checkout of
+# helm-charts/bifrost (chart 2.1.44, appVersion 1.5.12); this repo does not vendor it.
+#
+#   helm install servtuner-bifrost <path to bifrost chart> -n servtuner-bifrost --create-namespace \
+#     -f deploy/kind/servtuner-bifrost.values.yaml
+#
+# Offline render check: deploy/kind/test-servtuner-bifrost.sh
+# Needs the platform-mode mock (deploy/mocks/README.md, step 1) in namespace servtuner-mock.
+
+# Docker Hub image, pinned to the chart's appVersion (images are tagged with a `v` prefix).
+# The chart requires a tag; it has no default.
+image:
+  repository: docker.io/maximhq/bifrost
+  tag: "v1.5.12"
+
+replicaCount: 1
+
+# Opt the pod in to the 5s servtuner-targets Prometheus job.
+# Bifrost serves /metrics on its main HTTP port (8080) over plain HTTP. The telemetry plugin
+# is on by default, so nothing is enabled here. With auth enabled /metrics would need
+# credentials; auth is off below, so the shared job can scrape it.
+podLabels:
+  servtuner.dev/scrape: "true"
+podAnnotations:
+  servtuner.dev/metrics-port: "8080"
+  servtuner.dev/metrics-path: /metrics
+  servtuner.dev/metrics-scheme: http
+
+# SQLite for both the config store and the logs store: no Postgres to run for a dev target.
+# Persistence is off, so the data dir is an emptyDir. Providers come from this file on every
+# start, so nothing needs to survive a restart.
+storage:
+  mode: sqlite
+  persistence:
+    enabled: false
+  configStore:
+    enabled: true
+  logsStore:
+    enabled: true
+postgresql:
+  enabled: false
+vectorStore:
+  enabled: false
+  type: none
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+bifrost:
+  client:
+    # servtuner sends inference requests without a virtual key. The chart default is true.
+    enforceAuthOnInference: false
+
+  # DEV ONLY: admin auth is off so the target snapshot can read /api/config and
+  # /api/providers without credentials, and so /metrics is scrapable. The RunSpec has no
+  # admin credential reference yet. Once it does, switch to
+  #   authConfig: {isEnabled: true, existingSecret: <name>, usernameKey: username, passwordKey: password}
+  # Never expose this release outside the cluster.
+  authConfig:
+    isEnabled: false
+
+  # The servtuner mock as a custom OpenAI-compatible provider, declared here, not through the API.
+  # Requests are addressed as `servtuner-mock/mock-model`.
+  providers:
+    servtuner-mock:
+      keys:
+        - name: mock-key
+          # Placeholder: the mock ignores keys. Not a secret.
+          value: unused-placeholder
+          weight: 1
+          models: ["mock-model"]
+      network_config:
+        # No /v1: the OpenAI provider appends /v1/chat/completions and /v1/completions itself.
+        # Plain HTTP, so the mock must be installed with tls.mode=platform.
+        base_url: http://openai-mock.servtuner-mock.svc:8000
+        # Required: the mock's Service IP is a private address, which Bifrost refuses to dial otherwise.
+        allow_private_network: true
+      custom_provider_config:
+        base_provider_type: openai
+        allowed_requests:
+          chat_completion: true
+          chat_completion_stream: true
+          text_completion: true
+          text_completion_stream: true

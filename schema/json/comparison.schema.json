@@ -1,0 +1,424 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/comparison.schema.json",
+  "title": "Comparison",
+  "description": "comparison.json, written by servtuner compare: the experiment comparison. Runs with the same knobs are repeats of one configuration; each configuration's objectives carry a confidence interval across repeats (throughput objectives) or a bootstrap interval over the pooled per-request records (latency objectives). A configuration wins only when its interval does not overlap the runner-up's, or, with single samples, when it leads by more than twice the noise floor. Recomputable from the bundles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analyzer_version",
+    "objective",
+    "varied_knobs",
+    "is_factorial",
+    "comparability",
+    "excluded_runs",
+    "configurations",
+    "rankings"
+  ],
+  "properties": {
+    "analyzer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "experiment": {
+      "description": "The runs' experiment name, when they all share one.",
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "description": "The primary objective: the one the recommendation and the Pareto set use.",
+      "$ref": "#/definitions/objectiveName"
+    },
+    "varied_knobs": {
+      "description": "Knobs whose values differ between configurations, sorted.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "is_factorial": {
+      "description": "True when every combination of the varied knobs' values was run. With two or more varied knobs and no factorial design, effects are not claimed to be independent.",
+      "type": "boolean"
+    },
+    "reference_stage_index": {
+      "description": "The highest stage valid in every compared run; the latency side of the Pareto set is read there. Absent when no stage is valid in all of them.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "comparability": {
+      "$ref": "#/definitions/comparability"
+    },
+    "excluded_runs": {
+      "description": "Runs left out of the comparison, and why.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/excludedRun"
+      }
+    },
+    "configurations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/knobConfiguration"
+      }
+    },
+    "rankings": {
+      "description": "One ranking per objective that could be computed for every configuration.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/objectiveRanking"
+      }
+    },
+    "pareto_configuration_ids": {
+      "description": "Configurations not dominated on (primary objective, p95 TTFT at the reference stage). Absent when either is unavailable for some configuration.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "recommendation": {
+      "$ref": "#/definitions/knobRecommendation"
+    }
+  },
+  "definitions": {
+    "objectiveName": {
+      "description": "The slo_* objectives divide each run's SLO-max RPS by the configuration's size: ready replicas, recommended CPU request cores per replica times replicas, or GPUs. p95_ttft_at_target_rps is read at the stage offering analysis.target_rps.",
+      "type": "string",
+      "enum": [
+        "slo_max_rps",
+        "slo_rps_per_replica",
+        "slo_rps_per_core",
+        "slo_rps_per_gpu",
+        "tokens_per_s_per_gpu",
+        "p95_ttft_at_target_rps",
+        "infra_cost_per_1k_requests",
+        "infra_cost_per_1m_output_tokens",
+        "cost_per_1k_requests",
+        "cost_per_1m_output_tokens"
+      ]
+    },
+    "objectiveDirection": {
+      "type": "string",
+      "enum": [
+        "maximize",
+        "minimize"
+      ]
+    },
+    "comparisonConfidence": {
+      "description": "High needs at least 3 repeats of every configuration, a significant result and full catalog coverage; medium is a significant single-sample or two-repeat result; low is anything weaker.",
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "comparisonIssueCode": {
+      "type": "string",
+      "enum": [
+        "workload_differs",
+        "target_type_differs",
+        "hardware_differs",
+        "arrival_differs",
+        "ladder_differs",
+        "slos_differ",
+        "experiment_differs",
+        "too_few_configurations",
+        "not_factorial",
+        "coverage_incomplete"
+      ]
+    },
+    "comparisonIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/definitions/comparisonIssueCode"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "comparability": {
+      "description": "Whether the runs measured the same thing. Different workloads, target types, arrival processes, ladders or SLOs make the comparison not comparable, and no configuration is recommended. Different hardware is an issue but stays comparable, because the hardware may be the knob.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_comparable",
+        "issues"
+      ],
+      "properties": {
+        "is_comparable": {
+          "type": "boolean"
+        },
+        "workload_hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workload_preset": {
+          "description": "The workload preset every run named; absent when they named none or different ones.",
+          "$ref": "runspec.schema.json#/definitions/presetRef"
+        },
+        "target_type": {
+          "$ref": "runspec.schema.json#/definitions/targetType"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/comparisonIssue"
+          }
+        }
+      }
+    },
+    "excludedRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "reason"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "intervalMethod": {
+      "description": "repeats: mean across runs with a Student t interval; bootstrap: percentile bootstrap over the pooled per-request records; single_sample: one run, no interval.",
+      "type": "string",
+      "enum": [
+        "repeats",
+        "bootstrap",
+        "single_sample"
+      ]
+    },
+    "objectiveInterval": {
+      "description": "An objective's value with its 95% interval, or the reason it is unavailable; never both. ci_low and ci_high are absent for single_sample.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "samples"
+      ],
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ci_low": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ci_high": {
+          "type": "number",
+          "minimum": 0
+        },
+        "method": {
+          "$ref": "#/definitions/intervalMethod"
+        },
+        "is_lower_bound": {
+          "description": "True when some run never failed its SLOs within its ladder, so its SLO-max is the top stage's rate and the true value may be higher. A lower-bound runner-up cannot be beaten; extend the ladder.",
+          "type": "boolean",
+          "default": false
+        },
+        "samples": {
+          "description": "Runs for repeats and single_sample; requests for bootstrap.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "unavailable_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "is_upper_bound": {
+          "description": "The same censoring for an objective where less is better, such as a cost per request: the true value may be lower. An upper-bound runner-up cannot be beaten either.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "value",
+            "method"
+          ]
+        },
+        {
+          "required": [
+            "unavailable_reason"
+          ]
+        }
+      ]
+    },
+    "objectiveEstimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "estimate"
+      ],
+      "properties": {
+        "objective": {
+          "$ref": "#/definitions/objectiveName"
+        },
+        "estimate": {
+          "$ref": "#/definitions/objectiveInterval"
+        }
+      }
+    },
+    "knobConfiguration": {
+      "description": "Runs with identical knobs: repeats of one configuration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "knobs",
+        "run_ids",
+        "objectives",
+        "is_pareto"
+      ],
+      "properties": {
+        "id": {
+          "description": "c1, c2, ... in the order of each configuration's first run id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "knobs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "runspec.schema.json#/definitions/knobValue"
+          }
+        },
+        "run_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "objectives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/objectiveEstimate"
+          }
+        },
+        "reference_ttft_p95_seconds": {
+          "description": "p95 TTFT at the reference stage, bootstrapped over the pooled records of the configuration's runs.",
+          "$ref": "#/definitions/objectiveInterval"
+        },
+        "is_pareto": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rankedConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration_id",
+        "value"
+      ],
+      "properties": {
+        "configuration_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "objectiveRanking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "direction",
+        "order",
+        "is_significant",
+        "confidence",
+        "reason"
+      ],
+      "properties": {
+        "objective": {
+          "$ref": "#/definitions/objectiveName"
+        },
+        "direction": {
+          "$ref": "#/definitions/objectiveDirection"
+        },
+        "order": {
+          "description": "Best first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rankedConfiguration"
+          }
+        },
+        "winner_id": {
+          "description": "Present only when the best configuration's lead is significant.",
+          "type": "string",
+          "minLength": 1
+        },
+        "is_significant": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "$ref": "#/definitions/comparisonConfidence"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "knobRecommendation": {
+      "description": "The knob values to apply: the winner on the primary objective. Absent when the runs are not comparable or no configuration wins significantly.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration_id",
+        "knobs",
+        "objective",
+        "confidence",
+        "tier"
+      ],
+      "properties": {
+        "configuration_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "knobs": {
+          "description": "Only the varied knobs, at the winner's values.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "runspec.schema.json#/definitions/knobValue"
+          }
+        },
+        "objective": {
+          "$ref": "#/definitions/objectiveName"
+        },
+        "confidence": {
+          "$ref": "#/definitions/comparisonConfidence"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "empirical"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "workload": {
+    "api": "chat",
+    "dataset": {
+      "input_tokens": {
+        "mean": 256,
+        "stddev": 64
+      },
+      "output_tokens": {
+        "mean": 1536,
+        "stddev": 384
+      },
+      "type": "synthetic"
+    },
+    "seed": 3,
+    "streaming": true
+  },
+  "workload_preset": {
+    "name": "decode-long",
+    "version": 1
+  }
+}

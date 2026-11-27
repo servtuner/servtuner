@@ -1,0 +1,23 @@
+# Workload preset rag-prefill@1. The workload block is immutable: a change to it
+# is a new version file. slos and rps_hint are suggestions and may be corrected in place.
+name: rag-prefill
+version: 1
+description: Retrieval-augmented chat, about 4096 tokens in (a 512-token system prompt shared by 4 groups, then retrieved context) and 256 out. Stresses prefill, chunked prefill and max_num_batched_tokens.
+engines: [loadgen]
+workload:
+  api: chat
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 4096, stddev: 1024}
+    output_tokens: {mean: 256, stddev: 64}
+    shared_prefix: {tokens: 512, groups: 4}
+slos:
+  ttft_p95: 2s
+  itl_p95: 60ms
+# Hand-written starting points, not measured capacity.
+rps_hint:
+  # rtx-3070-8gb: the host serves max-model-len 4096, which about half of these prompts (4096 +- 1024 in)
+  # exceed; run it there with --max-model-len 8192 or more.
+  - {gpu_class: rtx-3070-8gb, start_rps: 0.5}
+  - {gpu_class: a100-80gb, start_rps: 4}
+  - {gpu_class: h100-80gb, start_rps: 8}

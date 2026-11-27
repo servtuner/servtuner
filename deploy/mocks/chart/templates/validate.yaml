@@ -1,0 +1,6 @@
+{{- if not (has .Values.tls.mode (list "mtls" "platform")) }}
+{{- fail (printf "tls.mode %q is not one of \"mtls\", \"platform\"" .Values.tls.mode) }}
+{{- end }}
+{{- if and (include "openaiMock.isMtls" .) (not .Values.tls.certManager.issuerRef.name) }}
+{{- fail "tls.mode mtls needs tls.certManager.issuerRef.name" }}
+{{- end }}

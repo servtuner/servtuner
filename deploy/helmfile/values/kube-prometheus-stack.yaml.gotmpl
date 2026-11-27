@@ -1,0 +1,28 @@
+# kube-prometheus-stack. Short names, so Prometheus is
+# kps-prometheus.monitoring.svc:9090 (servtuner's prometheus.url).
+fullnameOverride: kps
+# No Grafana (AGPL-3.0, and servtuner's UI draws its own charts); it stays out of the release.
+grafana:
+  enabled: false
+prometheus:
+  prometheusSpec:
+    # Every PodMonitor and ServiceMonitor in any namespace: servtuner's chart and its deployer create
+    # monitors in their own namespaces, each with its own 5 s interval.
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    retention: 15d
+{{- if or .Values.registry .Values.imagePullSecrets }}
+global:
+  {{- with .Values.registry }}
+  imageRegistry: {{ . }}
+  {{- end }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- range . }}
+    - name: {{ . }}
+    {{- end }}
+  {{- end }}
+{{- end }}

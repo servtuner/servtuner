@@ -1,0 +1,4 @@
+{
+  "knobs": {"vllm.tensor_parallel_size": 2},
+  "tokens_per_request": 1024
+}

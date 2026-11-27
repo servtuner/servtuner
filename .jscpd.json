@@ -1,0 +1,25 @@
+{
+  "threshold": 3,
+  "minLines": 8,
+  "minTokens": 70,
+  "reporters": ["console"],
+  "gitignore": true,
+  "ignore": [
+    "**/zz_generated.go",
+    "**/models/generated/**",
+    "schema/examples/**",
+    "bench/internal/spec/schemas/**",
+    "**/schema.d.ts",
+    "api/openapi.json",
+    "**/uv.lock",
+    "**/go.sum",
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/yarn.lock",
+    "**/node_modules/**",
+    "**/.venv/**",
+    ".claude/**",
+    "**/*.md",
+    "docs/**"
+  ]
+}

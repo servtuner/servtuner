@@ -1,0 +1,116 @@
+# NVIDIA GPU series from the DCGM exporter.
+# Names and units follow dcgm-exporter 4.9.0 and later (DCGM 4.7 field names,
+# etc/default-counters.csv at the 4.9.0 tag, checked 2026-11-22): units are in
+# the names. Memory is bytes, utilization a 0 to 1 ratio, clocks hertz, energy
+# joules, power watts. Older exporters (4.8.x and before: DCGM_FI_DEV_FB_USED in
+# MiB, GPU_UTIL in percent) are not supported; upgrade the exporter.
+#
+# OPTIONAL: the exporter is not on every cluster, so bench probes the marker
+# before the load starts and a missing catalog is recorded as absent, never an
+# error.
+#
+# vLLM reserves its KV cache up front (before 0.34, gpu_memory_utilization x total;
+# from 0.34, what is free after warmup, capped by that fraction), so framebuffer
+# used is a plateau that shows the reservation, not the need: use it to check fit
+# and headroom. GPU_UTIL_RATIO reads near 1 long before the SMs are saturated; use
+# PROF_GR_ENGINE_UTIL_RATIO and PROF_SM_UTIL_RATIO for saturation. SM_UTIL and
+# SM_OCCUPANCY are commented out in the default CSV, and DCGM_FI_PROF_* needs a
+# datacenter Volta or newer GPU, so those series come back empty elsewhere (a
+# GeForce card exports none). The clock-event and XID totals are opt-in too. A
+# missing PROF series mid-run means a profiler conflict, not zero.
+#
+# Series are attributed by node, through the "hostname" label: the node name in
+# Kubernetes, or the name an off-cluster host's scrape job sets (RunSpec
+# target.metrics.node). A tensor-parallel pod has one series per GPU, with the
+# gpu label kept. The *_by_pod entries attribute by pod instead, through the pod
+# label, which is "pod" with honorLabels or "exported_pod" with the stock chart
+# and Operator; they come back empty when the exporter has no pod attribution,
+# and the result in queries.json says which method worked. Memory of a pod is
+# the sum across its GPUs, and its peak is the max of that sum, not the sum of
+# the maxima.
+name: dcgm
+version: 2
+job_role: dcgm
+description: GPU framebuffer, utilization, saturation, power, clocks, throttling and XID series.
+marker:
+  query: count(DCGM_FI_DEV_FB_USED_BYTES{hostname=~"<<.NodeRegex>>"})
+queries:
+  # Framebuffer.
+  - name: fb_used_bytes
+    query: DCGM_FI_DEV_FB_USED_BYTES{hostname=~"<<.NodeRegex>>"}
+  - name: fb_used_bytes_max
+    query: max_over_time(DCGM_FI_DEV_FB_USED_BYTES{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: fb_used_bytes_p95
+    query: quantile_over_time(0.95, DCGM_FI_DEV_FB_USED_BYTES{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: fb_free_bytes
+    query: DCGM_FI_DEV_FB_FREE_BYTES{hostname=~"<<.NodeRegex>>"}
+  - name: fb_free_bytes_min
+    query: min_over_time(DCGM_FI_DEV_FB_FREE_BYTES{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: fb_reserved_bytes
+    query: DCGM_FI_DEV_FB_RESERVED_BYTES{hostname=~"<<.NodeRegex>>"}
+  - name: fb_capacity_bytes
+    query: DCGM_FI_DEV_FB_CAPACITY_BYTES{hostname=~"<<.NodeRegex>>"}
+
+  # Utilization and saturation.
+  - name: gpu_util_ratio
+    description: Share of the sample in which any kernel ran, 0 to 1; not an SM fraction.
+    query: DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+  - name: gpu_util_ratio_p95
+    query: quantile_over_time(0.95, DCGM_FI_DEV_GPU_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: memory_util_ratio
+    description: Share of the sample in which device memory was read or written, 0 to 1.
+    query: DCGM_FI_DEV_MEMORY_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+  - name: gr_engine_util_ratio
+    description: Graphics engine activity, 0 to 1; needs profiling support (datacenter GPUs).
+    query: DCGM_FI_PROF_GR_ENGINE_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+  - name: sm_util_ratio
+    description: SM activity, 0 to 1; commented out in the default counters CSV.
+    query: DCGM_FI_PROF_SM_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+  - name: tensor_util_ratio
+    query: DCGM_FI_PROF_TENSOR_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+  - name: dram_util_ratio
+    query: DCGM_FI_PROF_DRAM_UTIL_RATIO{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+
+  # Power, energy, clocks and temperature.
+  - name: board_power_watts
+    query: DCGM_FI_DEV_BOARD_POWER_WATTS{hostname=~"<<.NodeRegex>>"}
+  - name: board_power_watts_max
+    query: max_over_time(DCGM_FI_DEV_BOARD_POWER_WATTS{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: energy_joules_total
+    description: Counter, in joules since driver load.
+    query: DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL{hostname=~"<<.NodeRegex>>"}
+  - name: sm_clock_hertz
+    query: DCGM_FI_DEV_SM_CLOCK_HERTZ{hostname=~"<<.NodeRegex>>"}
+  - name: sm_clock_hertz_min
+    query: min_over_time(DCGM_FI_DEV_SM_CLOCK_HERTZ{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+  - name: gpu_temperature_celsius_max
+    query: max_over_time(DCGM_FI_DEV_GPU_TEMP_CELSIUS{hostname=~"<<.NodeRegex>>"}[<<.Window>>])
+
+  # Throttling and errors (the totals are opt-in exporter metrics, empty when not enabled).
+  - name: clock_events_total
+    query: DCGM_EXP_CLOCK_EVENTS_TOTAL{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+  - name: xid_error
+    description: The last XID error code (0 when none).
+    query: DCGM_FI_DEV_XID_ERROR{hostname=~"<<.NodeRegex>>"}
+    may_be_empty: true
+
+  # By pod: the pod and namespace labels are "pod"/"namespace" or
+  # "exported_pod"/"exported_namespace"; the namespace keeps a same-named pod elsewhere out.
+  - name: fb_used_bytes_by_pod_max
+    query: >-
+      max_over_time(sum by (<<.NamespaceLabel>>, <<.PodLabel>>) (DCGM_FI_DEV_FB_USED_BYTES{<<.PodLabel>>=~"<<.PodRegex>>",<<.NamespaceLabel>>=~"<<.NamespaceRegex>>"})[<<.Window>>:<<.Step>>])
+    label_variants: &pod_labels
+      - {PodLabel: pod, NamespaceLabel: namespace}
+      - {PodLabel: exported_pod, NamespaceLabel: exported_namespace}
+  - name: fb_free_bytes_by_pod_min
+    query: >-
+      min_over_time(sum by (<<.NamespaceLabel>>, <<.PodLabel>>) (DCGM_FI_DEV_FB_FREE_BYTES{<<.PodLabel>>=~"<<.PodRegex>>",<<.NamespaceLabel>>=~"<<.NamespaceRegex>>"})[<<.Window>>:<<.Step>>])
+    label_variants: *pod_labels
+  - name: gpus_by_pod
+    query: count by (<<.NamespaceLabel>>, <<.PodLabel>>) (DCGM_FI_DEV_FB_USED_BYTES{<<.PodLabel>>=~"<<.PodRegex>>",<<.NamespaceLabel>>=~"<<.NamespaceRegex>>"})
+    label_variants: *pod_labels

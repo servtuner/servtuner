@@ -1,0 +1,9 @@
+{
+  "target": {
+    "type": "vllm",
+    "endpoint": "http://vllm-host.example:8080/v1",
+    "model": "tiny",
+    "auth": {"value": "sk-not-allowed"},
+    "tls": {"mode": "platform"}
+  }
+}

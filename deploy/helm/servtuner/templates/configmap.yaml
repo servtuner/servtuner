@@ -1,0 +1,108 @@
+{{- /* The api's configuration, including what its KubernetesJobRunner passes through to bench Jobs.
+       The names are a contract with api/ and bench/: see deploy/helm/servtuner/README.md. */ -}}
+{{- $tlsDir := "/etc/servtuner/tls/api" }}
+{{- $postgresMode := include "servtuner.hopMode" (dict "root" . "hop" "postgres") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "servtuner.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+data:
+  SERVTUNER_API_PORT: {{ .Values.api.port | quote }}
+  SERVTUNER_RUNNER: {{ .Values.runner | quote }}
+  SERVTUNER_SECRET_STORE: {{ .Values.secretStore | quote }}
+  {{- /* A memory-backed emptyDir (api.yaml): where a subprocess run or a target check gets its keys. */}}
+  SERVTUNER_RUN_SECRETS_DIR: "/run/servtuner-secrets"
+  SERVTUNER_RUNS_NAMESPACE: {{ (include "servtuner.runsNamespace" .) | quote }}
+  SERVTUNER_BENCH_SERVICE_ACCOUNT: {{ .Values.serviceAccounts.bench.name | quote }}
+  SERVTUNER_BENCH_IMAGE: {{ include "servtuner.image" (dict "root" . "image" .Values.bench.image) | quote }}
+  SERVTUNER_IMAGE_REGISTRY: {{ .Values.global.imageRegistry | default "" | trimSuffix "/" | quote }}
+  SERVTUNER_OFFLINE: {{ .Values.offline | quote }}
+  {{- if eq .Values.runner "kubernetes" }}
+  {{- /* Jobs reach the api through its Service; the api certificate names it (certificates.yaml). */}}
+  SERVTUNER_API_URL: {{ printf "%s://%s-api.%s.svc:%v" (ternary "https" "http" (eq (include "servtuner.hopMode" (dict "root" . "hop" "benchApi")) "mtls")) (include "servtuner.fullname" .) .Release.Namespace .Values.api.port | quote }}
+  SERVTUNER_BENCH_CPU: {{ .Values.bench.resources.cpu | quote }}
+  SERVTUNER_BENCH_MEMORY: {{ .Values.bench.resources.memory | quote }}
+  SERVTUNER_BENCH_TARGET_ANTI_AFFINITY: {{ .Values.bench.targetAntiAffinity | quote }}
+  SERVTUNER_BENCH_JOB_TTL_SECONDS: {{ .Values.bench.jobTtlSeconds | quote }}
+  SERVTUNER_BENCH_START_TIMEOUT_SECONDS: {{ .Values.bench.startTimeoutSeconds | quote }}
+  SERVTUNER_IMAGE_PULL_SECRETS: {{ include "servtuner.imagePullSecretNames" . | quote }}
+  SERVTUNER_DATA_FS_GROUP: {{ .Values.api.fsGroup | quote }}
+  {{- end }}
+  SERVTUNER_PROMETHEUS_URL: {{ .Values.prometheus.url | quote }}
+  {{- /* User auth; durations in seconds. */}}
+  {{- with .Values.auth }}
+  SERVTUNER_AUTH_MODE: {{ .mode | quote }}
+  SERVTUNER_AUTH_METHODS: {{ join "," .methods | quote }}
+  {{- if eq .mode "local" }}
+  SERVTUNER_AUTH_SETUP_TOKEN_FILE: {{ printf "/etc/servtuner/auth/setup-token/%s" .setupToken.key | quote }}
+  {{- end }}
+  SERVTUNER_AUTH_SESSION_IDLE_SECONDS: {{ .session.idleTimeoutSeconds | quote }}
+  SERVTUNER_AUTH_SESSION_ABSOLUTE_SECONDS: {{ .session.absoluteLifetimeSeconds | quote }}
+  SERVTUNER_AUTH_COOKIE_SECURE: {{ .cookie.secure | quote }}
+  SERVTUNER_AUTH_LOCKOUT_MAX_FAILURES: {{ .lockout.maxFailures | quote }}
+  SERVTUNER_AUTH_LOCKOUT_WINDOW_SECONDS: {{ .lockout.windowSeconds | quote }}
+  SERVTUNER_AUTH_FORWARD_USER_HEADER: {{ .forwardHeader.userHeader | quote }}
+  SERVTUNER_AUTH_FORWARD_DISPLAY_NAME_HEADER: {{ .forwardHeader.displayNameHeader | quote }}
+  SERVTUNER_AUTH_FORWARD_EMAIL_HEADER: {{ .forwardHeader.emailHeader | quote }}
+  SERVTUNER_AUTH_FORWARD_PROVISIONING: {{ .forwardHeader.provisioning | quote }}
+  {{- end }}
+  {{- with (include "servtuner.tuningNamespaces" . | fromJsonArray) }}
+  SERVTUNER_TUNING_NAMESPACES: {{ join "," . | quote }}
+  SERVTUNER_TUNING_MONITOR: {{ include "servtuner.tuningMonitor" $ | quote }}
+  {{- end }}
+  SERVTUNER_STORAGE_BACKEND: {{ .Values.storage.backend | quote }}
+  {{- if eq .Values.storage.backend "file" }}
+  SERVTUNER_DATA_DIR: {{ .Values.storage.file.dataDir | quote }}
+  SERVTUNER_DATA_CLAIM: {{ include "servtuner.dataClaimName" . | quote }}
+  SERVTUNER_API_COMPONENT_LABEL: "app.kubernetes.io/component=api"
+  SERVTUNER_STORAGE_NODE_PINNED: {{ ternary "true" "false" (eq (include "servtuner.isNodePinned" .) "true") | quote }}
+  {{- else }}
+  SERVTUNER_S3_ENDPOINT: {{ .Values.storage.s3.endpoint | quote }}
+  SERVTUNER_S3_REGION: {{ .Values.storage.s3.region | quote }}
+  SERVTUNER_S3_BUCKET: {{ .Values.storage.s3.bucket | quote }}
+  SERVTUNER_S3_PREFIX: {{ .Values.storage.s3.prefix | quote }}
+  SERVTUNER_S3_FORCE_PATH_STYLE: {{ .Values.storage.s3.forcePathStyle | quote }}
+  SERVTUNER_S3_CHECKSUM_MODE: {{ .Values.storage.s3.checksumMode | quote }}
+  SERVTUNER_S3_PART_SIZE_MIB: {{ .Values.storage.s3.partSizeMiB | quote }}
+  SERVTUNER_S3_PRESIGN: {{ .Values.storage.s3.presign | quote }}
+  SERVTUNER_S3_CREDENTIALS_SOURCE: {{ .Values.storage.s3.credentials.source | quote }}
+  {{- if eq .Values.storage.s3.credentials.source "secret" }}
+  {{- /* Bench Jobs take the keys from this Secret by reference, never as values. */}}
+  {{- with .Values.storage.s3.credentials.secretRef }}
+  SERVTUNER_S3_CREDENTIALS_SECRET: {{ .name | quote }}
+  SERVTUNER_S3_ACCESS_KEY_KEY: {{ .accessKeyKey | quote }}
+  SERVTUNER_S3_SECRET_KEY_KEY: {{ .secretKeyKey | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- /* Transport security, one explicit mode per hop. */}}
+  SERVTUNER_TLS_MODE: {{ .Values.tls.mode | quote }}
+  {{- range $hop := keys .Values.tls.hops | sortAlpha }}
+  SERVTUNER_TLS_HOP_{{ snakecase $hop | upper }}: {{ include "servtuner.hopMode" (dict "root" $ "hop" $hop) | quote }}
+  {{- end }}
+  {{- if include "servtuner.roleNeeded" (dict "root" . "role" "api") }}
+  SERVTUNER_TLS_CERT_FILE: {{ $tlsDir }}/tls.crt
+  SERVTUNER_TLS_KEY_FILE: {{ $tlsDir }}/tls.key
+  {{- end }}
+  {{- if eq (include "servtuner.hopMode" (dict "root" . "hop" "ingressApi")) "mtls" }}
+  {{- /* The private CA only, mounted by api.yaml from the CA source Secret. */}}
+  SERVTUNER_TLS_CLIENT_CA_FILE: /etc/servtuner/tls/client-ca/ca.crt
+  {{- end }}
+  {{- if include "servtuner.roleNeeded" (dict "root" . "role" "bench") }}
+  SERVTUNER_TLS_BENCH_SECRET: {{ include "servtuner.tlsSecretName" (dict "root" . "role" "bench") | quote }}
+  {{- /* The CA that verifies the api, in the runs namespace: tls.caSecretRef, else the bench Secret's
+         own ca.crt (cert-manager writes the issuing CA there). */}}
+  {{- if .Values.tls.caSecretRef }}
+  SERVTUNER_TLS_CA_SECRET: {{ .Values.tls.caSecretRef.name | quote }}
+  {{- else }}
+  SERVTUNER_TLS_CA_SECRET: {{ include "servtuner.tlsSecretName" (dict "root" . "role" "bench") | quote }}
+  {{- end }}
+  {{- end }}
+  SERVTUNER_DATABASE_HOST: {{ ternary (printf "%s-rw.%s.svc" (include "servtuner.postgresName" .) .Release.Namespace) .Values.postgres.external.host (eq .Values.postgres.mode "cnpg") | quote }}
+  SERVTUNER_DATABASE_PORT: {{ ternary 5432 .Values.postgres.external.port (eq .Values.postgres.mode "cnpg") | quote }}
+  SERVTUNER_DATABASE_NAME: {{ ternary .Values.postgres.cnpg.database .Values.postgres.external.database (eq .Values.postgres.mode "cnpg") | quote }}
+  SERVTUNER_DATABASE_USER: {{ ternary .Values.postgres.cnpg.owner .Values.postgres.external.user (eq .Values.postgres.mode "cnpg") | quote }}
+  SERVTUNER_DATABASE_SSLMODE: {{ ternary "verify-full" "disable" (eq $postgresMode "mtls") | quote }}

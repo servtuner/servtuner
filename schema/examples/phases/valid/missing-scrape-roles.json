@@ -1,0 +1,36 @@
+{
+  "phases": [
+    {
+      "name": "warmup",
+      "kind": "warmup",
+      "start": "2026-10-28T12:00:00Z",
+      "end": "2026-10-28T12:05:00Z"
+    },
+    {
+      "name": "stage-0",
+      "kind": "stage",
+      "stage_index": 0,
+      "offered_rps": 1,
+      "start": "2026-10-28T12:05:00Z",
+      "end": "2026-10-28T12:10:30.250Z"
+    },
+    {
+      "name": "cooldown",
+      "kind": "cooldown",
+      "start": "2026-10-28T12:10:30.250Z",
+      "end": "2026-10-28T12:11:00Z"
+    }
+  ],
+  "scrape_warnings": [
+    {
+      "rule": "missing_scrape_role",
+      "role": "target",
+      "message": "prometheus has no servtuner-targets job for the targets under test"
+    },
+    {
+      "rule": "missing_scrape_role",
+      "role": "cadvisor",
+      "message": "prometheus has no cAdvisor job"
+    }
+  ]
+}

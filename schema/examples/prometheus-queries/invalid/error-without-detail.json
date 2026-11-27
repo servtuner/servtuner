@@ -1,0 +1,53 @@
+{
+  "queries": [
+    {
+      "catalog": "kubernetes",
+      "name": "container_cpu_cores",
+      "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"inference\"}[1m]))",
+      "step_seconds": 5,
+      "window": {
+        "start": "2026-10-28T12:05:00Z",
+        "end": "2026-10-28T12:10:30Z"
+      },
+      "result": "collected"
+    },
+    {
+      "catalog": "vllm",
+      "name": "requests_waiting",
+      "query": "sum(vllm:num_requests_waiting)",
+      "step_seconds": 5,
+      "window": {
+        "start": "2026-10-28T12:05:00Z",
+        "end": "2026-10-28T12:10:30Z"
+      },
+      "result": "empty"
+    },
+    {
+      "catalog": "extra",
+      "name": "my_series",
+      "query": "up",
+      "step_seconds": 5,
+      "window": {
+        "start": "2026-10-28T12:05:00Z",
+        "end": "2026-10-28T12:10:30Z"
+      },
+      "result": "error",
+      "detail": "query timed out"
+    }
+  ],
+  "optional_catalogs": [
+    {
+      "name": "dcgm",
+      "result": "absent",
+      "detail": "no DCGM_FI_DEV_GPU_UTIL_RATIO series found"
+    },
+    {
+      "name": "litellm",
+      "result": "collected"
+    },
+    {
+      "name": "bifrost",
+      "result": "error"
+    }
+  ]
+}

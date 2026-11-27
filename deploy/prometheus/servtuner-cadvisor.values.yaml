@@ -1,0 +1,47 @@
+# Values snippet for the community `prometheus` chart:
+# a dedicated 15s cAdvisor job for the benchmark namespaces only. The chart's
+# cluster-wide kubernetes-nodes-cadvisor job and the global interval are left alone;
+# bench reads whichever cAdvisor job is fastest and selects only that one.
+#
+# TLS is verified against the kubelet's serving CA, never insecure_skip_verify. The
+# CA is mounted from the ConfigMap `servtuner-kubelet-ca` (key ca.crt):
+#   - kind: the kubelet signs its own serving certificate; deploy/kind/kubelet-ca.sh
+#     copies that CA into the ConfigMap. Its certificate names only the node, hence
+#     server_name. One node only: a second node has a different CA and name.
+#   - Clusters whose kubelets use serverTLSBootstrap: their certificates are signed by
+#     the cluster CA, so point ca_file at the service account's ca.crt instead and
+#     drop server_name and the mount.
+# extraScrapeConfigs is one string: merge this job into any jobs already there.
+server:
+  extraConfigmapMounts:
+    - name: servtuner-kubelet-ca
+      mountPath: /etc/servtuner/kubelet-ca
+      configMap: servtuner-kubelet-ca
+      readOnly: true
+extraScrapeConfigs: |
+  - job_name: servtuner-cadvisor
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    scheme: https
+    metrics_path: /metrics/cadvisor
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /etc/servtuner/kubelet-ca/ca.crt
+      server_name: kind-control-plane
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      # bench selects cAdvisor series by metrics_path, as on the cluster-wide job.
+      - source_labels: [__metrics_path__]
+        target_label: metrics_path
+      - source_labels: [__meta_kubernetes_node_name]
+        target_label: node
+    metric_relabel_configs:
+      # Benchmark namespaces only: the targets under test and servtuner's own pods.
+      - source_labels: [namespace]
+        regex: "servtuner.*"
+        action: keep
+      # Only the cAdvisor series the kubernetes catalog reads.
+      - source_labels: [__name__]
+        regex: "container_cpu_usage_seconds_total|container_cpu_cfs_periods_total|container_cpu_cfs_throttled_periods_total|container_memory_working_set_bytes|container_memory_rss|container_oom_events_total|container_network_receive_bytes_total|container_network_transmit_bytes_total"
+        action: keep

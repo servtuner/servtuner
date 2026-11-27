@@ -1,0 +1,12 @@
+{
+  "target": {
+    "type": "vllm",
+    "endpoint": "http://vllm-host.example:8080/v1",
+    "model": "tiny",
+    "auth": {"secretRef": {"name": "servtuner-target-01m8example-api-key", "key": "token"}},
+    "metrics": {"namespace": "servtuner-external", "pod": "vllm-lan", "node": "vllm-lan-gpu"},
+    "tls": {"mode": "platform"}
+  },
+  "prometheus": {"url": "http://prometheus.monitoring.svc:9090", "tls": {"mode": "platform"}, "optional_catalogs": ["dcgm"]},
+  "generate": true
+}

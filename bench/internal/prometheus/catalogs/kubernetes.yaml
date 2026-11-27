@@ -1,0 +1,135 @@
+# Container and pod resources of the target pods AND the bench pod (checked 2026-10-28 against cAdvisor c57813a,
+# Kubernetes 1.35-1.37, kube-prometheus-stack 92.14.1, kube-state-metrics 2.20.0).
+#
+# cAdvisor series select metrics_path="/metrics/cadvisor" and exclude the pod
+# cgroup row and the pause container (container!="" and container!="POD"), so
+# nothing is counted twice; /metrics/resource is never mixed in. They also name the
+# discovered cAdvisor job, because a dedicated servtuner-cadvisor job and the
+# cluster-wide one scrape the same containers. Memory sizing
+# uses the working set, which the kubelet evicts on. container_memory_max_usage_bytes
+# and container_memory_failcnt are not used: on cgroup v2 they are a lifetime peak
+# and always 0. Requests and limits come from kube-state-metrics, because the
+# stack drops container_spec_* and container_cpu_cfs_throttled_seconds_total.
+# may_be_empty marks a series whose absence is a state, not missing data: no CPU
+# limit (so no throttling), no requests or limits, no OOM kill, no GPU, no HPA.
+# Node labels (instance type, GPU) come from the Kubernetes API snapshot, not from
+# kube_node_labels, which is empty without --metric-labels-allowlist.
+#
+# CPU "peaks" are max_over_time over a subquery of a rate of at least one minute,
+# so they are one-minute averages and miss shorter bursts.
+# There are no cpu_frac_* entries: a fraction of the
+# limit is cpu_cores_* divided by cpu_limit_cores, which analysis computes from
+# the raw series. kube-state-metrics entries
+# use KubeStateWindow, from that job's own, slower interval.
+# Series are evaluated over the run window, never as
+# instant queries afterwards, because deleted pods' series go stale.
+name: kubernetes
+version: 1
+job_role: cadvisor
+description: cAdvisor CPU, memory and network, and kube-state-metrics requests, limits, restarts and readiness.
+marker:
+  query: count(container_memory_working_set_bytes{<<.CadvisorSelector>>})
+queries:
+  # CPU cores per container.
+  - name: cpu_cores
+    description: Rolling rate over the counter-peak window.
+    query: sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>]))
+  - name: cpu_cores_avg
+    query: >-
+      avg_over_time((sum by (namespace, pod, container)
+      (rate(container_cpu_usage_seconds_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>])))[<<.Window>>:<<.SubqueryStep>>])
+  - name: cpu_cores_max
+    query: >-
+      max_over_time((sum by (namespace, pod, container)
+      (rate(container_cpu_usage_seconds_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>])))[<<.Window>>:<<.SubqueryStep>>])
+  - name: cpu_cores_p95
+    query: >-
+      quantile_over_time(0.95, (sum by (namespace, pod, container)
+      (rate(container_cpu_usage_seconds_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>])))[<<.Window>>:<<.SubqueryStep>>])
+
+  # CPU throttling: throttled periods over all periods, guarded against a zero denominator.
+  - name: cpu_throttle_ratio
+    may_be_empty: true
+    query: >-
+      sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{<<.CadvisorSelector>>}[<<.Window>>]))
+      / (sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{<<.CadvisorSelector>>}[<<.Window>>])) > 0)
+  - name: cpu_throttle_ratio_max
+    may_be_empty: true
+    query: >-
+      max_over_time((sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>]))
+      / (sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{<<.CadvisorSelector>>}[<<.CounterRateWindow>>])) > 0))[<<.Window>>:<<.SubqueryStep>>])
+
+  # Requests and limits, from kube-state-metrics (uid and node stripped by max by).
+  - name: cpu_request_cores
+    may_be_empty: true
+    query: max by (namespace, pod, container) (kube_pod_container_resource_requests{<<.WorkloadSelector>>,resource="cpu"})
+  - name: cpu_limit_cores
+    may_be_empty: true
+    query: max by (namespace, pod, container) (kube_pod_container_resource_limits{<<.WorkloadSelector>>,resource="cpu"})
+  - name: memory_request_bytes
+    may_be_empty: true
+    query: max by (namespace, pod, container) (kube_pod_container_resource_requests{<<.WorkloadSelector>>,resource="memory"})
+  - name: memory_limit_bytes
+    may_be_empty: true
+    query: max by (namespace, pod, container) (kube_pod_container_resource_limits{<<.WorkloadSelector>>,resource="memory"})
+
+  # Memory working set: a gauge, so raw samples and range selectors, never a
+  # subquery. max by removes duplicate rows.
+  - name: memory_working_set_bytes
+    query: max by (namespace, pod, container) (container_memory_working_set_bytes{<<.CadvisorSelector>>})
+  - name: memory_working_set_bytes_avg
+    query: max by (namespace, pod, container) (avg_over_time(container_memory_working_set_bytes{<<.CadvisorSelector>>}[<<.Window>>]))
+  - name: memory_working_set_bytes_max
+    query: max by (namespace, pod, container) (max_over_time(container_memory_working_set_bytes{<<.CadvisorSelector>>}[<<.Window>>]))
+  - name: memory_working_set_bytes_p95
+    query: max by (namespace, pod, container) (quantile_over_time(0.95, container_memory_working_set_bytes{<<.CadvisorSelector>>}[<<.Window>>]))
+  - name: memory_rss_bytes_max
+    description: A lower bound on memory, shown next to the working set.
+    query: max by (namespace, pod, container) (max_over_time(container_memory_rss{<<.CadvisorSelector>>}[<<.Window>>]))
+
+  # OOM kills and restarts inside the window. A restart creates a new series, so
+  # counters are summed per container.
+  - name: oom_events
+    query: sum by (namespace, pod, container) (increase(container_oom_events_total{<<.CadvisorSelector>>}[<<.Window>>]))
+  - name: restarts
+    query: max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{<<.WorkloadSelector>>}[<<.KubeStateWindow>>]))
+  - name: oom_killed
+    may_be_empty: true
+    query: >-
+      max by (namespace, pod, container) (max_over_time(kube_pod_container_status_last_terminated_reason{<<.WorkloadSelector>>,reason="OOMKilled"}[<<.KubeStateWindow>>]))
+      and on (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{<<.WorkloadSelector>>}[<<.KubeStateWindow>>]) > 0)
+
+  # Network per pod. A pod-level metric: the max by interface removes duplicate rows.
+  - name: network_receive_bytes_per_second
+    query: >-
+      sum by (namespace, pod) (max by (namespace, pod, interface)
+      (rate(container_network_receive_bytes_total{<<.CadvisorPodSelector>>}[<<.Window>>])))
+  - name: network_transmit_bytes_per_second
+    query: >-
+      sum by (namespace, pod) (max by (namespace, pod, interface)
+      (rate(container_network_transmit_bytes_total{<<.CadvisorPodSelector>>}[<<.Window>>])))
+
+  # Placement and replicas: pod to node, GPUs per node, ready pods over the window.
+  - name: pod_node
+    query: max by (namespace, pod, node) (kube_pod_info{<<.WorkloadSelector>>})
+  - name: node_allocatable_gpus
+    may_be_empty: true
+    query: max by (node) (kube_node_status_allocatable{resource="nvidia_com_gpu"})
+  # Readiness per pod, sampled at the query step: analysis sums the target's
+  # pods (never the bench pod) and takes the lowest count inside each stage. A
+  # trailing min_over_time would reach back before the stage and pick up
+  # whatever was not ready then, such as pods that were still starting.
+  - name: pod_ready
+    description: 1 while a pod is ready, 0 while it is not, per pod.
+    query: max by (namespace, pod) (kube_pod_status_ready{condition="true",<<.WorkloadSelector>>})
+
+  # Replica changes inside the window, for config drift.
+  # Deployments and HPAs are selected by namespace, because their names are not
+  # pod names.
+  - name: deploy_available_min
+    query: >-
+      min by (namespace, deployment) (min_over_time(kube_deployment_status_replicas_available{namespace=~"<<.NamespaceRegex>>"}[<<.KubeStateWindow>>]))
+  - name: hpa_desired_max
+    may_be_empty: true
+    query: >-
+      max by (namespace, horizontalpodautoscaler) (max_over_time(kube_horizontalpodautoscaler_status_desired_replicas{namespace=~"<<.NamespaceRegex>>"}[<<.KubeStateWindow>>]))

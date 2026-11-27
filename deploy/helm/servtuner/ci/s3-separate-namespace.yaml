@@ -1,0 +1,16 @@
+# s3 backend: bench Jobs may run in their own namespace; mtls via cert-manager.
+namespaces:
+  runs: servtuner-runs
+tls:
+  mode: mtls
+  source: cert-manager
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}
+storage:
+  backend: s3
+  s3:
+    endpoint: https://s3.example.internal
+    bucket: servtuner-runs
+    credentials:
+      source: secret
+      secretRef: {name: servtuner-s3}

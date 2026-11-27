@@ -1,0 +1,27 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "calibrate-loadgen",
+  "labels": {"purpose": "calibration"},
+  "target": {
+    "type": "openai-compatible",
+    "endpoint": "http://openai-mock.servtuner-mock.svc:8000/v1",
+    "model": "mock-model",
+    "workload": {"namespace": "servtuner-mock", "selector": {"app.kubernetes.io/name": "openai-mock"}},
+    "tls": {"mode": "platform"}
+  },
+  "engine": {"type": "loadgen"},
+  "workload": {
+    "streaming": true,
+    "dataset": {"type": "synthetic", "input_tokens": {"mean": 64}, "output_tokens": {"mean": 8}}
+  },
+  "load": {
+    "warmup": "30s",
+    "stages": [
+      {"rate": 1000, "duration": "60s"},
+      {"rate": 5000, "duration": "60s"},
+      {"rate": 10000, "duration": "60s"}
+    ]
+  },
+  "prometheus": {"url": "http://kps-prometheus.monitoring.svc:9090", "tls": {"mode": "platform"}}
+}

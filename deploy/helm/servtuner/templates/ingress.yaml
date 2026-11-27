@@ -1,0 +1,69 @@
+{{- /* Optional ingress-nginx routing. Two Ingresses, because backend-protocol is one annotation per
+       Ingress: the UI is plain HTTP, the api hop follows its transport mode. */ -}}
+{{- /* Why the api wins over the UI under the same base path: the api Ingress uses rewrite-target, which
+       makes ingress-nginx treat every path on this host as a regex, and it emits locations longest path
+       first, with nginx taking the first regex match. The api path (<uiPath>/api, or an explicit longer
+       path) is longer than the UI's Prefix path, so it is tried first; everything else falls to the UI. */ -}}
+{{- if .Values.ingress.enabled }}
+{{- $fullname := include "servtuner.fullname" . }}
+{{- $ingress := .Values.ingress }}
+{{- $apiMtls := eq (include "servtuner.hopMode" (dict "root" . "hop" "ingressApi")) "mtls" }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+  {{- with $ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+    - host: {{ $ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ include "servtuner.uiPath" . | quote }}
+            pathType: Prefix
+            backend:
+              service: {name: {{ $fullname }}-frontend, port: {name: http}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+  annotations:
+    {{- /* User annotations first; validation rejects any that the chart sets below. */}}
+    {{- with $ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- /* The api serves at its root, so the path prefix is stripped before proxying. */}}
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    {{- if $apiMtls }}
+    {{- /* Backend mTLS: the ingress presents its certificate and verifies the api's against the private CA. */}}
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: {{ printf "%s/%s" .Release.Namespace (include "servtuner.tlsSecretName" (dict "root" . "role" "ingress")) | quote }}
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
+    nginx.ingress.kubernetes.io/proxy-ssl-name: {{ printf "%s-api.%s.svc" $fullname .Release.Namespace | quote }}
+    nginx.ingress.kubernetes.io/proxy-ssl-server-name: "on"
+    {{- end }}
+spec:
+  {{- with $ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  rules:
+    - host: {{ $ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ printf "%s(/|$)(.*)" (include "servtuner.apiPath" .) | quote }}
+            pathType: ImplementationSpecific
+            backend:
+              service: {name: {{ $fullname }}-api, port: {name: api}}
+{{- end }}

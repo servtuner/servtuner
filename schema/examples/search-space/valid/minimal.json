@@ -1,0 +1,10 @@
+{
+  "knobs": [
+    {
+      "name": "vllm.max_num_seqs",
+      "tier": "scheduler",
+      "min": 32,
+      "max": 512
+    }
+  ]
+}

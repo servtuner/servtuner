@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "checked_at": "2026-11-22T21:00:00Z",
+  "target_type": "litellm",
+  "endpoint": "http://litellm.example:4000/v1",
+  "checks": [
+    {"name": "resolve", "status": "ok", "message": "litellm.example resolves to 192.0.2.20.", "duration_seconds": 0.001},
+    {"name": "connect", "status": "ok", "message": "Connected in 1 ms.", "duration_seconds": 0.001},
+    {"name": "tls", "status": "ok", "message": "Plain HTTP, as tls.mode platform declares.", "duration_seconds": 0},
+    {"name": "auth", "status": "failed", "message": "401 from GET /v1/models: the API key was rejected.", "duration_seconds": 0.004},
+    {"name": "model", "status": "skipped", "message": "Skipped: auth failed.", "duration_seconds": 0}
+  ]
+}

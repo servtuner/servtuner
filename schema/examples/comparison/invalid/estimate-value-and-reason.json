@@ -1,0 +1,139 @@
+{
+  "analyzer_version": "1.5.0",
+  "experiment": "bifrost-concurrency",
+  "objective": "slo_rps_per_core",
+  "varied_knobs": [
+    "bifrost.concurrency"
+  ],
+  "is_factorial": true,
+  "reference_stage_index": 1,
+  "comparability": {
+    "is_comparable": true,
+    "workload_hash": "sha256:3f2a",
+    "target_type": "bifrost",
+    "issues": []
+  },
+  "excluded_runs": [
+    {
+      "run_id": "01JBX0000000000000000000R7",
+      "reason": "quality grade unusable: excluded from comparison"
+    }
+  ],
+  "configurations": [
+    {
+      "id": "c1",
+      "knobs": {
+        "bifrost.concurrency": 100
+      },
+      "run_ids": [
+        "01JBX0000000000000000000R1",
+        "01JBX0000000000000000000R2",
+        "01JBX0000000000000000000R3"
+      ],
+      "objectives": [
+        {
+          "objective": "slo_max_rps",
+          "estimate": {
+            "value": 210,
+            "ci_low": 201.5,
+            "ci_high": 218.5,
+            "method": "repeats",
+            "samples": 3,
+            "unavailable_reason": "both"
+          }
+        },
+        {
+          "objective": "slo_rps_per_core",
+          "estimate": {
+            "value": 210,
+            "ci_low": 201.5,
+            "ci_high": 218.5,
+            "method": "repeats",
+            "samples": 3
+          }
+        }
+      ],
+      "reference_ttft_p95_seconds": {
+        "value": 0.081,
+        "ci_low": 0.078,
+        "ci_high": 0.085,
+        "method": "bootstrap",
+        "samples": 13500
+      },
+      "is_pareto": true
+    },
+    {
+      "id": "c2",
+      "knobs": {
+        "bifrost.concurrency": 400
+      },
+      "run_ids": [
+        "01JBX0000000000000000000R4",
+        "01JBX0000000000000000000R5",
+        "01JBX0000000000000000000R6"
+      ],
+      "objectives": [
+        {
+          "objective": "slo_max_rps",
+          "estimate": {
+            "value": 330,
+            "ci_low": 318,
+            "ci_high": 342,
+            "method": "repeats",
+            "samples": 3
+          }
+        },
+        {
+          "objective": "slo_rps_per_core",
+          "estimate": {
+            "value": 330,
+            "ci_low": 318,
+            "ci_high": 342,
+            "method": "repeats",
+            "samples": 3
+          }
+        }
+      ],
+      "reference_ttft_p95_seconds": {
+        "value": 0.079,
+        "ci_low": 0.076,
+        "ci_high": 0.083,
+        "method": "bootstrap",
+        "samples": 13500
+      },
+      "is_pareto": true
+    }
+  ],
+  "rankings": [
+    {
+      "objective": "slo_rps_per_core",
+      "direction": "maximize",
+      "order": [
+        {
+          "configuration_id": "c2",
+          "value": 330
+        },
+        {
+          "configuration_id": "c1",
+          "value": 210
+        }
+      ],
+      "winner_id": "c2",
+      "is_significant": true,
+      "confidence": "high",
+      "reason": "c2's 95% interval (318 to 342) is above c1's (201.5 to 218.5)"
+    }
+  ],
+  "pareto_configuration_ids": [
+    "c2"
+  ],
+  "recommendation": {
+    "configuration_id": "c2",
+    "knobs": {
+      "bifrost.concurrency": 400
+    },
+    "objective": "slo_rps_per_core",
+    "confidence": "high",
+    "tier": "empirical"
+  }
+}

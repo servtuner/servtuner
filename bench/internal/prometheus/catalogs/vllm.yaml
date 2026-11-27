@@ -1,0 +1,97 @@
+# vLLM server-side series (checked
+# 2026-10-28 against main @ 892cb19; v0.32.0 is the latest stable release).
+# Names are v0.15+, with alternates for older releases. Counters carry the _total
+# suffix that prometheus_client adds on the wire, inferred from source and still
+# to be confirmed on a live v0.32 /metrics.
+#
+# Histograms are stored raw: one query returns the _bucket, _sum and _count
+# series of a family, and quantiles are computed later by summing bucket deltas
+# across the engine label and pods first, never by averaging quantiles.
+# Gauge peaks are max_over_time and quantile_over_time over the stage window,
+# on raw samples.
+name: vllm
+version: 1
+job_role: target
+description: vLLM latency histograms, queue and KV-cache gauges, token and cache counters.
+marker:
+  query: count(vllm:num_requests_running{<<.Selector>>})
+queries:
+  # Latency histograms. TTFT and E2E start at frontend arrival; ITL excludes the
+  # first token. The request-phase buckets start at 0.3s, so sub-300ms server
+  # quantiles are meaningless.
+  - name: ttft_seconds
+    query: '{__name__=~"vllm:time_to_first_token_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: itl_seconds
+    query: '{__name__=~"vllm:inter_token_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+    description: Renamed from time_per_output_token_seconds in 0.10.2; the old name was removed in 0.15.
+    alternates:
+      - '{__name__=~"vllm:time_per_output_token_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: tpot_seconds
+    query: '{__name__=~"vllm:request_time_per_output_token_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: e2e_seconds
+    query: '{__name__=~"vllm:e2e_request_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: queue_time_seconds
+    query: '{__name__=~"vllm:request_queue_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: prefill_time_seconds
+    query: '{__name__=~"vllm:request_prefill_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: decode_time_seconds
+    query: '{__name__=~"vllm:request_decode_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: inference_time_seconds
+    query: '{__name__=~"vllm:request_inference_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: request_prompt_tokens
+    query: '{__name__=~"vllm:request_prompt_tokens_(bucket|sum|count)",<<.Selector>>}'
+  - name: request_generation_tokens
+    query: '{__name__=~"vllm:request_generation_tokens_(bucket|sum|count)",<<.Selector>>}'
+  - name: iteration_tokens
+    description: Tokens per engine step. Unreliable with --api-server-count above 1.
+    query: '{__name__=~"vllm:iteration_tokens_total_(bucket|sum|count)",<<.Selector>>}'
+
+  # Counters, raw. request_success includes aborts and errors.
+  - name: request_success_total
+    query: vllm:request_success_total{<<.Selector>>}
+  - name: prompt_tokens_total
+    query: vllm:prompt_tokens_total{<<.Selector>>}
+  - name: generation_tokens_total
+    query: vllm:generation_tokens_total{<<.Selector>>}
+  - name: prefix_cache_queries_total
+    query: vllm:prefix_cache_queries_total{<<.Selector>>}
+    description: In tokens. Renamed from gpu_prefix_cache_queries in 0.9.2; the old name was removed in 0.12.
+    alternates:
+      - vllm:gpu_prefix_cache_queries_total{<<.Selector>>}
+  - name: prefix_cache_hits_total
+    query: vllm:prefix_cache_hits_total{<<.Selector>>}
+    alternates:
+      - vllm:gpu_prefix_cache_hits_total{<<.Selector>>}
+  - name: num_preemptions_total
+    query: vllm:num_preemptions_total{<<.Selector>>}
+
+  # Gauges: the raw series, then the peak and the 95th percentile over a
+  # rolling stage window, for sizing.
+  - name: num_requests_running
+    query: vllm:num_requests_running{<<.Selector>>}
+  - name: num_requests_running_max
+    query: max_over_time(vllm:num_requests_running{<<.Selector>>}[<<.Window>>])
+  - name: num_requests_waiting
+    query: vllm:num_requests_waiting{<<.Selector>>}
+  - name: num_requests_waiting_max
+    query: max_over_time(vllm:num_requests_waiting{<<.Selector>>}[<<.Window>>])
+  - name: num_requests_waiting_p95
+    query: quantile_over_time(0.95, vllm:num_requests_waiting{<<.Selector>>}[<<.Window>>])
+  - name: kv_cache_usage
+    description: Fraction 0 to 1. Renamed from gpu_cache_usage_perc in 0.9.2; the old name was removed in 0.12.
+    query: vllm:kv_cache_usage_perc{<<.Selector>>}
+    alternates:
+      - vllm:gpu_cache_usage_perc{<<.Selector>>}
+  - name: kv_cache_usage_max
+    query: max_over_time(vllm:kv_cache_usage_perc{<<.Selector>>}[<<.Window>>])
+    alternates:
+      - max_over_time(vllm:gpu_cache_usage_perc{<<.Selector>>}[<<.Window>>])
+  - name: kv_cache_usage_p95
+    query: quantile_over_time(0.95, vllm:kv_cache_usage_perc{<<.Selector>>}[<<.Window>>])
+    alternates:
+      - quantile_over_time(0.95, vllm:gpu_cache_usage_perc{<<.Selector>>}[<<.Window>>])
+
+  # Config carried as labels (block_size, gpu_memory_utilization, num_gpu_blocks,
+  # ...). The engine="" row duplicates the per-engine rows and is dropped.
+  - name: cache_config_info
+    query: vllm:cache_config_info{<<.Selector>>,engine!=""}

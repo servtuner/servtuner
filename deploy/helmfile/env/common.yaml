@@ -1,0 +1,34 @@
+# Shared by every environment; each environment file overrides what differs. Override any value at
+# install time: --state-values-set registry=registry.corp:5000,install.prometheus=false
+#
+# Pinned versions: the reference cluster's (deploy/kind/kind-up.sh). deploy/release/images.lock lists every image they render.
+versions:
+  certManager: v1.21.1
+  cnpg: 0.29.0          # CloudNativePG operator 1.30.0
+  envoyGateway: v1.10.0
+  prometheus: 92.14.1   # kube-prometheus-stack: Prometheus Operator v0.94.2, Prometheus v3.15.1
+  # The optional FlashInfer kernel archive (just release VERSION --with-flashinfer) matches the managed
+  # vLLM image: vLLM v0.34.0 pins flashinfer-python 0.7.3 (requirements/cuda.txt) on CUDA 13.0.
+  flashinfer: 0.7.3
+  flashinferCuda: cu130
+# servtuner's own images are tagged with the release version (just release VERSION).
+servtunerVersion: 0.1.0
+servtunerNamespace: servtuner
+
+# Prerequisites to install. Set one false when the site runs its own.
+install:
+  certManager: true
+  cnpg: true
+  envoyGateway: true
+  prometheus: true
+
+# The registry every image comes from. Empty means each image's public registry.
+registry: ""
+# Pull secrets for that registry, by name, created by the site in each namespace.
+imagePullSecrets: []
+# No internet access: servtuner fetches no public price data and refuses AWS pricing.
+offline: false
+# Where the chart files are, relative to this helmfile. Empty means the chart repositories.
+chartsDir: ""
+# The site's own values for the servtuner chart (TLS, hostnames, storage), relative to this helmfile.
+siteValues: []

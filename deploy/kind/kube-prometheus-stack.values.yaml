@@ -1,0 +1,52 @@
+# kube-prometheus-stack on the kind dev cluster (the Prometheus Operator flavour).
+# Chart 92.14.1. Install steps: deploy/kind/README.md, "Prometheus".
+#
+#   helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack --version 92.14.1 \
+#     -n monitoring -f deploy/kind/kube-prometheus-stack.values.yaml
+#
+# Short names, so the Prometheus Service is kps-prometheus.monitoring.svc:9090 (servtuner's prometheus.url).
+fullnameOverride: kps
+
+# No Grafana: servtuner's UI draws its own charts.
+grafana:
+  enabled: false
+
+# kind binds these control-plane components to 127.0.0.1, so their default monitors never scrape and only alert.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # Every PodMonitor and ServiceMonitor in any namespace, not only this release's: servtuner's chart and its
+    # deployer (managed targets) create monitors in their own namespaces. Their 5 s
+    # interval is set per monitor; the global interval stays the chart's.
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    # Jobs that are not monitors (servtuner-targets, servtuner-cadvisor, off-cluster targets such as a LAN vLLM, the
+    # opencost exporter) come from a Secret the operator of this cluster creates. Off-cluster addresses live only
+    # there, never in the repository (deploy/CLAUDE.md "Constraints").
+    additionalScrapeConfigsSecret:
+      enabled: true
+      name: servtuner-additional-scrape-configs
+      key: scrape-configs.yaml
+    # The kind kubelet's serving CA for the servtuner-cadvisor job (kubelet-ca.sh), mounted at
+    # /etc/prometheus/configmaps/servtuner-kubelet-ca/.
+    configMaps:
+      - servtuner-kubelet-ca
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 8Gi

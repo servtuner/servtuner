@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/client-sample.schema.json",
+  "title": "ClientSample",
+  "description": "One row of client/samples: self-monitoring of the load generator or the TLS relay, once a second, input to the client_bound check.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sampled_at",
+    "source",
+    "goroutines",
+    "in_flight_requests",
+    "send_lag_max_seconds",
+    "send_lag_p99_seconds"
+  ],
+  "properties": {
+    "sampled_at": {
+      "$ref": "../common.schema.json#/definitions/utcTimestamp"
+    },
+    "source": {
+      "description": "Which process was sampled.",
+      "type": "string",
+      "enum": [
+        "loadgen",
+        "relay"
+      ]
+    },
+    "stage_index": {
+      "description": "Stage running at sampled_at; absent during warmup and cooldown.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "goroutines": {
+      "description": "Goroutine count of the sampled process.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "in_flight_requests": {
+      "description": "Requests sent and not yet finished.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "send_lag_max_seconds": {
+      "description": "Largest send lag (sent_at minus scheduled_at) in the sample interval.",
+      "type": "number",
+      "minimum": 0
+    },
+    "send_lag_p99_seconds": {
+      "description": "p99 send lag in the sample interval.",
+      "type": "number",
+      "minimum": 0
+    },
+    "worker": {
+      "description": "Worker or shard, matching the request record's worker.",
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

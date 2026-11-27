@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  # The release workflow runs every gate again on the commit it publishes.
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # .tool-versions is the only place toolchain versions are defined.
+      - uses: ./.github/actions/setup
+        id: pins
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.pins.outputs.go }}
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.pins.outputs.nodejs }}
+      # helm, helmfile and hauler at the pinned versions, checksum-verified: gen-check renders every
+      # release to check the image lock, and the chart tests use the same helm.
+      - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
+
+      - run: just setup
+      - run: just gen-check
+      - run: just lint
+      - run: just test
+
+      # Local end to end, no cluster: a Postgres container, the api and the real bench binary.
+      - run: just e2e-local-mtls
+      - run: just e2e-local-platform
+
+      # The images build and work offline: schemas load, bench runs in both.
+      - run: just images
+      - run: just image-test
+
+  # The chart on a fresh kind cluster, one job per transport mode. Each job has its own
+  # runner, so `just kind-up` always starts from no cluster. kind, kubectl, helm and docker are
+  # preinstalled on the runner image.
+  e2e-kind:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [mtls, platform]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      - run: uv sync --locked --project api
+      - run: just kind-up
+      - run: just e2e-${{ matrix.mode }}

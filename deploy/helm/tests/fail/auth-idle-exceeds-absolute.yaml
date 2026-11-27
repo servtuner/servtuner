@@ -1,0 +1,4 @@
+# expect: may not exceed auth.session.absoluteLifetimeSeconds
+auth:
+  session:
+    idleTimeoutSeconds: 700000

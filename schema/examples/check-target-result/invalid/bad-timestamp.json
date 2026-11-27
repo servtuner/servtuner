@@ -1,0 +1,1 @@
+{"status": "ok", "checked_at": "yesterday", "target_type": "vllm", "endpoint": "http://x/v1", "checks": []}

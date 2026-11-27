@@ -1,0 +1,10 @@
+# Boot-probe results for space-feasibility.yaml. The numbers are illustrative
+# (not measured by the boot probe): max_model_len 16384 does not fit
+# the 8 GB card; fp8 KV cache doubles the room; at 64 required requests only
+# the fp8 combinations hold the concurrency.
+results:
+  - {knobs: {vllm.max_model_len: 16384}, outcome: infeasible, reason: "the KV cache cannot hold one request of max_model_len 16384"}
+  - {knobs: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75, vllm.max_model_len: 8192, vllm.kv_cache_dtype: auto}, outcome: feasible, c_kv: 48, num_gpu_blocks: 3072}
+  - {knobs: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75, vllm.max_model_len: 8192, vllm.kv_cache_dtype: fp8}, outcome: feasible, c_kv: 96, num_gpu_blocks: 6144}
+  - {knobs: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75, vllm.max_model_len: 4096, vllm.kv_cache_dtype: auto}, outcome: feasible, c_kv: 60, num_gpu_blocks: 3840}
+  - {knobs: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75, vllm.max_model_len: 4096, vllm.kv_cache_dtype: fp8}, outcome: feasible, c_kv: 120, num_gpu_blocks: 7680}

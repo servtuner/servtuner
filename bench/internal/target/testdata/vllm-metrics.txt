@@ -1,0 +1,7 @@
+# HELP vllm:cache_config_info Information of the LLMEngine CacheConfig
+# TYPE vllm:cache_config_info gauge
+vllm:cache_config_info{block_size="16",cache_dtype="auto",enable_prefix_caching="True",engine="",gpu_memory_utilization="0.9",num_gpu_blocks="4096"} 1.0
+vllm:cache_config_info{block_size="16",cache_dtype="auto",enable_prefix_caching="True",engine="0",gpu_memory_utilization="0.9",num_gpu_blocks="4096",kv_cache_size_tokens="65536",note="a \"quoted\" value"} 1.0
+# HELP vllm:num_requests_running Number of requests in model execution batches.
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running{engine="0",model_name="test-model"} 0.0

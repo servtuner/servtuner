@@ -1,0 +1,26 @@
+# A starting search space (search-space-template.schema.json): edit it in New session as needed.
+name: no-gpu
+version: 1
+title: No GPU (a CPU vLLM, or the mock)
+description: >-
+  max_num_seqs only, ranked by SLO-max RPS (there is no GPU to rank per), probing low rates,
+  in eager mode (vllm/vllm-openai-cpu otherwise compiles for a long time before it serves).
+  For a CPU-only vLLM, or the repository's mock when checking the loop end to end.
+fits:
+  placements: [kubernetes]
+  min_gpus: 0
+  max_gpus: 0
+space:
+  objective: slo_max_rps
+  min_concurrency: 1
+  # vLLM's CPU build compiles its graphs single-threaded for many minutes and may never serve
+  # (seen on kind); eager mode boots in about a minute. The mock accepts the flag.
+  base:
+    vllm.enforce_eager: true
+  knobs:
+    - {name: vllm.max_num_seqs, tier: scheduler, min: 4, max: 64, default: 8}
+  ladder:
+    probe_rps: [2, 4, 8]
+    screen_factors: [0.7, 1, 1.3]
+    full_factors: [0.7, 1, 1.3]
+  confirm: {top: 2, repeats: 2}

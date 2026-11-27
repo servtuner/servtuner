@@ -1,0 +1,6 @@
+# expect: gateway.enabled and ingress.enabled are both set
+# api-versions: gateway.networking.k8s.io/v1
+postgres: {mode: external, external: {host: db.example.test}}
+tls: {mode: platform}
+ingress: {enabled: true, host: a.example.test}
+gateway: {enabled: true, hostname: a.example.test, parentRefs: [{name: eg}]}

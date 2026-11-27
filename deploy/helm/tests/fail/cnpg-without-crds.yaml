@@ -1,0 +1,4 @@
+# api-versions: cert-manager.io/v1
+# expect: postgresql.cnpg.io/v1 is not available
+tls: {mode: platform}
+storage: {file: {pvc: {create: true}}}

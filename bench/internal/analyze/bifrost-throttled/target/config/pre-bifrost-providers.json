@@ -1,0 +1,1 @@
+{"providers":[{"concurrency_and_buffer_size":{"buffer_size":5000,"concurrency":1000},"name":"mock","network_config":{"max_retries":0},"send_back_raw_request":false,"send_back_raw_response":false,"store_raw_request_response":false}]}

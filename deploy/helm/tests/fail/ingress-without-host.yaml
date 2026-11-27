@@ -1,0 +1,4 @@
+# expect: ingress.enabled is true but ingress.host is empty
+tls: {mode: platform}
+storage: {file: {pvc: {create: true}}}
+ingress: {enabled: true}

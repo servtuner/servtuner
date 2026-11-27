@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/plan-request.schema.json",
+  "title": "PlanRequest",
+  "description": "servtuner plan's input (Planner inputs): the traffic to plan for, the SLO, availability and overrides. The capacity models are passed beside it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["peak_rps", "slos"],
+  "properties": {
+    "peak_rps": { "type": "number", "exclusiveMinimum": 0 },
+    "baseline_rps": { "description": "Off-peak traffic, for the HPA minimum. Without it, the minimum is the availability floor.", "type": "number", "exclusiveMinimum": 0 },
+    "slos": {
+      "description": "The SLO to plan for. It need not be the one the runs used: the per-replica capacity is recomputed from the stored curves, interpolating only between measured stages.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "ttft_p95": { "$ref": "common.schema.json#/definitions/duration" },
+        "ttft_p99": { "$ref": "common.schema.json#/definitions/duration" },
+        "e2e_p95": { "$ref": "common.schema.json#/definitions/duration" },
+        "e2e_p99": { "$ref": "common.schema.json#/definitions/duration" },
+        "itl_p95": { "$ref": "common.schema.json#/definitions/duration" },
+        "max_error_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "workload_hash": { "description": "Plan only models measured with this request mix; required when the models disagree.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_replicas": { "type": "integer", "minimum": 1, "default": 2 },
+        "spare": { "description": "N+1: one replica beyond what the peak needs.", "type": "boolean", "default": false },
+        "zones": { "description": "Replicas are rounded up to a multiple of this.", "type": "integer", "minimum": 1, "default": 1 }
+      }
+    },
+    "replica_headroom": { "type": "number", "minimum": 0, "exclusiveMaximum": 1, "default": 0.2 },
+    "burst_factor": { "type": "number", "minimum": 1, "default": 1 },
+    "overrides": {
+      "description": "Scenario overrides on the plan's derivation nodes.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node", "kind", "value"],
+        "properties": {
+          "node": { "type": "string", "minLength": 1 },
+          "kind": { "$ref": "#/definitions/overrideKind" },
+          "value": { "type": "number" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "overrideKind": {
+      "description": "Named apart from the recommendations' subject kind: two generated enums both called Kind collided in the api's OpenAPI document.",
+      "type": "string",
+      "enum": ["parameter", "pin", "hypothetical"]
+    }
+  }
+}

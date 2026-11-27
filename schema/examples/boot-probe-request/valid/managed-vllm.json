@@ -1,0 +1,11 @@
+{
+  "target": {
+    "type": "vllm",
+    "endpoint": "http://qwen.servtuner-tune-qwen.svc:8000/v1",
+    "model": "Qwen/Qwen3-32B",
+    "workload": {"namespace": "servtuner-tune-qwen", "selector": {"servtuner.dev/managed-target": "qwen"}},
+    "tls": {"mode": "platform"}
+  },
+  "knobs": {"vllm.tensor_parallel_size": 2, "vllm.max_model_len": 32768},
+  "tokens_per_request": 4352
+}

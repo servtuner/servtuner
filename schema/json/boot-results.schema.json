@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/boot-results.schema.json",
+  "title": "BootResults",
+  "description": "The --infeasible file of servtuner propose: the boot probes made so far, each a deployment with no load. An infeasible result rules out every configuration whose knobs contain its knobs. A feasible result must name every feasibility knob of the search space; its c_kv, below the space's min_concurrency, drops the configuration. The probe of a combination is the base knobs plus the feasibility knobs' values.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "results"
+  ],
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/tuningBootResult"
+      }
+    }
+  },
+  "definitions": {
+    "tuningBootOutcome": {
+      "type": "string",
+      "enum": [
+        "feasible",
+        "infeasible"
+      ]
+    },
+    "tuningBootResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "knobs",
+        "outcome"
+      ],
+      "properties": {
+        "knobs": {
+          "$ref": "search-space.schema.json#/definitions/tuningKnobSet",
+          "description": "The knob set that was booted. servtuner propose rejects an empty one: it would match every configuration."
+        },
+        "outcome": {
+          "$ref": "#/definitions/tuningBootOutcome"
+        },
+        "reason": {
+          "description": "Why it did not boot: the last log lines or the exit reason.",
+          "type": "string"
+        },
+        "c_kv": {
+          "description": "The concurrency the KV cache can hold, from num_gpu_blocks in vllm:cache_config_info; for a feasible boot.",
+          "type": "number",
+          "minimum": 0
+        },
+        "num_gpu_blocks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kv_sizing": {
+          "$ref": "#/definitions/tuningKvSizing"
+        },
+        "vllm_version": {
+          "description": "vLLM's version as its /version reported it, for a feasible boot. A tuning session reusing this boot on a host checks it against the version the host's launcher reports.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tuningKvSizing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How vLLM's extensible KV cache was sized at boot (vLLM 0.34+), read from its log lines `Free memory on device ... on startup` and `Memory after warmup ...`. GiB values are as vLLM logged them, to 0.01 GiB.",
+      "required": [
+        "bound",
+        "kv_cache_gib",
+        "requested_gib"
+      ],
+      "properties": {
+        "bound": {
+          "type": "string",
+          "enum": [
+            "memory",
+            "utilization"
+          ],
+          "description": "Which limit sized the cache: `utilization` when gpu_memory_utilization x total memory was the smaller, `memory` when the memory free after warmup (less vLLM's margin) was. Under `memory`, a higher gpu_memory_utilization gives no more KV cache."
+        },
+        "kv_cache_gib": {
+          "type": "number",
+          "minimum": 0,
+          "description": "The KV cache vLLM committed."
+        },
+        "requested_gib": {
+          "type": "number",
+          "minimum": 0,
+          "description": "gpu_memory_utilization x total memory."
+        },
+        "memory_limit_gib": {
+          "type": "number",
+          "description": "The free-memory limit before the transient reserve: free after warmup plus committed, less the margin."
+        },
+        "utilization_limit_gib": {
+          "type": "number",
+          "description": "The gpu_memory_utilization limit before the transient reserve: requested less what vLLM uses besides the cache."
+        }
+      }
+    }
+  }
+}

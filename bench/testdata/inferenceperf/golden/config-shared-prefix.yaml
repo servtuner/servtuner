@@ -1,0 +1,55 @@
+api:
+  type: completion
+  streaming: true
+data:
+  type: shared_prefix
+  shared_prefix:
+    num_groups: 4
+    num_prompts_per_group: 54
+    system_prompt_len: 512
+    question_len:
+      min: 1
+      max: 1024
+      mean: 512.0
+      std_dev: 128.0
+      type: normal
+    output_len:
+      min: 256
+      max: 256
+      mean: 256.0
+      std_dev: 0.0
+      type: fixed
+load:
+  type: poisson
+  base_seed: 42
+  interval: 0.0
+  num_workers: 2
+  stages:
+  - rate: 2.0
+    duration: 10
+  - rate: 2.0
+    duration: 30
+  - rate: 4.5
+    duration: 30
+server:
+  type: vllm
+  model_name: example/model-8b
+  base_url: http://vllm.inference.svc:8000
+tokenizer:
+  pretrained_model_name_or_path: example/model-8b
+report:
+  request_lifecycle:
+    summary: true
+    per_stage: true
+    per_request: true
+    per_adapter: false
+    per_request_fields:
+      request: false
+      response: false
+      info: true
+      response_chunks: false
+      computed_metrics: true
+  prometheus: null
+storage:
+  local_storage:
+    path: /srv/servtuner/engine

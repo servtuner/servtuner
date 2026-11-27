@@ -1,0 +1,15 @@
+# kubectl -n servtuner-litellm patch deployment servtuner-litellm --type strategic \
+#   --patch-file deploy/kind/experiments/litellm-workers-2.patch.yaml
+# Two workers, a core each (rule L1: one Python event loop per worker), and
+# memory for two processes: at 1Gi two workers were OOMKilled at startup,
+# since one worker alone used about 910 MiB of working set.
+# Undo: kubectl apply -f deploy/kind/servtuner-litellm.yaml
+spec:
+  template:
+    spec:
+      containers:
+        - name: litellm
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "4000", "--num_workers", "2"]
+          resources:
+            requests: { cpu: "1", memory: 2Gi }
+            limits: { cpu: "2", memory: 2560Mi }

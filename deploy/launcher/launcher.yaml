@@ -1,0 +1,21 @@
+# servtuner launcher's config (deploy/launcher/README.md). Every key matches a flag of the same name
+# (--listen, --tls-mode, ...), and a flag on the command line wins. Unknown keys are refused.
+# Where it is read from: --config, $SERVTUNER_LAUNCHER_CONFIG, $XDG_CONFIG_HOME/servtuner/launcher.yaml
+# (~/.config by default), then /etc/servtuner/launcher.yaml.
+
+# On WSL2 behind a Windows port proxy, 127.0.0.1 on another port than the proxy's (README).
+listen: 0.0.0.0:9123
+# platform: plain HTTP (the network is trusted with the hop); tls: serve tls_cert_file and tls_key_file.
+tls_mode: platform
+# tls_cert_file: /etc/servtuner/launcher.crt
+# tls_key_file: /etc/servtuner/launcher.key
+
+# Secrets are never in this file, only the files that hold them (mode 0600, one line each). Under
+# systemd with LoadCredential=launcher-token and vllm-api-key, leave both unset: they default to
+# $CREDENTIALS_DIRECTORY.
+# token_file: /etc/servtuner/launcher-token
+# api_key_file: /etc/servtuner/vllm-api-key
+
+# The vllm executable, when it is not on PATH (a virtualenv).
+vllm: vllm
+log_dir: /var/lib/servtuner-launcher

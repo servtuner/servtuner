@@ -1,0 +1,1 @@
+{"fetched_at":"2026-01-01T00:01:00Z","targets":[{"job":"servtuner-targets","role":"target","scrape_interval_seconds":5,"scrape_timeout_seconds":4},{"job":"servtuner-cadvisor","role":"cadvisor","scrape_interval_seconds":5,"scrape_timeout_seconds":4}]}

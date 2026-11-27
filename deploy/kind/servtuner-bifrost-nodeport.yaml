@@ -1,0 +1,21 @@
+# For bench as a local process against servtuner's Bifrost (deploy/kind/experiments/README.md):
+# a NodePort reaches the kind node's IP from the host without kubectl port-forward, which
+# drops connections under load. Bifrost's auth is off on kind, so no Secret is needed.
+#
+#   kubectl apply -f deploy/kind/servtuner-bifrost-nodeport.yaml
+#   kubectl -n servtuner-bifrost delete service servtuner-bifrost-nodeport   # removes it
+#
+# Use http://<kind node IP>:30808/v1. The chart's own Service is left as it is.
+apiVersion: v1
+kind: Service
+metadata:
+  name: servtuner-bifrost-nodeport
+  namespace: servtuner-bifrost
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/instance: servtuner-bifrost
+    app.kubernetes.io/name: bifrost
+  ports:
+    - { name: http, port: 8080, targetPort: http, nodePort: 30808 }

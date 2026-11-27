@@ -1,0 +1,141 @@
+{
+  "noise_floor": 0.05,
+  "notes": [],
+  "objective": "slo_rps_per_gpu",
+  "phase": "feasibility",
+  "proposals": [
+    {
+      "action": "boot_probe",
+      "config_id": "c-9fb4aa9a",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "auto",
+        "vllm.max_model_len": 8192
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-9fb4aa9a"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    },
+    {
+      "action": "boot_probe",
+      "config_id": "c-92214535",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "fp8",
+        "vllm.max_model_len": 8192
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-92214535"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    },
+    {
+      "action": "boot_probe",
+      "config_id": "c-5f33c1a6",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "auto",
+        "vllm.max_model_len": 4096
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-5f33c1a6"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    },
+    {
+      "action": "boot_probe",
+      "config_id": "c-cc9dc3b2",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "fp8",
+        "vllm.max_model_len": 4096
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-cc9dc3b2"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    },
+    {
+      "action": "boot_probe",
+      "config_id": "c-2f036456",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "auto",
+        "vllm.max_model_len": 16384
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-2f036456"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    },
+    {
+      "action": "boot_probe",
+      "config_id": "c-7268c6d2",
+      "knobs": {
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.kv_cache_dtype": "fp8",
+        "vllm.max_model_len": 16384
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-7268c6d2"
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "boot_probe",
+        "text": "boot with no load to learn whether it starts and how much KV cache it gets (c_kv)",
+        "tier": "feasibility"
+      }
+    }
+  ],
+  "status": "propose",
+  "tiers": [
+    {
+      "state": "active",
+      "tier": "feasibility"
+    },
+    {
+      "state": "pending",
+      "tier": "structural"
+    },
+    {
+      "state": "pending",
+      "tier": "scheduler"
+    },
+    {
+      "state": "pending",
+      "tier": "fine_tuning"
+    }
+  ]
+}

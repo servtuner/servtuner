@@ -1,0 +1,6 @@
+{
+  "analyzer_version": "1.1.0",
+  "reason": "no stage is valid and meets the SLOs",
+  "rows": [],
+  "caveats": []
+}

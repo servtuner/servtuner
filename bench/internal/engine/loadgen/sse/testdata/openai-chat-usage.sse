@@ -1,0 +1,14 @@
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[{"index":0,"delta":{"content":"Hello"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[{"index":0,"delta":{"content":" there"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[{"index":0,"delta":{"content":"!"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+data: {"id":"chatcmpl-AbC123","object":"chat.completion.chunk","created":1700000000,"model":"gpt-4o-mini-2024-07-18","system_fingerprint":"fp_example","choices":[],"usage":{"prompt_tokens":9,"completion_tokens":3,"total_tokens":12,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}
+
+data: [DONE]
+

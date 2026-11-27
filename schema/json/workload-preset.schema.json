@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/workload-preset.schema.json",
+  "title": "WorkloadPreset",
+  "description": "A named, versioned workload with suggested SLOs. Files live in schema/presets/<name>.v<version>.yaml. The workload block is immutable once released (a change is a new version), so a preset name always means one request mix; slos and rps_hint are suggestions outside the workload hash and may be corrected in place.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "version",
+    "description",
+    "engines",
+    "workload",
+    "slos",
+    "rps_hint"
+  ],
+  "properties": {
+    "name": {
+      "description": "Lower-case words joined by hyphens; the file name starts with it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engines": {
+      "description": "The engines that can run this workload. bench rejects the preset on any other.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "runspec.schema.json#/definitions/engineType"
+      }
+    },
+    "workload": {
+      "$ref": "#/definitions/presetWorkload"
+    },
+    "slos": {
+      "description": "Suggested SLOs. The New run view copies them into the RunSpec; bench never applies them implicitly.",
+      "$ref": "runspec.schema.json#/definitions/slos"
+    },
+    "rps_hint": {
+      "description": "Hand-written starting points per GPU class for the load ladder, not measured capacity.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/rpsHint"
+      }
+    }
+  },
+  "definitions": {
+    "presetWorkload": {
+      "description": "The workload fields a preset fixes. streaming is the RunSpec's choice, and seed is not part of a workload's identity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset"
+      ],
+      "properties": {
+        "api": {
+          "$ref": "runspec.schema.json#/definitions/workloadApi",
+          "default": "chat"
+        },
+        "dataset": {
+          "$ref": "runspec.schema.json#/definitions/dataset"
+        },
+        "conversation": {
+          "$ref": "runspec.schema.json#/definitions/conversation"
+        }
+      }
+    },
+    "rpsHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gpu_class",
+        "start_rps"
+      ],
+      "properties": {
+        "gpu_class": {
+          "description": "A GPU class label such as a100-80gb.",
+          "type": "string",
+          "minLength": 1
+        },
+        "start_rps": {
+          "description": "Offered RPS of the first ladder stage.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

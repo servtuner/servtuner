@@ -1,0 +1,41 @@
+package spec
+
+// Schema names accepted by Validate and Parse: the file name without
+// ".schema.json", and the directory name in schema/examples. Defined once here.
+const (
+	SchemaRunSpec       = "runspec"
+	SchemaEvents        = "events"
+	SchemaManifest      = "manifest"
+	SchemaPhases        = "phases"
+	SchemaEnvironment   = "environment"
+	SchemaSummary       = "summary"
+	SchemaRequestRecord = "request-record"
+
+	SchemaPrometheusQueries   = "prometheus-queries"
+	SchemaPrometheusTargets   = "prometheus-targets"
+	SchemaTargetSnapshot      = "target-snapshot"
+	SchemaClientSample        = "client-sample"
+	SchemaAnalysis            = "analysis"
+	SchemaRecommendations     = "recommendations"
+	SchemaCapacity            = "capacity"
+	SchemaCapacityModel       = "capacity-model"
+	SchemaPlanRequest         = "plan-request"
+	SchemaPlan                = "plan"
+	SchemaComparison          = "comparison"
+	SchemaChartTimeseries     = "chart-client-timeseries"
+	SchemaChartHistograms     = "chart-histograms"
+	SchemaChartInFlight       = "chart-inflight"
+	SchemaChartServer         = "chart-server"
+	SchemaInfraPricing        = "infra-pricing"
+	SchemaTokenPricing        = "token-pricing"
+	SchemaCheckTargetRequest  = "check-target-request"
+	SchemaCheckTargetResult   = "check-target-result"
+	SchemaWorkloadPreset      = "workload-preset"
+	SchemaSearchSpace         = "search-space"
+	SchemaSearchSpaceTemplate = "search-space-template"
+	SchemaBootResults         = "boot-results"
+	SchemaProposal            = "proposal"
+	SchemaBootProbeRequest    = "boot-probe-request"
+	SchemaKnobCatalog         = "knob-catalog"
+	SchemaHostMachine         = "host-machine"
+)

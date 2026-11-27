@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/knob-catalog.schema.json",
+  "title": "KnobCatalog",
+  "description": "Every vLLM serve flag that is a knob (one value, not one servtuner sets itself), with its description, type, default and limits taken from vLLM's own source at the pinned version. servtuner knobs prints it from the catalog it embeds; the api serves it at GET /knobs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["vllm_version", "vllm_commit", "knobs", "other_flags"],
+  "properties": {
+    "vllm_version": {"description": "The vLLM release the catalog was read from.", "type": "string", "minLength": 1},
+    "vllm_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "knobs": {"type": "array", "items": {"$ref": "#/definitions/knobDescription"}},
+    "other_flags": {"description": "Every other spelling vLLM accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.", "type": "array", "items": {"type": "string", "pattern": "^-"}}
+  },
+  "definitions": {
+    "knobDescription": {
+      "title": "KnobDescription",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "label", "flag", "group", "kind", "help", "built_in", "tuned_as_range"],
+      "properties": {
+        "name": {"description": "The knob's name: vllm.<vLLM's field name>.", "type": "string", "pattern": "^vllm\\.[a-z0-9_]+$"},
+        "label": {"description": "A short name for people (\"Max sequences\"), never the flag.", "type": "string", "minLength": 1},
+        "flag": {"description": "vLLM's long flag; empty for a field set through --compilation-config.", "type": "string"},
+        "aliases": {"type": "array", "items": {"type": "string"}, "default": []},
+        "negative_flags": {"description": "The spellings that turn a boolean off (--no-x, --disable-x).", "type": "array", "items": {"type": "string"}, "default": []},
+        "group": {"description": "vLLM's argument group, the config class the field belongs to.", "type": "string"},
+        "kind": {"$ref": "#/definitions/knobKind"},
+        "default": {"description": "vLLM's argparse default; null when vLLM decides at start-up."},
+        "choices": {"description": "The values vLLM accepts, when it enforces a closed set.", "type": ["array", "null"], "items": {}, "default": null},
+        "suggestions": {"description": "Known values vLLM lists without enforcing them.", "type": ["array", "null"], "items": {"type": "string"}, "default": null},
+        "help": {"description": "vLLM's own description of the field, as written in its source.", "type": "string"},
+        "limits": {"$ref": "#/definitions/knobLimits"},
+        "built_in": {"description": "servtuner labels it and also reads it from a running target's /server_info; every listed knob can be deployed, captured and tuned.", "type": "boolean"},
+        "tuned_as_range": {"description": "A search space may give it as min and max instead of values: the tuning advisors move it (servtuner propose).", "type": "boolean"}
+      }
+    },
+    "knobKind": {
+      "title": "KnobKind",
+      "type": "string",
+      "enum": ["integer", "number", "size", "boolean", "switch", "text", "choice", "json", "list"]
+    },
+    "knobLimits": {
+      "title": "KnobLimits",
+      "description": "Bounds from vLLM's Field(ge/gt/le/lt); cross-field rules are vLLM's to check at start-up.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "ge": {"type": "number"},
+        "gt": {"type": "number"},
+        "le": {"type": "number"},
+        "lt": {"type": "number"}
+      },
+      "default": null
+    }
+  }
+}

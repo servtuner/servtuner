@@ -1,0 +1,129 @@
+{{- if .Values.rbac.create }}
+{{- /* api: Jobs, ConfigMaps and Secrets in the runs namespace only (api/CLAUDE.md). pods and pods/log
+       are read-only and exist for Runner.logs. */ -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "servtuner.fullname" . }}-api
+  namespace: {{ (include "servtuner.runsNamespace" .) }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, get, list, watch, delete]
+  - apiGroups: [""]
+    resources: [configmaps, secrets]
+    # patch: saved targets' keys are written with server-side apply.
+    verbs: [create, get, list, watch, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "servtuner.fullname" . }}-api
+  namespace: {{ (include "servtuner.runsNamespace" .) }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ include "servtuner.fullname" . }}-api}
+subjects:
+  - {kind: ServiceAccount, name: {{ .Values.serviceAccounts.api.name }}, namespace: {{ .Release.Namespace }}}
+---
+# bench: read-only access to workloads in the listed target namespaces, and to nodes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "servtuner.fullname" . }}-bench-nodes
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "servtuner.fullname" . }}-bench-nodes
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ include "servtuner.fullname" . }}-bench-nodes}
+subjects:
+  {{- include "servtuner.benchSubjects" . | nindent 2 }}
+{{- range $targetNamespace := concat .Values.rbac.bench.targetNamespaces (include "servtuner.tuningNamespaces" . | fromJsonArray) | uniq }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "servtuner.fullname" $ }}-bench-read
+  namespace: {{ $targetNamespace }}
+  labels:
+    {{- include "servtuner.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, services]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "servtuner.fullname" $ }}-bench-read
+  namespace: {{ $targetNamespace }}
+  labels:
+    {{- include "servtuner.labels" $ | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ include "servtuner.fullname" $ }}-bench-read}
+subjects:
+  {{- include "servtuner.benchSubjects" $ | nindent 2 }}
+{{- end }}
+{{- /* Managed targets: the api deploys a vLLM it owns. RBAC cannot check labels, so the api
+       refuses to patch an object without servtuner's two ownership labels. Secrets are
+       get-only: the api checks a certificate or token Secret exists, and never lists or writes them. */ -}}
+{{- range $namespace := (include "servtuner.tuningNamespaces" . | fromJsonArray) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "servtuner.fullname" $ }}-api-tuning
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "servtuner.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, patch, delete]
+  - apiGroups: [""]
+    resources: [services, persistentvolumeclaims]
+    verbs: [get, list, watch, create, patch, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log, events]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+  - apiGroups: [cert-manager.io]
+    resources: [certificates]
+    verbs: [get, list, watch, create, patch, delete]
+  - apiGroups: [monitoring.coreos.com]
+    resources: [podmonitors]
+    verbs: [get, list, watch, create, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "servtuner.fullname" $ }}-api-tuning
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "servtuner.labels" $ | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ include "servtuner.fullname" $ }}-api-tuning}
+subjects:
+  - {kind: ServiceAccount, name: {{ $.Values.serviceAccounts.api.name }}, namespace: {{ $.Release.Namespace }}}
+{{- end }}
+{{- end }}

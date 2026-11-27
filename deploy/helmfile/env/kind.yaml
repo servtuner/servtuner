@@ -1,0 +1,2 @@
+# A local kind cluster with internet access: the e2e's prerequisites, from the chart repositories.
+siteValues: [helmfile/kind-values.yaml]

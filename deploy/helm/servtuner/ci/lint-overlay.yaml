@@ -1,0 +1,6 @@
+# helm lint cannot be given --api-versions, so lint renders Postgres as external.
+postgres:
+  mode: external
+  external: {host: postgres.example.internal}
+tls:
+  secrets: {postgres: "", postgresReplication: ""}   # unused with external Postgres

@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/chart-client-timeseries.schema.json",
+  "title": "ClientTimeseries",
+  "description": "charts/client_timeseries.json, written by servtuner analyze for the Latency and Throughput tabs: the client's requests bucketed by send time over the stages, with the stage bands. It is chart data, not a statistic: bucket percentiles are nearest-rank over however many requests the bucket has (samples says how many) and carry no interval; the Rule A qualified values with bootstrap intervals are analysis.json's. Warmup requests are left out.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analyzer_version", "start", "bucket_seconds", "stages", "buckets"],
+  "properties": {
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "start": {
+      "description": "The first stage's start; every offset is from here.",
+      "$ref": "../common.schema.json#/definitions/utcTimestamp"
+    },
+    "bucket_seconds": {
+      "description": "1 for runs of at most 10 minutes of stages, else 5, widened to keep at most 2000 buckets.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "stages": { "type": "array", "items": { "$ref": "#/definitions/stageBand" } },
+    "buckets": {
+      "description": "One per bucket from start to the last stage's end, empty ones included, so the time axis has no gaps.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/timeBucket" }
+    }
+  },
+  "definitions": {
+    "stageBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_index", "start_offset_seconds", "end_offset_seconds", "offered_rps", "is_valid", "is_excluded"],
+      "properties": {
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "start_offset_seconds": { "type": "number", "minimum": 0 },
+        "end_offset_seconds": { "type": "number", "minimum": 0 },
+        "offered_rps": { "type": "number", "minimum": 0 },
+        "is_valid": { "type": "boolean" },
+        "is_excluded": { "type": "boolean" }
+      }
+    },
+    "bucketPercentiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["samples", "p50", "p95", "p99"],
+      "properties": {
+        "samples": { "type": "integer", "minimum": 1 },
+        "p50": { "type": "number", "minimum": 0 },
+        "p95": { "type": "number", "minimum": 0 },
+        "p99": { "type": "number", "minimum": 0 }
+      }
+    },
+    "timeBucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset_seconds", "requests", "errors", "achieved_rps"],
+      "properties": {
+        "offset_seconds": { "type": "number", "minimum": 0 },
+        "stage_index": {
+          "description": "The stage the bucket's start falls in; absent between stages.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "requests": {
+          "description": "Requests sent in the bucket.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": { "type": "integer", "minimum": 0 },
+        "achieved_rps": { "type": "number", "minimum": 0 },
+        "send_lag_p99_seconds": { "type": "number", "minimum": 0 },
+        "output_tokens_per_second": { "type": "number", "minimum": 0 },
+        "ttft_seconds": { "$ref": "#/definitions/bucketPercentiles" },
+        "e2e_seconds": { "$ref": "#/definitions/bucketPercentiles" }
+      }
+    }
+  }
+}

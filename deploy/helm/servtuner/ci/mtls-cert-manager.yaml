@@ -1,0 +1,12 @@
+# tls.mode mtls, certificates issued by cert-manager (the default path).
+tls:
+  mode: mtls
+  source: cert-manager
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteMany}
+rbac:
+  bench:
+    targetNamespaces: [targets-a, targets-b]

@@ -1,0 +1,30 @@
+{
+  "analyzer_version": "1.1.0",
+  "rps_per_replica": 50,
+  "replica_headroom": 0.2,
+  "per_replica": {
+    "cpu_request_cores": 0.3,
+    "memory_request_bytes": 178257920
+  },
+  "is_scale_out_verified": false,
+  "rows": [
+    {
+      "rps": 20,
+      "replicas": 1,
+      "cpu_request_cores": 0.3,
+      "memory_request_bytes": 178257920,
+      "is_target_rps": false
+    },
+    {
+      "rps": 100,
+      "replicas": 3,
+      "cpu_request_cores": 0.9,
+      "memory_request_bytes": 534773760,
+      "is_target_rps": true
+    }
+  ],
+  "caveats": [
+    "Linear scale-out is assumed: run at two replica counts to verify it."
+  ],
+  "extra": true
+}

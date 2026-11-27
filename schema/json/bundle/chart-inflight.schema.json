@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/chart-inflight.schema.json",
+  "title": "InFlightChart",
+  "description": "charts/inflight.json, written by servtuner analyze for the Queueing tab: L(t), the client's requests in flight, sampled each second over the stages from the request records (each request from sent_at for its E2E), and bucketed to at most 2000 points that keep each bucket's minimum and maximum; plus Little's law per stage. Warmup requests are left out.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analyzer_version", "start", "bucket_seconds", "stages", "points"],
+  "properties": {
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "start": {
+      "description": "The first stage's start; every offset is from here.",
+      "$ref": "../common.schema.json#/definitions/utcTimestamp"
+    },
+    "bucket_seconds": {
+      "description": "Seconds per point: 1, widened to keep at most 2000 points.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "stages": { "type": "array", "items": { "$ref": "#/definitions/littleCheck" } },
+    "points": { "type": "array", "items": { "$ref": "#/definitions/inFlightPoint" } }
+  },
+  "definitions": {
+    "inFlightPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset_seconds", "mean", "min", "max"],
+      "properties": {
+        "offset_seconds": { "type": "number", "minimum": 0 },
+        "mean": { "type": "number", "minimum": 0 },
+        "min": { "type": "number", "minimum": 0 },
+        "max": { "type": "number", "minimum": 0 }
+      }
+    },
+    "littleCheck": {
+      "description": "Little's law L = λ × W for one stage: the mean in flight against arrival rate × mean E2E. A large error means the stage was not in steady state.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_index", "start_offset_seconds", "end_offset_seconds", "arrival_rps"],
+      "properties": {
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "start_offset_seconds": { "type": "number", "minimum": 0 },
+        "end_offset_seconds": { "type": "number", "minimum": 0 },
+        "arrival_rps": { "type": "number", "minimum": 0 },
+        "mean_e2e_seconds": { "type": "number", "minimum": 0 },
+        "mean_in_flight": { "type": "number", "minimum": 0 },
+        "little_error": {
+          "description": "|mean in flight − λ × mean E2E| ÷ (λ × mean E2E).",
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

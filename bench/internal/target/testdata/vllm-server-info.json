@@ -1,0 +1,16 @@
+{
+  "vllm_config": {
+    "model_config": {"model": "test-model", "dtype": "bfloat16", "quantization": "fp8", "enforce_eager": false},
+    "cache_config": {"gpu_memory_utilization": 0.9, "enable_prefix_caching": true, "cache_dtype": "fp8_e4m3"},
+    "scheduler_config": {"max_num_seqs": 128, "max_num_batched_tokens": 8192, "enable_chunked_prefill": true, "stream_interval": 1, "async_scheduling": true, "max_num_queued_reqs": null, "watermark": 0.0},
+    "parallel_config": {"tensor_parallel_size": 1, "data_parallel_size": 2, "pipeline_parallel_size": 1, "enable_expert_parallel": false, "disable_custom_all_reduce": false, "dp_sync_interval": 16, "numa_bind": null, "all2all_backend": "allgather_reducescatter"},
+    "kernel_config": {"linear_backend": "auto", "moe_backend": "auto", "enable_flashinfer_autotune": true},
+    "compilation_config": {"max_cudagraph_capture_size": 512, "cudagraph_mode": 4},
+    "attention_config": {"backend": "vllm.v1.attention.backends.flash_attn.FlashAttentionBackend"},
+    "observability_config": {"enable_logging_iteration_details": false},
+    "speculative_config": {"quantization": "awq", "enforce_eager": true, "method": "eagle3", "model": "test-draft", "num_speculative_tokens": 3},
+    "performance_mode": "throughput",
+    "optimization_level": 2
+  },
+  "vllm_env": {"VLLM_SERVER_DEV_MODE": "1"}
+}

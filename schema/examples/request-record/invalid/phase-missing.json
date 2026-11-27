@@ -1,0 +1,18 @@
+{
+  "scheduled_at": "2026-10-28T12:00:00Z",
+  "sent_at": "2026-10-28T12:00:00.004Z",
+  "send_lag_seconds": 0.004,
+  "ttfb_seconds": 0.12,
+  "ttft_seconds": 0.15,
+  "itl_seconds": [
+    0.02,
+    0.021,
+    0.019
+  ],
+  "e2e_seconds": 0.35,
+  "input_tokens": 128,
+  "output_tokens": 4,
+  "status": 200,
+  "stage_index": 0,
+  "worker": 3
+}

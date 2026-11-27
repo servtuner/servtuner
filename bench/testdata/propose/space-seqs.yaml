@@ -1,0 +1,5 @@
+# Only max_num_seqs is tuned: no grid, no fine-tuning. Two configurations are
+# confirmed, with the default three repeats.
+base: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75}
+knobs: [{name: vllm.max_num_seqs, tier: scheduler, min: 32, max: 512, default: 64}]
+confirm: {top: 2}

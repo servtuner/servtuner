@@ -1,0 +1,3 @@
+# expect: storage.backend is file but there is no PVC
+tls: {mode: platform}
+storage: {file: {pvc: {create: false, existingClaim: ""}}}

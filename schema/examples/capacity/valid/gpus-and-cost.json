@@ -1,0 +1,59 @@
+{
+  "analyzer_version": "1.1.0",
+  "rps_per_replica": 50,
+  "replica_headroom": 0.2,
+  "per_replica": {
+    "cpu_request_cores": 0.3,
+    "memory_request_bytes": 178257920
+  },
+  "is_scale_out_verified": false,
+  "rows": [
+    {
+      "rps": 20,
+      "replicas": 1,
+      "cpu_request_cores": 0.3,
+      "memory_request_bytes": 178257920,
+      "is_target_rps": false,
+      "gpus": 1,
+      "cost_per_hour": 1.4
+    },
+    {
+      "rps": 100,
+      "replicas": 3,
+      "cpu_request_cores": 0.9,
+      "memory_request_bytes": 534773760,
+      "is_target_rps": true,
+      "gpus": 3,
+      "cost_per_hour": 4.2
+    }
+  ],
+  "caveats": [
+    "Linear scale-out is assumed: run at two replica counts to verify it."
+  ],
+  "gpus_per_replica": 1,
+  "infra_cost": {
+    "source": "aws",
+    "is_priced": true,
+    "usd_per_replica_hour": 1.4,
+    "method": "gpu",
+    "basis": "1 GPU × 1.4 USD/GPU-h (g5.12xlarge at 5.6 USD/h ÷ 4 GPUs) = 1.4 USD/h",
+    "usd_per_1k_requests": 0.00778,
+    "usd_per_1m_output_tokens": 0.0778
+  },
+  "token_cost": {
+    "is_priced": true,
+    "model": "openai/gpt-4o-mini",
+    "datasheet_key": "gpt-4o-mini",
+    "stage_index": 2,
+    "method": "router_metric",
+    "usd_per_1k_requests": 0.5,
+    "usd_per_1m_output_tokens": 4,
+    "datasheet_usd_per_1k_requests": 0.4,
+    "divergence": 0.2,
+    "retry_added_usd_per_1k_requests": 0.1,
+    "approximations": [
+      "Base input and output prices only: cache reads, long-context tiers, batch, flex and priority prices are not modelled.",
+      "the router's own cost and servtuner's calculation differ by 20.0%: retries, fallbacks or prices servtuner does not model"
+    ]
+  }
+}

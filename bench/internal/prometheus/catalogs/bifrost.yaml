@@ -1,0 +1,79 @@
+# Bifrost gateway series (checked
+# 2026-10-28 against main @ 965d93ea, transport v2.3.2, telemetry plugin v1.9.2).
+# Still to verify against the deployed chart's own /metrics (the local cluster
+# runs chart 2.1.33, appVersion 1.5.12).
+#
+# Metrics are per pod; every query keeps the pod label and aggregation happens
+# later. Units: the overhead histograms are in MICROSECONDS, every other latency
+# in seconds. The buckets are hard-coded. bifrost_upstream_latency_seconds is the
+# wall time of an attempt including queueing and retries, not time to headers.
+# bifrost_stream_first_token_latency_seconds starts at the upstream send, so it
+# is not comparable to client TTFT. Histograms are stored raw (_bucket, _sum,
+# _count).
+#
+# Gateway CPU and memory come from the kubernetes catalog (cAdvisor), because the
+# servtuner-targets job keeps only the catalog metrics and drops go_* and process_*.
+name: bifrost
+version: 1
+job_role: target
+description: Bifrost latency, overhead, throughput, error, retry and in-flight series.
+marker:
+  query: count(bifrost_active_requests{<<.Selector>>}) or count(http_requests_total{<<.Selector>>})
+queries:
+  # Latency histograms.
+  - name: http_request_duration_seconds
+    description: Handler wall time; for streams the whole stream. The closest match to client E2E.
+    query: '{__name__=~"http_request_duration_seconds_(bucket|sum|count)",path=~"/v1/.*",<<.Selector>>}'
+  - name: upstream_latency_seconds
+    query: '{__name__=~"bifrost_upstream_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: overhead_latency_microseconds
+    query: '{__name__=~"bifrost_overhead_latency_microseconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: overhead_component_microseconds
+    description: Only filled with overhead_breakdown_enabled and tracing active.
+    query: '{__name__=~"bifrost_overhead_component_microseconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: stream_first_token_latency_seconds
+    query: '{__name__=~"bifrost_stream_first_token_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: stream_inter_token_latency_seconds
+    description: Whole-millisecond resolution.
+    query: '{__name__=~"bifrost_stream_inter_token_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: request_retries
+    query: '{__name__=~"bifrost_request_retries_(bucket|sum|count)",<<.Selector>>}'
+
+  # Counters, raw. Each fallback attempt counts separately (fallback_index). The error,
+  # cache and key-rotation counters are labelled per event, so they have no series until
+  # the first one: may_be_empty.
+  - name: http_requests_total
+    query: http_requests_total{path=~"/v1/.*",<<.Selector>>}
+  - name: upstream_requests_total
+    query: bifrost_upstream_requests_total{<<.Selector>>}
+  - name: success_requests_total
+    query: bifrost_success_requests_total{<<.Selector>>}
+  - name: error_requests_total
+    may_be_empty: true
+    query: bifrost_error_requests_total{<<.Selector>>}
+  - name: cost_total
+    # USD, from Bifrost's model catalog; 0 for a model the catalog cannot price.
+    # Read by the token cost.
+    may_be_empty: true
+    query: bifrost_cost_total{<<.Selector>>}
+  - name: input_tokens_total
+    query: bifrost_input_tokens_total{<<.Selector>>}
+  - name: output_tokens_total
+    query: bifrost_output_tokens_total{<<.Selector>>}
+  - name: cache_hits_total
+    may_be_empty: true
+    query: bifrost_cache_hits_total{<<.Selector>>}
+  - name: key_rotation_events_total
+    may_be_empty: true
+    query: bifrost_key_rotation_events_total{<<.Selector>>}
+
+  # Gauges: in-flight requests per pod and for the fleet, and key health.
+  - name: active_requests
+    query: bifrost_active_requests{<<.Selector>>}
+  - name: active_requests_max
+    query: max_over_time(bifrost_active_requests{<<.Selector>>}[<<.Window>>])
+  - name: active_requests_fleet_max
+    description: Peak of the sum over every pod, evaluated at the scrape interval.
+    query: max_over_time(sum(bifrost_active_requests{<<.Selector>>})[<<.Window>>:<<.Step>>])
+  - name: provider_key_up
+    query: bifrost_provider_key_up{<<.Selector>>}

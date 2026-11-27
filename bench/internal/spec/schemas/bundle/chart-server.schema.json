@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/chart-server.schema.json",
+  "title": "ServerChart",
+  "description": "charts/server.json, written by servtuner analyze for the Server and Resources tabs: the server-side series the analysis reads, as the analysis derives them (pods selected, units normalized), and each target container's CPU and memory on its busiest pod with the captured requests and limits as reference lines. Each series has at most 2000 points that keep each bucket's minimum and maximum. A series that was not collected is absent: no evidence, never zero.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analyzer_version", "start", "bucket_seconds", "panels"],
+  "properties": {
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "start": {
+      "description": "The first stage's start; every offset is from here.",
+      "$ref": "../common.schema.json#/definitions/utcTimestamp"
+    },
+    "bucket_seconds": {
+      "description": "Seconds per point, chosen to keep at most 2000 points over the stages.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "panels": { "type": "array", "items": { "$ref": "#/definitions/serverPanel" } }
+  },
+  "definitions": {
+    "panelGroup": {
+      "description": "server: the target application's own series (queues, caches, router slots, GPU); resources: CPU and memory against requests and limits.",
+      "type": "string",
+      "enum": ["server", "resources"]
+    },
+    "panelUnit": {
+      "description": "fraction is 0 to 1 (of a limit, a knob or a capacity). per_second is events per second (the panel title names the event); tokens_per_second is tokens per second; seconds is a duration; watts is power; hertz is a clock frequency.",
+      "type": "string",
+      "enum": ["fraction", "requests", "pods", "cores", "bytes", "seconds", "per_second", "tokens_per_second", "watts", "hertz"]
+    },
+    "serverPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset_seconds", "mean", "min", "max"],
+      "properties": {
+        "offset_seconds": { "type": "number", "minimum": 0 },
+        "mean": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "panelSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "points"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "points": { "type": "array", "items": { "$ref": "#/definitions/serverPoint" } }
+      }
+    },
+    "referenceLine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "number", "minimum": 0 }
+      }
+    },
+    "serverPanel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "group", "title", "unit", "series"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "group": { "$ref": "#/definitions/panelGroup" },
+        "title": { "type": "string", "minLength": 1 },
+        "unit": { "$ref": "#/definitions/panelUnit" },
+        "definition": {
+          "description": "What the series means and where it comes from, shown beside the chart.",
+          "type": "string",
+          "minLength": 1
+        },
+        "series": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/panelSeries" } },
+        "reference_lines": { "type": "array", "items": { "$ref": "#/definitions/referenceLine" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,117 @@
+# A LiteLLM proxy for servtuner runs, in front of the platform-mode mock
+# (deploy/mocks/README.md, step 1, namespace servtuner-mock). It is the target the
+# LiteLLM advisor is verified against.
+#
+#   kubectl apply -f deploy/kind/servtuner-litellm.yaml
+#   kubectl delete namespace servtuner-litellm      # removes all of it
+#
+# Plain manifests, not a chart: LiteLLM's own chart brings Postgres for keys and
+# spend, which a benchmark target does not need.
+#
+# LiteLLM (since about v1.108) refuses to start without a master key. The key
+# lives in a Secret created out of band, never committed:
+#
+#   kubectl -n servtuner-litellm create secret generic servtuner-litellm-master-key \
+#     --from-literal=token="sk-$(openssl rand -hex 32)"
+#
+# A RunSpec reaches the proxy with target.auth naming that Secret (key
+# `token`); /metrics stays unauthenticated (require_auth_for_metrics_endpoint).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: servtuner-litellm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: servtuner-litellm-config
+  namespace: servtuner-litellm
+data:
+  config.yaml: |
+    model_list:
+      - model_name: mock-model
+        litellm_params:
+          model: openai/mock-model
+          api_base: http://openai-mock.servtuner-mock.svc:8000/v1
+          api_key: not-a-secret   # the mock ignores it
+      # A priced name for the token cost: still the mock,
+      # but LiteLLM and the datasheet both price it as gpt-4o-mini.
+      - model_name: gpt-4o-mini
+        litellm_params:
+          model: openai/gpt-4o-mini
+          api_base: http://openai-mock.servtuner-mock.svc:8000/v1
+          api_key: not-a-secret
+    litellm_settings:
+      callbacks: ["prometheus"]
+      require_auth_for_metrics_endpoint: false
+    router_settings:
+      num_retries: 0
+      allowed_fails: 3
+      cooldown_time: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servtuner-litellm
+  namespace: servtuner-litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: servtuner-litellm }
+  template:
+    metadata:
+      labels:
+        app: servtuner-litellm
+        # Opt in to the 5s servtuner-targets Prometheus job.
+        servtuner.dev/scrape: "true"
+      annotations:
+        servtuner.dev/metrics-port: "4000"
+        servtuner.dev/metrics-path: /metrics/
+        servtuner.dev/metrics-scheme: http
+    spec:
+      containers:
+        - name: litellm
+          # Released 2026-11-07, pinned at least two weeks old.
+          image: ghcr.io/berriai/litellm:v1.108.3
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "4000", "--num_workers", "1"]
+          env:
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef: { name: servtuner-litellm-master-key, key: token }
+          ports:
+            - { name: http, containerPort: 4000 }
+          readinessProbe:
+            httpGet: { path: /health/readiness, port: http }
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 500m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/litellm }
+      volumes:
+        - name: config
+          configMap: { name: servtuner-litellm-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servtuner-litellm
+  namespace: servtuner-litellm
+spec:
+  selector: { app: servtuner-litellm }
+  ports:
+    - { name: http, port: 4000, targetPort: http }
+---
+# For bench as a local process (deploy/kind/experiments/README.md): a NodePort
+# reaches the kind node's IP from the host without kubectl port-forward, which
+# drops connections under load. Use http://<kind node IP>:30400/v1.
+apiVersion: v1
+kind: Service
+metadata:
+  name: servtuner-litellm-nodeport
+  namespace: servtuner-litellm
+spec:
+  type: NodePort
+  selector: { app: servtuner-litellm }
+  ports:
+    - { name: http, port: 4000, targetPort: http, nodePort: 30400 }

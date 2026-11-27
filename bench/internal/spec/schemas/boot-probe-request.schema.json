@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/boot-probe-request.schema.json",
+  "title": "BootProbeRequest",
+  "description": "The input of servtuner boot-probe: a vLLM that booted with these knobs and no load. bench reads vllm:cache_config_info from its /metrics through the target's own hop and prints a tuningBootResult (boot-results.schema.json) with num_gpu_blocks and c_kv = num_gpu_blocks x block_size / tokens_per_request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "target",
+    "knobs",
+    "tokens_per_request"
+  ],
+  "properties": {
+    "target": {
+      "$ref": "runspec.schema.json#/definitions/target"
+    },
+    "knobs": {
+      "$ref": "search-space.schema.json#/definitions/tuningKnobSet",
+      "description": "The knobs the target booted with; copied into the result."
+    },
+    "tokens_per_request": {
+      "description": "Mean prompt plus generated tokens per request of the session's workload: the planned means, since a boot probe has no measured requests.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
+  }
+}

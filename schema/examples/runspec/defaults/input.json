@@ -1,0 +1,54 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "defaults-input",
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/model-8b",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128
+      },
+      "output_tokens": {
+        "mean": 64
+      }
+    }
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 1,
+        "duration": "30s"
+      }
+    ]
+  },
+  "prometheus": {
+    "url": "https://prometheus.monitoring.svc:9090",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    }
+  },
+  "analysis": {
+    "stage_validity": {},
+    "limits": {},
+    "headroom": {}
+  },
+  "storage": {}
+}

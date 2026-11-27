@@ -1,0 +1,8 @@
+{
+  "sampled_at": "2026-10-28T12:05:01Z",
+  "source": "loadgen",
+  "stage_index": 0,
+  "goroutines": 42,
+  "send_lag_max_seconds": 0.004,
+  "send_lag_p99_seconds": 0.0004
+}

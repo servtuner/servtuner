@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Placeholder for local dev. nginx rewrites it per request; see nginx.conf.template. -->
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>servtuner</title>
+    <!--
+      Mantine's ColorSchemeScript, inlined because this is a client-only app: set the saved
+      color scheme (or the OS's, on auto) before React renders, so a page never paints light
+      and then switches to dark. Same key and default as MantineProvider in src/app/App.tsx.
+    -->
+    <script data-mantine-script>
+      try {
+        var storedScheme = window.localStorage.getItem("mantine-color-scheme-value");
+        var scheme =
+          storedScheme === "light" || storedScheme === "dark" || storedScheme === "auto" ? storedScheme : "auto";
+        var computedScheme =
+          scheme !== "auto" ? scheme : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-mantine-color-scheme", computedScheme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

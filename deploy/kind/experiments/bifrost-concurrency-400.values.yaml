@@ -1,0 +1,9 @@
+# Experiment bifrost-concurrency: the servtuner-mock provider at concurrency 400.
+# Apply on top of deploy/kind/servtuner-bifrost.values.yaml (the shape of patches/bifrost.yaml):
+#   helm upgrade servtuner-bifrost <chart> -n servtuner-bifrost -f deploy/kind/servtuner-bifrost.values.yaml -f <this file>
+bifrost:
+  providers:
+    servtuner-mock:
+      concurrency_and_buffer_size:
+        concurrency: 400
+        buffer_size: 5000

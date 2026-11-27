@@ -1,0 +1,42 @@
+{
+  "analyzer_version": "1.13.0",
+  "start": "2026-10-30T12:00:00Z",
+  "bucket_seconds": 1,
+  "stages": [
+    {
+      "stage_index": 0,
+      "start_offset_seconds": 0,
+      "end_offset_seconds": 2,
+      "arrival_rps": 10,
+      "mean_e2e_seconds": 0.5,
+      "mean_in_flight": 5.1,
+      "little_error": 0.02
+    },
+    {
+      "stage_index": 1,
+      "start_offset_seconds": 2,
+      "end_offset_seconds": 3,
+      "arrival_rps": 0
+    }
+  ],
+  "points": [
+    {
+      "offset_seconds": 0,
+      "mean": 4,
+      "min": -1,
+      "max": 4
+    },
+    {
+      "offset_seconds": 1,
+      "mean": 6,
+      "min": 6,
+      "max": 6
+    },
+    {
+      "offset_seconds": 2,
+      "mean": 0,
+      "min": 0,
+      "max": 0
+    }
+  ]
+}

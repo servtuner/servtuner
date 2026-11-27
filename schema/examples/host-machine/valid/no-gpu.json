@@ -1,0 +1,7 @@
+{
+  "read_at": "2026-11-25T18:00:00Z",
+  "gpus": [],
+  "cpu_cores": 4,
+  "memory_bytes": 8000000000,
+  "problems": ["nvidia-smi: executable file not found in $PATH"]
+}

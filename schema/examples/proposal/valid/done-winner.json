@@ -1,0 +1,72 @@
+{
+  "done": {
+    "outcome": "winner",
+    "reason": "c1's 95% interval (44 to 44.04) and c2's (41.46 to 41.96) do not overlap",
+    "winner": {
+      "confidence": "high",
+      "config_id": "c-9f2815ae",
+      "is_significant": true,
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 8192,
+        "vllm.max_num_seqs": 256
+      },
+      "objective_value": 44.02,
+      "run_ids": [
+        "01M80BG58Y5V7TTQD29W0DE1EW",
+        "01M80BTS14CSE5M37WSZVJQNTS",
+        "01M80C5CWM7892JPTPN9A91R3A"
+      ]
+    }
+  },
+  "leader": {
+    "config_id": "c-ff772d74",
+    "knobs": {
+      "vllm.api_server_count": 1,
+      "vllm.async_scheduling": false,
+      "vllm.enable_prefix_caching": true,
+      "vllm.gpu_memory_utilization": 0.75,
+      "vllm.max_num_batched_tokens": 8192,
+      "vllm.max_num_seqs": 128
+    },
+    "objective_value": 37.922,
+    "run_ids": [
+      "01M808ZJD5N88S47PGSSC5WK78",
+      "01M80CJ54CMCEWYJES6JV5F8K3",
+      "01M80CWTTEFPEQFQCETGR8BR60",
+      "01M80D7HNZK01Q6JQ8AVYHNKY6"
+    ],
+    "slo_max_rps": 37.92
+  },
+  "noise_floor": 0.05,
+  "notes": [],
+  "objective": "slo_rps_per_gpu",
+  "phase": "done",
+  "proposals": [],
+  "status": "done",
+  "tiers": [
+    {
+      "reason": "no feasibility knobs in the search space",
+      "state": "converged",
+      "tier": "feasibility"
+    },
+    {
+      "reason": "every surviving value has been screened against the leader",
+      "state": "converged",
+      "tier": "structural"
+    },
+    {
+      "reason": "no advisor move is left on the leader, the 3x3 grid around it is complete and the other scheduler knobs are screened",
+      "state": "converged",
+      "tier": "scheduler"
+    },
+    {
+      "reason": "every fine-tuning value has been screened against the leader",
+      "state": "converged",
+      "tier": "fine_tuning"
+    }
+  ]
+}

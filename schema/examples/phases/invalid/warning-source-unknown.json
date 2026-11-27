@@ -1,0 +1,55 @@
+{
+  "phases": [
+    {
+      "name": "warmup",
+      "kind": "warmup",
+      "start": "2026-10-28T12:00:00Z",
+      "end": "2026-10-28T12:05:00Z"
+    },
+    {
+      "name": "stage-0",
+      "kind": "stage",
+      "stage_index": 0,
+      "offered_rps": 1,
+      "start": "2026-10-28T12:05:00Z",
+      "end": "2026-10-28T12:10:30.250Z"
+    },
+    {
+      "name": "cooldown",
+      "kind": "cooldown",
+      "start": "2026-10-28T12:10:30.250Z",
+      "end": "2026-10-28T12:11:00Z"
+    }
+  ],
+  "warnings": [
+    {
+      "stage_index": 0,
+      "rule": "min_stage_duration",
+      "required_duration_seconds": 60,
+      "actual_duration_seconds": 30,
+      "scrape_interval_seconds": 5,
+      "scrape_interval_source": "guessed",
+      "job": "servtuner-targets",
+      "message": "stage-0 lasts 30s; at a 5s scrape interval it needs at least 60s"
+    },
+    {
+      "rule": "warmup_duration",
+      "required_duration_seconds": 30,
+      "actual_duration_seconds": 10,
+      "scrape_interval_seconds": 5,
+      "scrape_interval_source": "assumed",
+      "message": "warmup lasts 10s; it needs at least 30s"
+    },
+    {
+      "stage_index": 0,
+      "rule": "percentile_sample_count",
+      "required_duration_seconds": 200,
+      "actual_duration_seconds": 30,
+      "scrape_interval_seconds": 5,
+      "scrape_interval_source": "assumed",
+      "percentile": "p99",
+      "required_requests": 1000,
+      "message": "p99 needs about 1000 requests"
+    }
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/environment.schema.json",
+  "title": "Environment",
+  "description": "environment.json: what ran the benchmark and how each hop was secured.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "bench_version",
+    "go_version",
+    "engine",
+    "clock_source",
+    "transport",
+    "tls_relay_used"
+  ],
+  "properties": {
+    "bench_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "go_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "image_digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pod": {
+      "description": "Name of the bench pod; analysis uses it to select the bench container's series.",
+      "type": "string",
+      "minLength": 1
+    },
+    "shard_pods": {
+      "description": "The follower shards' bench pods of a sharded run (engine.shards), in shard order from 1; analysis treats them as bench pods too, so client_bound sees every shard's CPU.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "namespace": {
+      "description": "Namespace of the bench pod.",
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "$ref": "#/definitions/engineInfo"
+    },
+    "clock_source": {
+      "description": "Where timestamps came from, for example ntp or host.",
+      "type": "string",
+      "minLength": 1
+    },
+    "transport": {
+      "$ref": "#/definitions/hopTransports"
+    },
+    "tls_relay_used": {
+      "type": "boolean"
+    },
+    "offline": {
+      "description": "servtuner run --offline: no public datasheet fallback and no AWS Price List. Absent means false.",
+      "type": "boolean"
+    },
+    "workload": {
+      "$ref": "#/definitions/workloadInfo"
+    },
+    "knobs": {
+      "description": "The knob values the target adapter captured, by knob name (for example vllm.max_num_seqs). A knob two workloads disagreed on, or that could not be read, is absent. servtuner analyze reproduces its knob checks from this alone.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "../runspec.schema.json#/definitions/knobValue"
+      },
+      "default": {}
+    },
+    "http_version": {
+      "description": "HTTP version of the connection to the target; when the TLS relay is used, the connection the relay makes. A client certificate makes Go's HTTP client use HTTP/1.1, so it is recorded, not assumed.",
+      "$ref": "#/definitions/httpVersion"
+    }
+  },
+  "definitions": {
+    "workloadInfo": {
+      "description": "The generated workload, so RPS is only compared between runs with the same hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hash",
+        "generator"
+      ],
+      "properties": {
+        "hash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generator": {
+          "description": "Name and version of the workload generator.",
+          "type": "string",
+          "minLength": 1
+        },
+        "chars_per_token": {
+          "description": "Calibrated from usage during warmup.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "httpVersion": {
+      "type": "string",
+      "enum": [
+        "1.1",
+        "2"
+      ]
+    },
+    "engineInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "max_in_flight": {
+          "description": "The engine's cap on requests in flight at once (loadgen). When a target falls behind, in-flight requests pile up to this cap and sends wait for a slot; the analysis tells that apart from a slow client (target_saturated).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "hopTransports": {
+      "description": "Transport mode of every hop used by this run. A hop that was not used is omitted.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "../common.schema.json#/definitions/transportMode"
+        },
+        "prometheus": {
+          "$ref": "../common.schema.json#/definitions/transportMode"
+        },
+        "api": {
+          "$ref": "../common.schema.json#/definitions/transportMode"
+        },
+        "object_store": {
+          "$ref": "../common.schema.json#/definitions/transportMode"
+        }
+      }
+    }
+  }
+}

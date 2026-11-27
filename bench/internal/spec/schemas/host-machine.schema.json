@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/host-machine.schema.json",
+  "title": "HostMachine",
+  "description": "What servtuner launcher reports about the machine it runs on (GET /machine): its GPUs from nvidia-smi, its CPU from /proc/cpuinfo and its memory from /proc/meminfo. A part it cannot read is left out and named in problems, never guessed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["read_at", "gpus", "problems"],
+  "properties": {
+    "read_at": {"$ref": "common.schema.json#/definitions/utcTimestamp"},
+    "hostname": {"type": "string"},
+    "gpus": {
+      "description": "One entry per GPU nvidia-smi lists; empty on a machine without NVIDIA GPUs or when nvidia-smi is missing (problems says which).",
+      "type": "array",
+      "items": {"$ref": "#/definitions/hostGpu"}
+    },
+    "cpu_model": {"type": "string", "minLength": 1},
+    "cpu_cores": {"description": "Logical CPUs.", "type": "integer", "minimum": 1},
+    "memory_bytes": {"description": "MemTotal.", "type": "integer", "minimum": 1},
+    "problems": {"type": "array", "items": {"type": "string"}}
+  },
+  "definitions": {
+    "hostGpu": {
+      "title": "HostGpu",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "memory_bytes"],
+      "properties": {
+        "model": {"description": "As nvidia-smi names it: \"NVIDIA GeForce RTX 3070\".", "type": "string", "minLength": 1},
+        "memory_bytes": {"type": "integer", "minimum": 1},
+        "driver_version": {"type": "string"}
+      }
+    }
+  }
+}

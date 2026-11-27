@@ -1,0 +1,14 @@
+{
+  "name": "single-gpu",
+  "version": 1,
+  "title": "One GPU",
+  "description": "The scheduler knobs on one GPU.",
+  "fits": {
+    "placements": [
+      "kubernetes",
+      "host"
+    ],
+    "min_gpus": 1,
+    "max_gpus": 1
+  }
+}

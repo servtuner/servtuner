@@ -1,0 +1,14 @@
+data: {"choices":[{"finish_reason":null,"index":0,"logprobs":null,"text":"tok "}],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"logprobs":null,"text":"tok "}],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"logprobs":null,"text":"tok "}],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion"}
+
+data: {"choices":[{"finish_reason":null,"index":0,"logprobs":null,"text":"tok "}],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion"}
+
+data: {"choices":[{"finish_reason":"stop","index":0,"logprobs":null,"text":""}],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion"}
+
+data: {"choices":[],"created":0,"id":"cmpl-mock-1","model":"mock-model","object":"text_completion","usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}
+
+data: [DONE]
+

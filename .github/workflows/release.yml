@@ -1,0 +1,290 @@
+name: release
+
+# Publishes a servtuner release when a tag vX.Y.Z is pushed (vX.Y.Z-rc.N publishes a pre-release). RELEASING.md
+# has the steps. In order:
+#   prepare   the version from the tag; refuses a tag that is not on main; is it the newest stable release?
+#   gates     every CI gate again, on the tagged commit (ci.yml)
+#   images    servtuner-{bench,api,frontend} for linux/amd64 and linux/arm64, pushed to ghcr.io/servtuner with
+#             provenance and an SBOM, then signed with cosign (keyless: this workflow's OIDC identity)
+#   chart     the Helm chart, pushed to oci://ghcr.io/servtuner/charts and signed
+#   archive   the air-gapped archive, built from the images just pushed, their signatures verified on the way in
+#   release   the CLI for linux and darwin, and the GitHub Release with every file, its checksums signed
+#             (GoReleaser, .goreleaser.yaml)
+# Run by hand (workflow_dispatch), it is a dry run: it builds everything it can without publishing anything.
+#
+# Actions are pinned to full commits: this workflow can publish and sign.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/servtuner
+  # The certificate identity every signature must carry: this workflow, run for a release tag.
+  SIGNER: ^https://github\.com/servtuner/servtuner/\.github/workflows/release\.yml@refs/tags/v
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      latest: ${{ steps.version.outputs.latest }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # every tag and main, to place this one
+      - id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME" publish=true
+          else
+            tag="v0.0.0-dryrun.$GITHUB_RUN_NUMBER" publish=false
+          fi
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] ||
+            { echo "::error::$tag is not vX.Y.Z or vX.Y.Z-<pre-release>"; exit 1; }
+          prerelease=false
+          [[ "$tag" == *-* ]] && prerelease=true
+          latest=false
+          if [ "$publish" = true ]; then
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main ||
+              { echo "::error::$tag is not on main: releases are tagged on main"; exit 1; }
+            # latest moves only to the newest stable release, never back to a patch of an older line.
+            newest="$(git tag --list 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+            [ "$prerelease" = false ] && [ "$tag" = "$newest" ] && latest=true
+          fi
+          {
+            echo "version=${tag#v}"
+            echo "prerelease=$prerelease"
+            echo "latest=$latest"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+          echo "release ${tag#v}: pre-release $prerelease, latest $latest, publish $publish" >> "$GITHUB_STEP_SUMMARY"
+
+  gates:
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: [prepare, gates]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write # push to ghcr.io
+      id-token: write # cosign keyless signing
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      PUBLISH: ${{ needs.prepare.outputs.publish }}
+    outputs:
+      bench: ${{ steps.digests.outputs.bench }}
+      api: ${{ steps.digests.outputs.api }}
+      frontend: ${{ steps.digests.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: env.PUBLISH == 'true'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Tags: X.Y.Z always; X.Y and latest only for a stable release (latest only for the newest one).
+      - id: meta-bench
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/servtuner-bench
+          bake-target: meta-bench
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=servtuner-bench
+            org.opencontainers.image.description=servtuner's CLI: runs one benchmark (a Kubernetes Job) and analyzes runs
+      - id: meta-api
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/servtuner-api
+          bake-target: meta-api
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=servtuner-api
+            org.opencontainers.image.description=servtuner's control plane
+      - id: meta-frontend
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/servtuner-frontend
+          bake-target: meta-frontend
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=servtuner-frontend
+            org.opencontainers.image.description=servtuner's web UI
+      - id: bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        with:
+          source: . # the checkout, so the metadata files written above are read
+          files: |
+            ./docker-bake.hcl
+            cwd://${{ steps.meta-bench.outputs.bake-file-tags }}
+            cwd://${{ steps.meta-bench.outputs.bake-file-labels }}
+            cwd://${{ steps.meta-api.outputs.bake-file-tags }}
+            cwd://${{ steps.meta-api.outputs.bake-file-labels }}
+            cwd://${{ steps.meta-frontend.outputs.bake-file-tags }}
+            cwd://${{ steps.meta-frontend.outputs.bake-file-labels }}
+          targets: release
+          push: ${{ env.PUBLISH == 'true' }}
+          provenance: mode=max
+          sbom: true
+          set: |
+            *.platform=linux/amd64,linux/arm64
+      - id: digests
+        if: env.PUBLISH == 'true'
+        env:
+          METADATA: ${{ steps.bake.outputs.metadata }}
+        run: |
+          for name in bench api frontend; do
+            digest="$(jq -r --arg t "$name" '.[$t]["containerimage.digest"]' <<<"$METADATA")"
+            [[ "$digest" == sha256:* ]] || { echo "::error::no digest for $name"; exit 1; }
+            echo "$name=$digest" >> "$GITHUB_OUTPUT"
+            echo "$REGISTRY/servtuner-$name@$digest" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - if: env.PUBLISH == 'true'
+        id: cosign-version
+        run: echo "version=v$(awk '$1 == "cosign" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - if: env.PUBLISH == 'true'
+        uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+        with:
+          cosign-release: ${{ steps.cosign-version.outputs.version }}
+      - if: env.PUBLISH == 'true'
+        env:
+          BENCH: ${{ steps.digests.outputs.bench }}
+          API: ${{ steps.digests.outputs.api }}
+          FRONTEND: ${{ steps.digests.outputs.frontend }}
+        run: |
+          cosign sign --yes "$REGISTRY/servtuner-bench@$BENCH"
+          cosign sign --yes "$REGISTRY/servtuner-api@$API"
+          cosign sign --yes "$REGISTRY/servtuner-frontend@$FRONTEND"
+
+  chart:
+    needs: [prepare, images]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      PUBLISH: ${{ needs.prepare.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
+      - run: |
+          helm lint deploy/helm/servtuner
+          helm package deploy/helm/servtuner --version "$VERSION" --app-version "$VERSION" --destination dist/chart
+      - if: env.PUBLISH == 'true'
+        id: cosign-version
+        run: echo "version=v$(awk '$1 == "cosign" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - if: env.PUBLISH == 'true'
+        uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+        with:
+          cosign-release: ${{ steps.cosign-version.outputs.version }}
+      - if: env.PUBLISH == 'true'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$TOKEN"
+          pushed="$(helm push "dist/chart/servtuner-$VERSION.tgz" "oci://$REGISTRY/charts" 2>&1)"
+          echo "$pushed"
+          digest="$(grep -oE 'sha256:[0-9a-f]{64}' <<<"$pushed" | head -1)"
+          [ -n "$digest" ] || { echo "::error::helm push printed no digest"; exit 1; }
+          cosign sign --yes "$REGISTRY/charts/servtuner@$digest"
+          echo "oci://$REGISTRY/charts/servtuner:$VERSION ($digest)" >> "$GITHUB_STEP_SUMMARY"
+
+  archive:
+    needs: [prepare, images]
+    if: needs.prepare.outputs.publish == 'true' # it is built from the pushed images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: read # the images are private until an org owner makes them public
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: hauler login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$TOKEN"
+      - run: deploy/release/build.sh "$VERSION" --from-registry "$REGISTRY" --verify-identity "$SIGNER"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: dist/servtuner-${{ env.VERSION }}/
+          compression-level: 0 # the archive is already zstd
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs: [prepare, chart, archive]
+    # The dry run has no archive (nothing was pushed to build it from); every real run needs all of it.
+    if: ${{ !cancelled() && needs.chart.result == 'success' && (needs.archive.result == 'success' || needs.prepare.outputs.publish == 'false') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the GitHub Release
+      id-token: write # cosign keyless signing of checksums.txt
+    env:
+      PUBLISH: ${{ needs.prepare.outputs.publish }}
+      SERVTUNER_RELEASE_DIR: dist/release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # GoReleaser reads the tags and the changelog
+      - id: pins
+        run: |
+          echo "go=$(awk '$1 == "go" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+          echo "cosign=v$(awk '$1 == "cosign" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: ${{ steps.pins.outputs.go }}
+          cache-dependency-path: bench/go.sum
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+        with:
+          cosign-release: ${{ steps.pins.outputs.cosign }}
+      - if: env.PUBLISH == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: ${{ env.SERVTUNER_RELEASE_DIR }}
+      - if: env.PUBLISH != 'true'
+        run: mkdir -p "$SERVTUNER_RELEASE_DIR" && echo "dry run" > "$SERVTUNER_RELEASE_DIR/DRY-RUN"
+      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        with:
+          version-file: .tool-versions
+          args: ${{ env.PUBLISH == 'true' && 'release --clean' || 'release --snapshot --clean --skip=sign,publish' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

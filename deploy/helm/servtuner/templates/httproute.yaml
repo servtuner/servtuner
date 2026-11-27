@@ -1,0 +1,122 @@
+{{- /* Gateway API routing: the UI under frontend.basePath, the api
+       under its path with the prefix stripped, the same layout as the Ingresses. A longer PathPrefix wins,
+       so the api route takes <basePath>/api and the UI route the rest. */ -}}
+{{- if .Values.gateway.enabled }}
+{{- $fullname := include "servtuner.fullname" . }}
+{{- $gateway := .Values.gateway }}
+{{- $apiMtls := eq (include "servtuner.hopMode" (dict "root" . "hop" "ingressApi")) "mtls" }}
+{{- $apiHost := printf "%s-api.%s.svc" $fullname .Release.Namespace }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- toYaml $gateway.parentRefs | nindent 4 }}
+  hostnames: [{{ $gateway.hostname | quote }}]
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: {{ include "servtuner.uiPath" . | quote }}}
+      backendRefs:
+        - {name: {{ $fullname }}-frontend, port: {{ .Values.frontend.port }}}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- toYaml $gateway.parentRefs | nindent 4 }}
+  hostnames: [{{ $gateway.hostname | quote }}]
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: {{ include "servtuner.apiPath" . | quote }}}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: {type: ReplacePrefixMatch, replacePrefixMatch: /}
+      backendRefs:
+        {{- if $apiMtls }}
+        - {group: gateway.envoyproxy.io, kind: Backend, name: {{ $fullname }}-api}
+        {{- else }}
+        - {name: {{ $fullname }}-api, port: {{ .Values.api.port }}}
+        {{- end }}
+{{- if $apiMtls }}
+{{- $ingressSecret := include "servtuner.tlsSecretName" (dict "root" . "role" "ingress") }}
+---
+{{- /* The ingress -> api hop in mtls: no standard field carries a gateway's client certificate, so Envoy's
+       Backend presents the chart's ingress certificate (the Secret must share the Backend's namespace). */}}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: {{ $fullname }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  endpoints:
+    - fqdn: {hostname: {{ $apiHost | quote }}, port: {{ .Values.api.port }}}
+  tls:
+    clientCertificateRef: {kind: Secret, name: {{ $ingressSecret | quote }}}
+    caCertificateRefs:
+      - {group: "", kind: Secret, name: {{ $ingressSecret | quote }}}
+    sni: {{ $apiHost | quote }}
+---
+{{- /* The api's certificate is checked against the private CA and its Service name (a SAN). */}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: {{ $fullname }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - {group: gateway.envoyproxy.io, kind: Backend, name: {{ $fullname }}-api}
+  validation:
+    caCertificateRefs:
+      - {group: "", kind: Secret, name: {{ $ingressSecret | quote }}}
+    hostname: {{ $apiHost | quote }}
+{{- end }}
+{{- with $gateway.envoy.extAuth }}
+{{- if .enabled }}
+---
+{{- /* forward_header through Envoy's external authorization: headersToBackend
+       replaces any copy of those headers the client sent. */}}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: {{ $fullname }}-forward-auth
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" $ | nindent 4 }}
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: {{ $fullname }}-frontend}
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: {{ $fullname }}-api}
+  extAuth:
+    {{- with .headersToExtAuth }}
+    headersToExtAuth:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    http:
+      backendRefs:
+        - name: {{ .service.name }}
+          {{- with .service.namespace }}
+          namespace: {{ . }}
+          {{- end }}
+          port: {{ .service.port }}
+      {{- with .path }}
+      path: {{ . | quote }}
+      {{- end }}
+      headersToBackend:
+        {{- toYaml (.headersToBackend | default (list $.Values.auth.forwardHeader.userHeader)) | nindent 8 }}
+{{- end }}
+{{- end }}
+{{- end }}

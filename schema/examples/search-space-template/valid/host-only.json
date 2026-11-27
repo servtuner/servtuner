@@ -1,0 +1,29 @@
+{
+  "name": "host-scheduler",
+  "version": 1,
+  "title": "A host's scheduler",
+  "description": "max_num_seqs on a host run by servtuner launcher.",
+  "fits": {
+    "placements": [
+      "host"
+    ]
+  },
+  "space": {
+    "objective": "slo_max_rps",
+    "knobs": [
+      {
+        "name": "vllm.max_num_seqs",
+        "tier": "scheduler",
+        "values": [
+          16,
+          32,
+          64
+        ]
+      }
+    ],
+    "confirm": {
+      "top": 2,
+      "repeats": 3
+    }
+  }
+}

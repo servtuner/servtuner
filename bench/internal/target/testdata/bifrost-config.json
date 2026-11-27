@@ -1,0 +1,14 @@
+{
+  "client_config": {
+    "initial_pool_size": 5000,
+    "drop_excess_requests": false,
+    "prometheus_labels": ["model"],
+    "max_request_body_size_mb": 100
+  },
+  "framework_config": {"pricing": {"datasheet_url": "https://example.invalid/pricing.json"}},
+  "auth_config": {
+    "is_enabled": true,
+    "admin_username": "admin",
+    "admin_password": "sentinel-secret-admin-password"
+  }
+}

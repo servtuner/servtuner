@@ -1,0 +1,100 @@
+{
+  "phase": "pre",
+  "captured_at": "2026-10-28T11:59:00Z",
+  "workloads": [
+    {
+      "role": "target",
+      "target_type": "vllm",
+      "pods": [
+        {
+          "name": "vllm-0",
+          "node": "node-a",
+          "containers": [
+            {
+              "name": "vllm",
+              "image": "registry.invalid/vllm:v0.0.0",
+              "image_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              "args": [
+                "--max-num-seqs",
+                "256"
+              ],
+              "env": [
+                {
+                  "name": "HF_TOKEN",
+                  "is_redacted": false
+                }
+              ],
+              "requests": {
+                "cpu": "4",
+                "memory": "32Gi",
+                "nvidia.com/gpu": "1"
+              },
+              "limits": {
+                "memory": "32Gi",
+                "nvidia.com/gpu": "1"
+              },
+              "restart_count": 0
+            }
+          ]
+        }
+      ],
+      "replicas": {
+        "desired": 1,
+        "ready": 1
+      },
+      "nodes": [
+        {
+          "name": "node-a",
+          "labels": {
+            "node.kubernetes.io/instance-type": "example.large"
+          }
+        }
+      ],
+      "hpa": {
+        "name": "vllm",
+        "min_replicas": 1,
+        "max_replicas": 4,
+        "current_replicas": 1,
+        "metrics": [
+          {
+            "type": "Pods",
+            "name": "vllm:num_requests_running",
+            "target": "8"
+          }
+        ]
+      },
+      "target_info": {
+        "version": "0.0.0",
+        "models": [
+          "example/model-8b"
+        ],
+        "cache_config": {
+          "block_size": "16"
+        }
+      },
+      "hardware_profile": {
+        "hardware_profile_id": "0123456789ab",
+        "accelerator": "Example-GPU",
+        "gpu_count_per_pod": 1,
+        "gpu_memory_bytes": 25769803776,
+        "gpu_interconnect": "pcie",
+        "driver_version": "0.0",
+        "cuda_version": "0.0",
+        "node_instance_type": "example.large",
+        "cpu_model": "Example CPU",
+        "cpu_cores": 16
+      }
+    },
+    {
+      "role": "upstream",
+      "upstream_index": 0,
+      "target_type": "openai-compatible",
+      "pods": [],
+      "target_info": {
+        "models": [
+          "example/model-8b"
+        ]
+      }
+    }
+  ]
+}

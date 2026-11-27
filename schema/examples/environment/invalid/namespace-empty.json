@@ -1,0 +1,26 @@
+{
+  "bench_version": "0.0.0",
+  "go_version": "go1.27.3",
+  "image_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "node": "node-a",
+  "pod": "bench-run-0001",
+  "engine": {
+    "name": "loadgen",
+    "version": "0.0.0"
+  },
+  "clock_source": "ntp",
+  "transport": {
+    "target": "mtls",
+    "prometheus": "platform",
+    "api": "mtls",
+    "object_store": "platform"
+  },
+  "tls_relay_used": false,
+  "namespace": "",
+  "knobs": {
+    "vllm.max_num_seqs": 256,
+    "vllm.gpu_memory_utilization": 0.9,
+    "bifrost.fast_path": true,
+    "vllm.dtype": "bfloat16"
+  }
+}

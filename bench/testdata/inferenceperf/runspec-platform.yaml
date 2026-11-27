@@ -1,0 +1,25 @@
+apiVersion: servtuner.dev/v1
+kind: RunSpec
+name: inferenceperf-platform
+target:
+  type: vllm
+  endpoint: http://vllm.inference.svc:8000/v1
+  model: example/model-8b
+  tls:
+    mode: platform
+engine:
+  type: inference-perf
+workload:
+  api: completion
+  streaming: true
+  seed: 42
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 1024, stddev: 128}
+    output_tokens: {mean: 256}
+load:
+  warmup: 10s
+  stages:
+    - {rate: 2, duration: 30s}
+    - {rate: 4.5, duration: 30s}
+  pacing: poisson

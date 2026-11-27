@@ -1,0 +1,37 @@
+# Deploy component tasks. The root Justfile calls these with
+#   just --justfile deploy/Justfile --working-directory deploy <recipe>
+
+mock_dir := "mocks/openai-mock"
+
+# Download toolchains and modules.
+setup:
+    cd {{mock_dir}} && go mod download
+
+# Nothing under deploy/ is generated yet.
+gen:
+    @true
+
+# Static checks for every deploy component.
+lint: lint-mock lint-chart
+
+# Tests for every deploy component.
+test: test-mock test-chart test-mock-chart
+
+# staticcheck is pinned by the `tool` directive in go.mod (honnef.co/go/tools v0.8.2).
+lint-mock:
+    cd {{mock_dir}} && test -z "$(gofmt -l .)" && go vet ./... && go tool staticcheck ./...
+
+test-mock:
+    cd {{mock_dir}} && go test -race -count=1 ./...
+
+# helm lint cannot simulate CRDs, so lint renders Postgres as external (see ci/lint-overlay.yaml).
+lint-chart:
+    for values in helm/servtuner/ci/mtls-cert-manager.yaml helm/servtuner/ci/mtls-secret.yaml helm/servtuner/ci/platform.yaml helm/servtuner/ci/s3-separate-namespace.yaml; do KUBECONFIG=/dev/null helm lint helm/servtuner -f "$values" -f helm/servtuner/ci/lint-overlay.yaml; done
+
+# Offline render tests: pass cases for each tls mode and every failure case. Contacts no cluster.
+test-chart:
+    helm/test.sh
+
+# Offline render tests for the mock target's chart (both tls modes). Contacts no cluster.
+test-mock-chart:
+    mocks/test.sh

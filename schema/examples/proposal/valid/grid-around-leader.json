@@ -1,0 +1,291 @@
+{
+  "leader": {
+    "config_id": "c-ff772d74",
+    "knobs": {
+      "vllm.api_server_count": 1,
+      "vllm.async_scheduling": false,
+      "vllm.enable_prefix_caching": true,
+      "vllm.gpu_memory_utilization": 0.75,
+      "vllm.max_num_batched_tokens": 8192,
+      "vllm.max_num_seqs": 128
+    },
+    "objective_value": 37.922,
+    "run_ids": [
+      "01M808ZJD5N88S47PGSSC5WK78"
+    ],
+    "slo_max_rps": 37.92
+  },
+  "noise_floor": 0.05,
+  "notes": [],
+  "objective": "slo_rps_per_gpu",
+  "phase": "screen",
+  "proposals": [
+    {
+      "action": "run",
+      "config_id": "c-d113bddc",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 4096,
+        "vllm.max_num_seqs": 64
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-d113bddc",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "down",
+          "max_num_seqs": "down"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=64 (down), vllm.max_num_batched_tokens=4096 (down) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    },
+    {
+      "action": "run",
+      "config_id": "c-f2d56d96",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 16384,
+        "vllm.max_num_seqs": 64
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-f2d56d96",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "up",
+          "max_num_seqs": "down"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=64 (down), vllm.max_num_batched_tokens=16384 (up) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    },
+    {
+      "action": "run",
+      "config_id": "c-dc5dfd18",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 4096,
+        "vllm.max_num_seqs": 128
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-dc5dfd18",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "down",
+          "max_num_seqs": "centre"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=128 (centre), vllm.max_num_batched_tokens=4096 (down) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    },
+    {
+      "action": "run",
+      "config_id": "c-012b023e",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 16384,
+        "vllm.max_num_seqs": 128
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-012b023e",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "up",
+          "max_num_seqs": "centre"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=128 (centre), vllm.max_num_batched_tokens=16384 (up) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    },
+    {
+      "action": "run",
+      "config_id": "c-0036210d",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 4096,
+        "vllm.max_num_seqs": 256
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-0036210d",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "down",
+          "max_num_seqs": "up"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=256 (up), vllm.max_num_batched_tokens=4096 (down) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    },
+    {
+      "action": "run",
+      "config_id": "c-44c8f775",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 16384,
+        "vllm.max_num_seqs": 256
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-44c8f775",
+        "servtuner.dev/tuning-ladder": "screen"
+      },
+      "ladder": {
+        "centre_rps": 37.92,
+        "kind": "screen",
+        "rps": [
+          26.54,
+          32.23,
+          37.92,
+          43.61,
+          49.3
+        ]
+      },
+      "rationale": {
+        "against": "c-ff772d74",
+        "based_on_runs": [
+          "01M808ZJD5N88S47PGSSC5WK78"
+        ],
+        "grid_cell": {
+          "max_num_batched_tokens": "up",
+          "max_num_seqs": "up"
+        },
+        "kind": "grid",
+        "text": "grid cell vllm.max_num_seqs=256 (up), vllm.max_num_batched_tokens=16384 (up) around the leader c-ff772d74",
+        "tier": "scheduler"
+      },
+      "repeats": 1
+    }
+  ],
+  "status": "propose",
+  "tiers": [
+    {
+      "reason": "no feasibility knobs in the search space",
+      "state": "converged",
+      "tier": "feasibility"
+    },
+    {
+      "reason": "every surviving value has been screened against the leader",
+      "state": "converged",
+      "tier": "structural"
+    },
+    {
+      "state": "active",
+      "tier": "scheduler"
+    },
+    {
+      "state": "pending",
+      "tier": "fine_tuning"
+    }
+  ]
+}

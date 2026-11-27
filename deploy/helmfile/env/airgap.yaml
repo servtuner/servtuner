@@ -1,0 +1,6 @@
+# No internet access: the charts come from the release (servtuner-deploy-<version>.tar.gz), every image
+# from the site registry fed by `hauler store copy`. Name the registry at install time:
+#   --state-values-set registry=registry.corp:5000
+offline: true
+chartsDir: charts
+siteValues: [site-values.yaml]

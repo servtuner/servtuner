@@ -1,0 +1,15 @@
+# cert-manager: the chart installs its own CRDs.
+crds:
+  enabled: true
+{{- with .Values.registry }}
+# Every image (controller, webhook, cainjector, acmesolver, startupapicheck) from the site registry,
+# its path kept: quay.io/jetstack/x -> <registry>/jetstack/x.
+imageRegistry: {{ . }}
+{{- end }}
+{{- with .Values.imagePullSecrets }}
+global:
+  imagePullSecrets:
+    {{- range . }}
+    - name: {{ . }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,5 @@
+# expect: gateway.parentRefs is empty
+# api-versions: gateway.networking.k8s.io/v1
+postgres: {mode: external, external: {host: db.example.test}}
+tls: {mode: platform}
+gateway: {enabled: true, hostname: a.example.test}

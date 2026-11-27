@@ -1,0 +1,4 @@
+# expect: gateway.networking.k8s.io/v1 is not available
+# api-versions: postgresql.cnpg.io/v1
+tls: {mode: platform}
+gateway: {enabled: true, hostname: a.example.test, parentRefs: [{name: eg}]}

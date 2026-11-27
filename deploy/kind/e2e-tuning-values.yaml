@@ -1,0 +1,14 @@
+# Layered by `e2e/cluster.py --tuning` over e2e-values and e2e-jobs-values: a tuning session
+# deploys the mock as a managed vLLM (deploy/mocks/README.md, "As vLLM") and searches its flags.
+# The script sets rbac.tuning.namespaces to the target namespace it creates.
+
+# kind runs kube-prometheus-stack (deploy/kind/README.md, "Prometheus"): managed targets get a PodMonitor.
+tuning:
+  monitor: podmonitor
+
+prometheus:
+  url: http://kps-prometheus.monitoring.svc:9090
+
+# Real load: helm replaces lists, so this drops e2e-values.yaml's null-engine override.
+api:
+  extraEnv: []

@@ -1,0 +1,18 @@
+{
+  "name": "example-mix",
+  "version": 1,
+  "description": "An example preset.",
+  "engines": [
+    "loadgen"
+  ],
+  "workload": {},
+  "slos": {
+    "ttft_p95": "500ms"
+  },
+  "rps_hint": [
+    {
+      "gpu_class": "a100-80gb",
+      "start_rps": 4
+    }
+  ]
+}

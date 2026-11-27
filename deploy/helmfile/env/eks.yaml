@@ -1,0 +1,5 @@
+# Amazon EKS with internet access (or ECR as the registry: --state-values-set registry=<account>.dkr.ecr.<region>.amazonaws.com).
+# EKS clusters usually run their own Prometheus; turn this one on if not.
+install:
+  prometheus: false
+siteValues: [site-values.yaml]

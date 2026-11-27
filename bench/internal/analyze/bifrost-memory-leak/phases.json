@@ -1,0 +1,1 @@
+{"phases":[{"end":"2026-01-01T00:01:00Z","kind":"warmup","name":"warmup","start":"2026-01-01T00:00:30Z"},{"end":"2026-01-01T00:07:00Z","kind":"stage","name":"stage-0","offered_rps":20,"stage_index":0,"start":"2026-01-01T00:01:00Z"},{"end":"2026-01-01T00:13:00Z","kind":"stage","name":"stage-1","offered_rps":20,"stage_index":1,"start":"2026-01-01T00:07:00Z"}]}

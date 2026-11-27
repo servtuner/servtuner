@@ -1,0 +1,9 @@
+{
+  "sampled_at": "2026-10-28T12:00:02.500Z",
+  "source": "relay",
+  "goroutines": 12,
+  "in_flight_requests": 0,
+  "send_lag_max_seconds": 0,
+  "send_lag_p99_seconds": 0,
+  "worker": 1
+}

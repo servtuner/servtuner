@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/search-space-template.schema.json",
+  "title": "SearchSpaceTemplate",
+  "description": "A named starting search space for a tuning session. Files live in schema/search-spaces/<name>.v<version>.yaml and are embedded in bench (servtuner spaces); New session offers the ones that fit the managed target, and the space stays editable. A change is a new version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "title", "description", "fits", "space"],
+  "properties": {
+    "name": {
+      "description": "Lower-case words joined by hyphens; the file name starts with it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "description": "A short label for a picker.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "description": "When to start from it, and what it searches.",
+      "type": "string",
+      "minLength": 1
+    },
+    "fits": {
+      "description": "The managed targets it suits: their placement, and for Kubernetes their GPU count.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["placements"],
+      "properties": {
+        "placements": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["kubernetes", "host"]
+          }
+        },
+        "min_gpus": {
+          "description": "The fewest GPUs a Kubernetes target may request (0 for a CPU-only vLLM or the mock).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_gpus": {
+          "description": "The most GPUs a Kubernetes target may request.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "space": {
+      "$ref": "search-space.schema.json"
+    }
+  }
+}

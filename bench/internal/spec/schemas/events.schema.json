@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/events.schema.json",
+  "title": "Event",
+  "description": "One status event POSTed by bench to /runs/{id}/events. The Job or process exit status stays the final authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "sequence", "time", "step", "state"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "sequence": { "description": "Starts at 0 and grows by one per event, so the API can order and de-duplicate.", "type": "integer", "minimum": 0 },
+    "time": { "$ref": "common.schema.json#/definitions/utcTimestamp" },
+    "step": { "$ref": "#/definitions/pipelineStep" },
+    "state": { "$ref": "#/definitions/reportedState" },
+    "phase": { "description": "Current phase while state is running during the load step, for example warmup or stage-2.", "type": "string", "minLength": 1 },
+    "message": { "type": "string" }
+  },
+  "definitions": {
+    "pipelineStep": {
+      "description": "The seven steps of the run pipeline.",
+      "type": "string",
+      "enum": ["resolve", "snapshot", "load", "collect", "normalize", "summarize", "finalize"]
+    },
+    "reportedState": {
+      "description": "The lifecycle states bench can report. pending, launching and cancelled belong to the API's runner.",
+      "type": "string",
+      "enum": ["running", "collecting", "succeeded", "failed"]
+    }
+  }
+}

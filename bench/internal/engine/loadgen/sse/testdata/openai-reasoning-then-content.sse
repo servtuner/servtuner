@@ -1,0 +1,16 @@
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"reasoning_content":"The user asks"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"reasoning_content":" for a greeting."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"reasoning":" Keep it short."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{"content":"!"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-r1","object":"chat.completion.chunk","created":1700000000,"model":"example-reasoning-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

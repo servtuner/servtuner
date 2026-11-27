@@ -1,0 +1,29 @@
+{{- /* Optional ACK resources for EKS Pod Identity. NOTES.txt lists the pairs when disabled. */ -}}
+{{- $ack := .Values.storage.s3.aws.ack }}
+{{- if and (eq .Values.storage.backend "s3") (eq .Values.storage.s3.credentials.source "ambient") $ack.enabled }}
+apiVersion: eks.services.k8s.aws/v1alpha1
+kind: PodIdentityAssociation
+metadata:
+  name: {{ include "servtuner.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  clusterName: {{ $ack.clusterName | quote }}
+  namespace: {{ .Release.Namespace }}
+  serviceAccount: {{ .Values.serviceAccounts.api.name }}
+  roleARN: {{ $ack.apiRoleArn | quote }}
+---
+apiVersion: eks.services.k8s.aws/v1alpha1
+kind: PodIdentityAssociation
+metadata:
+  name: {{ include "servtuner.fullname" . }}-bench
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  clusterName: {{ $ack.clusterName | quote }}
+  namespace: {{ (include "servtuner.runsNamespace" .) }}
+  serviceAccount: {{ .Values.serviceAccounts.bench.name }}
+  roleARN: {{ $ack.benchRoleArn | quote }}
+{{- end }}

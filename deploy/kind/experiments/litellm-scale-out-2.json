@@ -1,0 +1,77 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "litellm-scale-out-2-replicas",
+  "experiment": "litellm-scale-out",
+  "target": {
+    "type": "litellm",
+    "endpoint": "http://kind-node.invalid:30400/v1",
+    "model": "mock-model",
+    "auth": {
+      "secretRef": {
+        "name": "servtuner-litellm-master-key",
+        "key": "token"
+      }
+    },
+    "workload": {
+      "namespace": "servtuner-litellm",
+      "selector": {
+        "app": "servtuner-litellm"
+      }
+    },
+    "tls": {
+      "mode": "platform"
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128
+      },
+      "output_tokens": {
+        "mean": 32
+      }
+    },
+    "seed": 42
+  },
+  "load": {
+    "pacing": "poisson",
+    "warmup": "30s",
+    "stages": [
+      {
+        "rate": 16,
+        "duration": "150s"
+      },
+      {
+        "rate": 32,
+        "duration": "150s"
+      },
+      {
+        "rate": 48,
+        "duration": "150s"
+      },
+      {
+        "rate": 64,
+        "duration": "150s"
+      }
+    ]
+  },
+  "prometheus": {
+    "url": "http://127.0.0.1:19090",
+    "tls": {
+      "mode": "platform"
+    }
+  },
+  "slos": {
+    "ttft_p95": "500ms",
+    "e2e_p95": "2s"
+  },
+  "knobs": {
+    "litellm.num_workers": 1
+  }
+}

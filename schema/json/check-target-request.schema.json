@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/check-target-request.schema.json",
+  "title": "CheckTargetRequest",
+  "description": "servtuner check-target's input: the RunSpec target to check and, optionally, the Prometheus that would collect its series. The same definitions a RunSpec uses, so a check exercises what a run would. Secrets are named, never inlined; bench reads them from --secrets-dir.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target"],
+  "properties": {
+    "target": { "$ref": "runspec.schema.json#/definitions/target" },
+    "prometheus": { "$ref": "runspec.schema.json#/definitions/prometheus" },
+    "generate": {
+      "description": "Also send one streaming request with max_tokens 1. Absent means no: on a paid API it costs a real request.",
+      "type": "boolean"
+    }
+  }
+}

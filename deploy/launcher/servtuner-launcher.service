@@ -1,0 +1,21 @@
+# servtuner launcher as a systemd user service.
+# Install steps: deploy/launcher/README.md. %h is the user's home directory.
+[Unit]
+Description=servtuner launcher: starts and stops vllm serve for the api
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/servtuner-launcher
+# Settings live in ~/.config/servtuner/launcher.yaml (deploy/launcher/launcher.yaml is the example):
+# the listener, the TLS mode, the token and API key files, and the vllm executable.
+ExecStart=%h/servtuner-launcher/servtuner launcher --config=%h/.config/servtuner/launcher.yaml
+# SIGTERM: the launcher stops vLLM's process group (SIGKILL after 30 s), so wait longer than that.
+KillSignal=SIGTERM
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,9 @@
+Native output of a real inference-perf 0.7.0 run (Python 3.12), config as in config.yaml:
+a warmup-shaped first stage of 5 rps for 1s, then 5 rps for 2s and 10 rps for 2s, constant
+pacing, seed 42, streaming completions with the random data generator. The target was a throwaway local stand-in server
+that answers /v1/completions with a server-sent-event stream (the repo's openai-mock only
+serves /v1/chat/completions, which inference-perf's synthetic data cannot use) and returns
+HTTP 503 for every ninth request overall. The tokenizer was a tiny word-level tokenizer saved to a
+local directory, so token counts are not those of a real model.
+Edited after the run: local filesystem paths, the loopback address and port were replaced by
+/srv/servtuner-fixture and 192.0.2.10:8000. Nothing else was changed.

@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# The servtuner CLI and the GitHub Release, run by .github/workflows/release.yml on a vX.Y.Z tag.
+# GoReleaser builds the CLI for every platform, signs the checksums with cosign (keyless, the workflow's OIDC
+# identity), and creates the release with the CLI archives plus the files the workflow built before it
+# (SERVTUNER_RELEASE_DIR: the air-gapped archive, the deploy bundle, SHA256SUMS, THIRD_PARTY_NOTICES, INSTALL.md).
+#
+#   goreleaser check
+#   goreleaser release --snapshot --clean --skip=sign,publish     a local try, into dist/goreleaser
+version: 2
+project_name: servtuner
+dist: dist/goreleaser # deploy/release/build.sh owns the rest of dist/
+
+builds:
+  - id: servtuner
+    dir: bench
+    main: ./cmd/servtuner
+    binary: servtuner
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/servtuner/servtuner/bench/internal/version.Version={{ .Version }}
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}" # reproducible: the same commit gives the same binaries
+
+archives:
+  - id: servtuner
+    ids: [servtuner]
+    formats: [tar.gz]
+    name_template: "servtuner_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, NOTICE, README.md]
+
+checksum:
+  name_template: checksums.txt
+  # One checksums file for everything the release carries, so one signature covers it all.
+  extra_files:
+    - glob: "{{ .Env.SERVTUNER_RELEASE_DIR }}/*"
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: [sign-blob, "--bundle=${signature}", "${artifact}", --yes]
+    output: true
+
+release:
+  github:
+    owner: servtuner
+    name: servtuner
+  prerelease: auto # vX.Y.Z-rc.N is a pre-release
+  extra_files:
+    - glob: "{{ .Env.SERVTUNER_RELEASE_DIR }}/*"
+  footer: |
+    ## Verify
+
+    Images and the chart are signed with cosign by this repository's release workflow:
+
+    ```sh
+    cosign verify ghcr.io/servtuner/servtuner-api:{{ .Version }} \
+      --certificate-identity-regexp '^https://github.com/servtuner/servtuner/\.github/workflows/release\.yml@refs/tags/v' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    ```
+
+    Downloads: `checksums.txt` covers every file here, and `checksums.txt.sigstore.json` is its signature:
+
+    ```sh
+    cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
+      --certificate-identity-regexp '^https://github.com/servtuner/servtuner/\.github/workflows/release\.yml@refs/tags/v' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    sha256sum --check --ignore-missing checksums.txt
+    ```
+
+changelog:
+  use: github-native
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"

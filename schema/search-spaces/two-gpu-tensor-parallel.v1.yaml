@@ -1,0 +1,19 @@
+# A starting search space (search-space-template.schema.json): edit it in New session as needed.
+name: two-gpu-tensor-parallel
+version: 1
+title: Two GPUs, one or two way tensor parallel
+description: >-
+  Whether the model runs better on one GPU or split over two (tensor_parallel_size 1 or 2,
+  ranked per GPU), then the scheduler knobs on the winner. Start here for a model that may not
+  fit one GPU, or to see what the second GPU buys.
+fits:
+  placements: [kubernetes]
+  min_gpus: 2
+  max_gpus: 2
+space:
+  min_concurrency: 32
+  knobs:
+    - {name: vllm.tensor_parallel_size, tier: feasibility, values: [1, 2]}
+    - {name: vllm.max_num_seqs, tier: scheduler, min: 64, max: 512, default: 128}
+    - {name: vllm.max_num_batched_tokens, tier: scheduler, min: 2048, max: 16384, default: 8192}
+  confirm: {top: 2, repeats: 3}

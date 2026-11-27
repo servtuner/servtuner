@@ -1,0 +1,15 @@
+# The site's values for the servtuner chart: copy to deploy/site-values.yaml and edit.
+# Every value of deploy/helm/servtuner/values.yaml may be set here; these are the ones every site decides.
+tls:
+  mode: mtls                     # mtls (default) or platform: deploy/helm/servtuner/values.yaml
+  source: cert-manager
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: <your-issuer>}
+gateway:
+  enabled: true
+  hostname: servtuner.example.internal
+  parentRefs:
+    - {name: <your-gateway>, namespace: <its-namespace>}
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteMany, size: 100Gi}

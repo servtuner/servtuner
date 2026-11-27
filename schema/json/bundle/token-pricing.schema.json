@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/token-pricing.schema.json",
+  "title": "TokenPricing",
+  "description": "pricing/token.json: where the run's copy of the pricing datasheet (pricing/datasheet.json, stored byte for byte) came from. The datasheet itself is not committed anywhere: its terms are not reviewed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["url", "url_basis", "fetched_at", "sha256", "bytes", "entries"],
+  "properties": {
+    "url": { "type": "string", "minLength": 1 },
+    "url_basis": { "description": "Why this URL: the RunSpec's token_pricing.url, the install's price book (token_pricing.from_price_book), the Bifrost target's framework_config.pricing_url, or Bifrost's default.", "type": "string", "enum": ["runspec", "price_book", "bifrost_config", "default"] },
+    "fetched_at": { "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "bytes": { "type": "integer", "minimum": 1 },
+    "entries": { "description": "Model entries in the datasheet.", "type": "integer", "minimum": 0 }
+  }
+}

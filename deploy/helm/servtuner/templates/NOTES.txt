@@ -1,0 +1,52 @@
+servtuner {{ .Chart.AppVersion }} installed in namespace {{ .Release.Namespace }} (bench Jobs run in {{ (include "servtuner.runsNamespace" .) }}).
+
+User auth: auth.mode={{ .Values.auth.mode }}{{ if eq .Values.auth.mode "local" }}, methods={{ join "," .Values.auth.methods }}{{ end }}
+{{- if eq .Values.auth.mode "none" }}
+  WARNING: no route checks who is calling. Only use this behind an ingress that does access control.
+{{- else }}
+  The first admin is created once, with the setup token:
+{{- if .Values.auth.setupToken.existingSecret }}
+    it is key {{ .Values.auth.setupToken.key }} of the Secret {{ .Values.auth.setupToken.existingSecret }}.
+{{- else }}
+    kubectl -n {{ .Release.Namespace }} get secret {{ include "servtuner.setupTokenSecretName" . }} -o jsonpath='{.data.{{ .Values.auth.setupToken.key }}}' | base64 -d
+{{- end }}
+  Lost admin access later: kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "servtuner.fullname" . }}-api -- servtuner-api admin reset-password <user>
+{{- if has "forward_header" .Values.auth.methods }}
+  forward_header: the api believes {{ .Values.auth.forwardHeader.userHeader }} from whatever reaches it.
+  The proxy in front must overwrite any copy the client sends{{ if not .Values.networkPolicy.enabled }}, and with networkPolicy.enabled=false
+  nothing stops other pods from reaching the api and naming any user{{ end }}.
+{{- end }}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+NetworkPolicies limit who reaches the api; they need a CNI that enforces NetworkPolicy.
+{{- end }}
+
+Transport security: tls.mode={{ .Values.tls.mode }}, source={{ .Values.tls.source }}
+{{- range $hop := keys .Values.tls.hops | sortAlpha }}
+  {{ $hop }}: {{ include "servtuner.hopMode" (dict "root" $ "hop" $hop) }}
+{{- end }}
+{{- if include "servtuner.isNodePinned" . }}
+
+WARNING: the data volume is ReadWriteOnce. bench Jobs are pinned to the api pod's node
+with pod affinity, so the load generator shares a node with the api, and a run records
+storage.node_pinned=true. Use ReadWriteMany storage (NFS, EFS, CephFS, Longhorn RWX) to
+let Jobs run on any node.
+{{- end }}
+{{- if and (eq .Values.storage.backend "file") .Values.storage.file.pvc.existingClaim }}
+
+{{- if include "servtuner.hasSeparateRunsNamespace" . }}
+
+Provide a claim named {{ .Values.storage.file.pvc.existingClaim }} in BOTH {{ .Release.Namespace }} and {{ (include "servtuner.runsNamespace" .) }}, backed by the same ReadWriteMany storage
+(for example two static PersistentVolumes on one NFS export). The chart does not create them.
+{{- end }}
+{{- end }}
+{{- if and (eq .Values.storage.backend "s3") (eq .Values.storage.s3.credentials.source "ambient") }}
+
+EKS Pod Identity: create a PodIdentityAssociation for each pair (outside the chart, or set storage.s3.aws.ack.enabled):
+  namespace {{ .Release.Namespace }}  serviceAccount {{ .Values.serviceAccounts.api.name }}
+  namespace {{ (include "servtuner.runsNamespace" .) }}  serviceAccount {{ .Values.serviceAccounts.bench.name }}
+{{- end }}
+{{- if and (eq .Values.tls.source "secret") (include "servtuner.roleNeeded" (dict "root" . "role" "bench")) }}
+
+The bench Secret {{ .Values.tls.secrets.bench }} must exist in namespace {{ (include "servtuner.runsNamespace" .) }}.
+{{- end }}

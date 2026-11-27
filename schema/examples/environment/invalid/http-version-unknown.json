@@ -1,0 +1,14 @@
+{
+  "bench_version": "0.0.0",
+  "go_version": "go1.27.3",
+  "engine": {
+    "name": "inference-perf",
+    "version": "0.7.0"
+  },
+  "clock_source": "host",
+  "transport": {
+    "target": "platform"
+  },
+  "tls_relay_used": true,
+  "http_version": "3"
+}

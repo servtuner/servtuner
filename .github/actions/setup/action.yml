@@ -1,0 +1,27 @@
+name: Setup toolchains
+description: Read .tool-versions (the only place toolchain versions are defined) and install just and uv.
+outputs:
+  go:
+    description: Go version
+    value: ${{ steps.pins.outputs.go }}
+  nodejs:
+    description: Node.js version
+    value: ${{ steps.pins.outputs.nodejs }}
+runs:
+  using: composite
+  steps:
+    - name: Read toolchain pins
+      id: pins
+      shell: bash
+      run: |
+        while read -r tool version; do
+          case "$tool" in ''|\#*) continue ;; esac
+          echo "${tool}=${version}" >> "$GITHUB_OUTPUT"
+        done < .tool-versions
+    - uses: extractions/setup-just@v2
+      with:
+        just-version: ${{ steps.pins.outputs.just }}
+    - uses: astral-sh/setup-uv@v5
+      with:
+        version: ${{ steps.pins.outputs.uv }}
+        python-version: ${{ steps.pins.outputs.python }}

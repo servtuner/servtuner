@@ -1,0 +1,11 @@
+# Layered last by `e2e/cluster.py --runner kubernetes`: bench runs as a Job per run
+# instead of inside the api pod. Works with and without e2e-load-values.yaml.
+runner: kubernetes
+
+bench:
+  # kind has one node, so the targets and bench share it: prefer other nodes, never require them.
+  targetAntiAffinity: preferred
+  # The same size the subprocess load runs give the api pod (e2e-load-values.yaml), so the two
+  # runners' bundles compare like for like.
+  resources: {cpu: "2", memory: 1Gi}
+  startTimeoutSeconds: 120

@@ -1,0 +1,21 @@
+# Workload preset chat-long@1. The workload block is immutable: a change to it
+# is a new version file. slos and rps_hint are suggestions and may be corrected in place.
+name: chat-long
+version: 1
+description: Single-turn chat with longer prompts, about 1024 tokens in and 256 out, the shape of the Azure conversation trace. The realistic chat baseline.
+engines: [loadgen]
+workload:
+  api: chat
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 1024, stddev: 512}
+    output_tokens: {mean: 256, stddev: 128}
+slos:
+  ttft_p95: 1s
+  itl_p95: 50ms
+rps_hint:
+  # rtx-3070-8gb (Qwen2.5-0.5B, max-model-len 4096): about half its ~18 RPS ceiling at 256 output tokens.
+  # The others are hand-written starting points, not measured capacity.
+  - {gpu_class: rtx-3070-8gb, start_rps: 6}
+  - {gpu_class: a100-80gb, start_rps: 8}
+  - {gpu_class: h100-80gb, start_rps: 16}

@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openaiMock.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "openaiMock.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {{- include "openaiMock.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openaiMock.labels" . | nindent 8 }}
+        # Opts the pod in to the 5s servtuner-targets job (deploy/prometheus).
+        servtuner.dev/scrape: "true"
+      annotations:
+        servtuner.dev/metrics-scheme: http
+        servtuner.dev/metrics-port: {{ .Values.service.metricsPort | quote }}
+        servtuner.dev/metrics-path: /metrics
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # Numeric ids: the distroless image's USER is a name, which runAsNonRoot cannot verify. fsGroup makes
+        # the 0440 key readable.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mock
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - {name: OPENAI_MOCK_LISTEN, value: {{ printf ":%v" .Values.service.port | quote }}}
+            - {name: OPENAI_MOCK_TLS_MODE, value: {{ .Values.tls.mode | quote }}}
+            # /metrics moves to a plain-HTTP port in both modes: one scrape path (see values.yaml).
+            - {name: OPENAI_MOCK_METRICS_LISTEN, value: {{ printf ":%v" .Values.service.metricsPort | quote }}}
+            {{- if include "openaiMock.isMtls" . }}
+            - {name: OPENAI_MOCK_TLS_CERT_FILE, value: /etc/mock-tls/tls.crt}
+            - {name: OPENAI_MOCK_TLS_KEY_FILE, value: /etc/mock-tls/tls.key}
+            - {name: OPENAI_MOCK_TLS_CLIENT_CA_FILE, value: /etc/mock-tls/ca.crt}
+            {{- end }}
+            - {name: OPENAI_MOCK_MODEL, value: {{ .Values.mock.model | quote }}}
+            - {name: OPENAI_MOCK_TTFT, value: {{ .Values.mock.ttft | quote }}}
+            - {name: OPENAI_MOCK_ITL, value: {{ .Values.mock.itl | quote }}}
+            - {name: OPENAI_MOCK_OUTPUT_TOKENS, value: {{ .Values.mock.outputTokens | quote }}}
+            - {name: OPENAI_MOCK_HONOR_MAX_TOKENS, value: {{ .Values.mock.honorMaxTokens | quote }}}
+            - {name: OPENAI_MOCK_ROLE_ONLY_FIRST_CHUNK, value: {{ .Values.mock.roleOnlyFirstChunk | quote }}}
+            {{- /* Every knob has its own default: a release upgraded with --reuse-values keeps its old values and
+                   never sees new chart defaults, so a missing key must not render as "<nil>". */}}
+            {{- $faults := .Values.mock.faults | default dict }}
+            - {name: OPENAI_MOCK_EXTRA_LATENCY, value: {{ $faults.extraLatency | default "0s" | quote }}}
+            - {name: OPENAI_MOCK_LATENCY_PER_IN_FLIGHT, value: {{ $faults.latencyPerInFlight | default "0s" | quote }}}
+            - {name: OPENAI_MOCK_MAX_CONCURRENCY, value: {{ $faults.maxConcurrency | default 0 | int | quote }}}
+            - {name: OPENAI_MOCK_OVER_CAPACITY, value: {{ $faults.overCapacity | default "queue" | quote }}}
+            - {name: OPENAI_MOCK_ERROR_RATE, value: {{ $faults.errorRate | default 0 | toString | quote }}}
+            - {name: OPENAI_MOCK_ERROR_STATUS, value: {{ $faults.errorStatus | default 500 | int | quote }}}
+            - {name: OPENAI_MOCK_MEMORY_PER_REQUEST_BYTES, value: {{ $faults.memoryPerRequestBytes | default 0 | int64 | quote }}}
+            - {name: OPENAI_MOCK_MEMORY_RAMP_BYTES_PER_SECOND, value: {{ $faults.memoryRampBytesPerSecond | default 0 | int64 | quote }}}
+            - {name: OPENAI_MOCK_MEMORY_RAMP_MAX_BYTES, value: {{ $faults.memoryRampMaxBytes | default 0 | int64 | quote }}}
+          ports:
+            - {name: openai, containerPort: {{ .Values.service.port }}}
+            - {name: metrics, containerPort: {{ .Values.service.metricsPort }}}
+          # A TCP probe works in both modes; an HTTPS GET /healthz would need a client certificate.
+          readinessProbe:
+            tcpSocket: {port: openai}
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: openai}
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          {{- if include "openaiMock.isMtls" . }}
+          volumeMounts:
+            - {name: tls, mountPath: /etc/mock-tls, readOnly: true}
+          {{- end }}
+      {{- if include "openaiMock.isMtls" . }}
+      volumes:
+        - name: tls
+          secret: {secretName: {{ include "openaiMock.tlsSecretName" . }}, defaultMode: 288}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}

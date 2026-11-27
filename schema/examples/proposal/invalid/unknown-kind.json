@@ -1,0 +1,63 @@
+{
+  "noise_floor": 0.05,
+  "notes": [],
+  "objective": "slo_rps_per_gpu",
+  "phase": "baseline",
+  "proposals": [
+    {
+      "action": "run",
+      "config_id": "c-8c15e0a7",
+      "knobs": {
+        "vllm.api_server_count": 1,
+        "vllm.async_scheduling": false,
+        "vllm.enable_prefix_caching": true,
+        "vllm.gpu_memory_utilization": 0.75,
+        "vllm.max_num_batched_tokens": 8192,
+        "vllm.max_num_seqs": 64
+      },
+      "labels": {
+        "servtuner.dev/tuning-config": "c-8c15e0a7",
+        "servtuner.dev/tuning-ladder": "probe"
+      },
+      "ladder": {
+        "kind": "probe",
+        "rps": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32,
+          64,
+          128
+        ]
+      },
+      "rationale": {
+        "based_on_runs": [],
+        "kind": "hunch",
+        "text": "the first configuration: the base knobs with each tuned knob at its default; a probe ladder finds where it saturates"
+      },
+      "repeats": 1
+    }
+  ],
+  "status": "propose",
+  "tiers": [
+    {
+      "reason": "no feasibility knobs in the search space",
+      "state": "converged",
+      "tier": "feasibility"
+    },
+    {
+      "state": "pending",
+      "tier": "structural"
+    },
+    {
+      "state": "pending",
+      "tier": "scheduler"
+    },
+    {
+      "state": "pending",
+      "tier": "fine_tuning"
+    }
+  ]
+}

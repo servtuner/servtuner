@@ -1,0 +1,87 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "defaults-input",
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/model-8b",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    },
+    "upstreams": []
+  },
+  "engine": {
+    "type": "loadgen",
+    "version": "pinned",
+    "options": {}
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128,
+        "stddev": 0
+      },
+      "output_tokens": {
+        "mean": 64,
+        "stddev": 0
+      },
+      "padding_bytes": 0
+    },
+    "api": "chat",
+    "seed": 0
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 1,
+        "duration": "30s"
+      }
+    ],
+    "profile": "stages",
+    "warmup": "30s",
+    "pacing": "constant"
+  },
+  "prometheus": {
+    "url": "https://prometheus.monitoring.svc:9090",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    },
+    "catalogs": [],
+    "optional_catalogs": [],
+    "extra_queries": [],
+    "step": "5s"
+  },
+  "analysis": {
+    "stage_validity": {
+      "min_achieved_rps_ratio": 0.97,
+      "max_send_lag_p99": "50ms"
+    },
+    "limits": {
+      "cpu": "follow",
+      "memory": "set",
+      "qos": "burstable"
+    },
+    "headroom": {
+      "request": 0.2,
+      "limit": 0.3,
+      "replicas": 0.2,
+      "gpu": 0.1
+    },
+    "expected_pod_lifetime": "24h",
+    "burst_factor": 1
+  },
+  "storage": {
+    "store": "default"
+  },
+  "labels": {},
+  "knobs": {}
+}

@@ -1,0 +1,23 @@
+{{- /* The setup token, created once when the user names no Secret. lookup keeps
+       the first value across upgrades, and the resource policy keeps it on uninstall, so a
+       reinstall onto the same database still has the token that matches nothing yet. */ -}}
+{{- if and (eq .Values.auth.mode "local") (not .Values.auth.setupToken.existingSecret) }}
+{{- $name := include "servtuner.setupTokenSecretName" . }}
+{{- $existing := lookup "v1" "Secret" .Release.Namespace $name }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+type: Opaque
+data:
+  {{- if and $existing (index $existing.data .Values.auth.setupToken.key) }}
+  {{ .Values.auth.setupToken.key }}: {{ index $existing.data .Values.auth.setupToken.key }}
+  {{- else }}
+  {{ .Values.auth.setupToken.key }}: {{ randAlphaNum 40 | b64enc }}
+  {{- end }}
+{{- end }}

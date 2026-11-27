@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/chart-histograms.schema.json",
+  "title": "LatencyHistograms",
+  "description": "charts/histograms.json, written by servtuner analyze: TTFT, E2E and ITL distributions per stage over fixed logarithmic buckets, warmup excluded. Each counts array has one more entry than edges_seconds: counts[0] is below edges_seconds[0], counts[i] is in [edges_seconds[i-1], edges_seconds[i]), and the last is at or above the last edge.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analyzer_version", "edges_seconds", "stages"],
+  "properties": {
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "edges_seconds": {
+      "description": "20 edges per decade from 1 ms to 1000 s.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "number", "exclusiveMinimum": 0 }
+    },
+    "stages": { "type": "array", "items": { "$ref": "#/definitions/stageHistograms" } }
+  },
+  "definitions": {
+    "histogramCounts": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "stageHistograms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_index", "e2e_counts"],
+      "properties": {
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "ttft_counts": { "$ref": "#/definitions/histogramCounts" },
+        "e2e_counts": { "$ref": "#/definitions/histogramCounts" },
+        "itl_counts": { "$ref": "#/definitions/histogramCounts" }
+      }
+    }
+  }
+}

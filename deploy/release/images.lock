@@ -1,0 +1,31 @@
+# Every image servtuner's releases render, pinned by digest (deploy/release/images.py).
+# Generated: run `just images-lock` after changing a chart version or a value that names an image.
+# [core] goes in the core archive, [servtuner] is built by `just release`, [vllm] is the optional archive.
+# Platform: linux/amd64 (each digest is that platform's manifest).
+[core]
+docker.io/envoyproxy/envoy:distroless-v1.40.2@sha256:16e0d4dac937ffa34103aa6ba1013dc2030b9de2a249273c8d23c7c5c2989664
+docker.io/envoyproxy/gateway:v1.10.0@sha256:0c25582d1cf22e7b3fcd303de9302cce20c98ed4e298da9dea84ad9fa7d319c5
+docker.io/envoyproxy/ratelimit:5ae0682e@sha256:4df03ee98e7806c25926a5ced06b960c95db561f47859bfd0e6335d186421f81
+ghcr.io/cloudnative-pg/cloudnative-pg:1.30.0@sha256:091d306935cfdf646debfe78010d59ebfb572150eb6eb922b0203873c0c68841
+ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:e6e1f467b52112f7e08aa380de81473106ff54b1834d90bcb4265a2a018e1921
+ghcr.io/jkroepke/kube-webhook-certgen:1.11.0@sha256:471e50747c483f111056c35a77176b52bbd3dcf58c55bcbd8cb79c0e8a92a23d
+quay.io/jetstack/cert-manager-acmesolver:v1.21.1@sha256:e5a8da10354cdd0225eb039c84ad3696d47282de18c21905a25bb3a392542b34
+quay.io/jetstack/cert-manager-cainjector:v1.21.1@sha256:1910ad7e134880e27d229e07affb43da1b07841a77f70c364f17467cb4e49bd9
+quay.io/jetstack/cert-manager-controller:v1.21.1@sha256:4c2b5201fd66085b777dc6b256d96d7d346b6445404cec34db5f8aea86182cc5
+quay.io/jetstack/cert-manager-startupapicheck:v1.21.1@sha256:15cafecd3d23a4fa2226185f78c4792914010b2713f59060a1b9b484029041e4
+quay.io/jetstack/cert-manager-webhook:v1.21.1@sha256:741084291faf115a2909bfe3515458b54926c67f039ac20effd821bac69817a4
+quay.io/prometheus-operator/prometheus-config-reloader:v0.94.2@sha256:e825978c71333cc8e140400506da8fa4972c7087f62805b378a1b93259924fdb
+quay.io/prometheus-operator/prometheus-operator:v0.94.2@sha256:051606fe50e8c4bf6a433f0972bc3dcf3b90a62bc712f55692a9c4be83fe6f46
+quay.io/prometheus/alertmanager:v0.34.1@sha256:84967b9b7ba45e38a9278d3e594305f43d4993c310df3905b51138b816c365f3
+quay.io/prometheus/node-exporter:v1.12.1-distroless@sha256:bbfbd533202cfef891c70383ddf6f0c32acece66400ad8091a18bed7aad5db6f
+quay.io/prometheus/prometheus:v3.15.1-distroless@sha256:654d8f0008e660c00203e0b94938ec7b804e35b5772641d6416c20fff7684ee9
+registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0@sha256:01171220c7c059afc85034ffe687bfe7249e41c0cc46fbe9a5128503ceee3016
+
+[servtuner]
+servtuner/servtuner-api:0.1.0
+servtuner/servtuner-bench:0.1.0
+servtuner/servtuner-frontend:0.1.0
+
+[vllm]
+docker.io/vllm/vllm-openai-cpu:v0.34.0-x86_64@sha256:b14c3a46a4b08852b32528643e070d57f3731cccb0fa33ef86d4f3b3f8ac36c4
+docker.io/vllm/vllm-openai:v0.34.0@sha256:cf5b2fdd087eb4f6d261736967cc5cde974bd22ff4df50365f8fa419b6b4c484

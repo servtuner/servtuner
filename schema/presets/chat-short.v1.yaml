@@ -1,0 +1,22 @@
+# Workload preset chat-short@1. The workload block is immutable: a change to it
+# is a new version file. slos and rps_hint are suggestions and may be corrected in place.
+name: chat-short
+version: 1
+description: Single-turn chat, about 256 tokens in and 256 out. The balanced baseline.
+engines: [loadgen]
+workload:
+  api: chat
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 256, stddev: 64}
+    output_tokens: {mean: 256, stddev: 64}
+slos:
+  ttft_p95: 500ms
+  itl_p95: 50ms
+# Hand-written starting points, not measured capacity.
+rps_hint:
+  # rtx-3070-8gb (Qwen2.5-0.5B, max-model-len 4096): about half the ceiling of ~4800 output tokens/s measured
+  # on that card.
+  - {gpu_class: rtx-3070-8gb, start_rps: 8}  # 256 output tokens: a ceiling near 18 RPS
+  - {gpu_class: a100-80gb, start_rps: 10}
+  - {gpu_class: h100-80gb, start_rps: 20}

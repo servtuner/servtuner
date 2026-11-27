@@ -1,0 +1,8 @@
+data: {"id":"cmpl-XyZ789","object":"text_completion","created":1700000000,"choices":[{"text":"The","index":0,"logprobs":null,"finish_reason":null}],"model":"example-model"}
+
+data: {"id":"cmpl-XyZ789","object":"text_completion","created":1700000000,"choices":[{"text":" sky","index":0,"logprobs":null,"finish_reason":null}],"model":"example-model"}
+
+data: {"id":"cmpl-XyZ789","object":"text_completion","created":1700000000,"choices":[{"text":"","index":0,"logprobs":null,"finish_reason":"length"}],"model":"example-model","usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}
+
+data: [DONE]
+

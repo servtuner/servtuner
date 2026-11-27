@@ -1,0 +1,14 @@
+# Single source of truth for toolchain pins. Read by the Justfile and by CI.
+# Format: "<tool> <version>", one per line.
+go 1.27.3
+python 3.14
+nodejs 24
+just 1.21.0
+uv 0.13.6
+jscpd 5.4.2
+# Release tools (.github/workflows/release.yml; .github/scripts/install-release-tools.sh installs the first three).
+helm 4.2.3
+helmfile 1.8.5
+hauler 2.1.2
+cosign 3.1.6
+goreleaser 2.20.3

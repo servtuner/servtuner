@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/summary.schema.json",
+  "title": "Summary",
+  "description": "summary.json, minimal v0: per-stage results and validity. Recomputable from the raw files by servtuner analyze.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["stages"],
+  "properties": {
+    "stages": { "type": "array", "items": { "$ref": "#/definitions/stageSummary" } },
+    "max_sustainable_rps": { "description": "Highest valid stage whose SLOs hold. Omitted when no stage qualifies.", "type": "number", "minimum": 0 }
+  },
+  "definitions": {
+    "stageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_index", "offered_rps", "achieved_rps", "requests", "errors", "is_valid", "is_client_bound"],
+      "properties": {
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "offered_rps": { "type": "number", "minimum": 0 },
+        "achieved_rps": { "type": "number", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "is_valid": { "description": "A trustworthy stage: achieved RPS, send lag and client_bound are all within thresholds.", "type": "boolean" },
+        "is_client_bound": { "type": "boolean" },
+        "ttft_p95_seconds": { "type": "number", "minimum": 0 },
+        "e2e_p95_seconds": { "type": "number", "minimum": 0 },
+        "send_lag_p99_seconds": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

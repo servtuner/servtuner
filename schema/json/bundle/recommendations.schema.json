@@ -1,0 +1,577 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/recommendations.schema.json",
+  "title": "Recommendations",
+  "description": "recommendations.json: what to change, by how much and why. Every value links to a node of the derivation graph, which holds its formula with the inputs substituted. Recomputable from the raw files by servtuner analyze.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analyzer_version",
+    "operating_point",
+    "policy",
+    "recommendations",
+    "derivation"
+  ],
+  "properties": {
+    "analyzer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operating_point": {
+      "$ref": "#/definitions/operatingPoint"
+    },
+    "policy": {
+      "$ref": "#/definitions/sizingPolicy"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/recommendation"
+      }
+    },
+    "derivation": {
+      "description": "One graph for the whole run; recommendations name their node.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/derivationNode"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "operatingPoint": {
+      "description": "The load the resources are sized for: the SLO-max stage, or the stage at or above target_rps. Unavailable when no stage is valid and meets the SLOs; then there are no sizing recommendations.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "slo_max",
+            "target_rps",
+            "unavailable"
+          ]
+        },
+        "stage_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rps": {
+          "description": "Achieved RPS of the operating-point stage.",
+          "type": "number",
+          "minimum": 0
+        },
+        "target_rps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "reason": {
+          "description": "Why the operating point is unavailable, or why target_rps was not used.",
+          "type": "string",
+          "minLength": 1
+        },
+        "caveats": {
+          "description": "Caveats about the operating point itself, such as an SLO-max that is only the highest stage tested. Every sizing recommendation also carries them, so one read alone keeps its context; a view of the whole document shows them once.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": [
+                  "unavailable"
+                ]
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "stage_index"
+                  ]
+                },
+                {
+                  "required": [
+                    "rps"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "stage_index",
+              "rps"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": [
+                  "target_rps"
+                ]
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "target_rps"
+            ]
+          }
+        }
+      ]
+    },
+    "sizingPolicy": {
+      "description": "The limits policy and headroom that applied, after RunSpec defaults.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_limit",
+        "memory_limit",
+        "qos",
+        "headroom"
+      ],
+      "properties": {
+        "cpu_limit": {
+          "$ref": "../runspec.schema.json#/definitions/limitsPolicy"
+        },
+        "memory_limit": {
+          "$ref": "../runspec.schema.json#/definitions/limitsPolicy"
+        },
+        "qos": {
+          "type": "string",
+          "enum": [
+            "burstable",
+            "guaranteed"
+          ]
+        },
+        "headroom": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "request",
+            "limit",
+            "replicas",
+            "gpu"
+          ],
+          "properties": {
+            "request": {
+              "type": "number",
+              "minimum": 0
+            },
+            "limit": {
+              "type": "number",
+              "minimum": 0
+            },
+            "replicas": {
+              "type": "number",
+              "minimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "gpu": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "recommendationTarget": {
+      "description": "The workload (and container) a recommendation is for. The bench pod itself is never a recommendation target.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "target_type",
+        "namespace"
+      ],
+      "properties": {
+        "role": {
+          "$ref": "target-snapshot.schema.json#/definitions/workloadRole"
+        },
+        "upstream_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target_type": {
+          "$ref": "../runspec.schema.json#/definitions/targetType"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "container": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "recommendationValue": {
+      "description": "A current or recommended setting: a number in the recommendation's unit, a string (a quantity or a mode), a boolean, or null when unset.",
+      "type": [
+        "number",
+        "string",
+        "boolean",
+        "null"
+      ]
+    },
+    "recommendationEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "series": {
+          "description": "A stored series, <catalog>/<name>, or a chart file.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "rule",
+        "target",
+        "subject",
+        "recommended",
+        "tier",
+        "confidence",
+        "evidence",
+        "caveats"
+      ],
+      "properties": {
+        "id": {
+          "description": "Unique in the file and stable across reruns of the same bundle.",
+          "type": "string",
+          "minLength": 1
+        },
+        "rule": {
+          "description": "The rule that produced it, for example sizing.cpu_request or B1.",
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "$ref": "#/definitions/recommendationTarget"
+        },
+        "subject": {
+          "description": "What to change: a resource (cpu.request, memory.limit), a target knob (bifrost.concurrency), replicas, an HPA setting, an environment variable, or advice: a finding to act on that is not one setting (recommended is then a short directive, for example 'scale the upstream').",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "name"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "resource",
+                "knob",
+                "replicas",
+                "hpa",
+                "env",
+                "advice"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "current": {
+          "$ref": "#/definitions/recommendationValue"
+        },
+        "recommended": {
+          "$ref": "#/definitions/recommendationValue"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "diagnostic",
+            "empirical"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "derivation_node": {
+          "description": "The derivation node whose value is recommended.",
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/recommendationEvidence"
+          }
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "is_urgent": {
+          "description": "Act on this first: the evidence shows harm now (for B2, requests dropped or a queue larger than the SLO allows). Absent means not urgent.",
+          "type": "boolean"
+        },
+        "followup_experiment": {
+          "description": "A run that would confirm or sharpen the recommendation.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "derivationBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "derivationNode": {
+      "description": "One value of the derivation graph: measured, a parameter, derived by a formula, or hypothetical.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "measured",
+            "parameter",
+            "derived",
+            "hypothetical"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number"
+        },
+        "formula": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rendered": {
+          "description": "The formula with its inputs' values substituted, and the result. It parses back to the same value.",
+          "type": "string",
+          "minLength": 1
+        },
+        "is_pinned": {
+          "type": "boolean"
+        },
+        "derivable_value": {
+          "description": "What the formula gives, when the value is pinned.",
+          "type": "number"
+        },
+        "default": {
+          "type": "number"
+        },
+        "bounds": {
+          "$ref": "#/definitions/derivationBounds"
+        },
+        "doc": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stage_index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "file": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "is_hypothetical": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "derived"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "formula",
+              "inputs",
+              "rendered"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "formula"
+                  ]
+                },
+                {
+                  "required": [
+                    "is_pinned"
+                  ]
+                },
+                {
+                  "required": [
+                    "derivable_value"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "parameter"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "default"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "default"
+                  ]
+                },
+                {
+                  "required": [
+                    "bounds"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "is_pinned": {
+                "const": true
+              }
+            },
+            "required": [
+              "is_pinned"
+            ]
+          },
+          "then": {
+            "required": [
+              "derivable_value"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

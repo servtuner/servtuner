@@ -1,0 +1,33 @@
+# The GatewayClass for Envoy Gateway. Envoy Gateway's helm
+# chart installs the controller and CRDs but no class; the e2e's Gateways name this one.
+#
+# kind has no load balancer, so a LoadBalancer Service never gets an address and a Gateway never
+# becomes Programmed (AddressNotAssigned). The proxies use ClusterIP Services instead; the e2e reaches
+# them with kubectl port-forward.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: kind-cluster-ip
+  namespace: envoy-gateway-system
+spec:
+  # Merged onto Envoy Gateway's default EnvoyProxy instead of replacing it (the default when unset):
+  # the default carries the proxy image under the install's registry and its pull secrets, which a
+  # replacing EnvoyProxy would drop, so the proxy would pull from docker.io (found by just e2e-airgap).
+  mergeType: StrategicMerge
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: ClusterIP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: kind-cluster-ip
+    namespace: envoy-gateway-system

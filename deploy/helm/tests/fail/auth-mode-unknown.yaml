@@ -1,0 +1,3 @@
+# expect: auth.mode "open" is unknown
+auth:
+  mode: open

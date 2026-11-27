@@ -1,0 +1,4892 @@
+{
+ "vllm_version": "v0.34.0",
+ "vllm_commit": "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
+ "flags": [
+  {
+   "flag": "--headless",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "headless",
+   "group": "options",
+   "kind": "switch",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Run in headless mode. See multi-node data parallel documentation for more details.",
+   "limits": null
+  },
+  {
+   "flag": "--api-server-count",
+   "aliases": [
+    "-asc"
+   ],
+   "negative_flags": [],
+   "dest": "api_server_count",
+   "group": "options",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "How many API server processes to run. Defaults to data_parallel_size if not specified.",
+   "limits": null
+  },
+  {
+   "flag": "--config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "config",
+   "group": "options",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Read CLI options from a config file. Must be a YAML with the following options: https://docs.vllm.ai/en/latest/configuration/serve_args.html",
+   "limits": null
+  },
+  {
+   "flag": "--grpc",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "grpc",
+   "group": "options",
+   "kind": "switch",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Launch the Python gRPC (SMG VllmEngine) server on --port instead of the HTTP OpenAI-compatible server. Requires: pip install vllm[grpc]. Cannot be combined with --grpc-port, which enables the Rust frontend's gRPC services.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-log-stats",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "disable_log_stats",
+   "group": "options",
+   "kind": "switch",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Disable logging statistics.",
+   "limits": null
+  },
+  {
+   "flag": "--aggregate-engine-logging",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "aggregate_engine_logging",
+   "group": "options",
+   "kind": "switch",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Log aggregate rather than per-engine statistics when using data parallelism.",
+   "limits": null
+  },
+  {
+   "flag": "--fail-on-environ-validation",
+   "aliases": [],
+   "negative_flags": [
+    "--no-fail-on-environ-validation"
+   ],
+   "dest": "fail_on_environ_validation",
+   "group": "options",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set, the engine will raise an error if environment validation fails.",
+   "limits": null
+  },
+  {
+   "flag": "--shutdown-timeout",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "shutdown_timeout",
+   "group": "options",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Shutdown timeout in seconds. 0 = abort, >0 = wait.",
+   "limits": null
+  },
+  {
+   "flag": "--gdn-prefill-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "gdn_prefill_backend",
+   "group": "options",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "flashinfer",
+    "triton",
+    "cutedsl",
+    "aiter_flydsl",
+    "sycl",
+    "hip"
+   ],
+   "suggestions": null,
+   "help": "Select GDN prefill backend.",
+   "limits": null
+  },
+  {
+   "flag": "--kda-prefill-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kda_prefill_backend",
+   "group": "options",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "auto",
+    "triton",
+    "flashkda",
+    "flashinfer",
+    "fused"
+   ],
+   "suggestions": null,
+   "help": "Select KDA prefill backend. 'flashkda' is CUDA-only and 'fused' is ROCm-only; 'auto' picks a supported backend.",
+   "limits": null
+  },
+  {
+   "flag": "--kda-decode-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kda_decode_backend",
+   "group": "options",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "auto",
+    "native",
+    "flashinfer",
+    "triton"
+   ],
+   "suggestions": null,
+   "help": "Select KDA decode backend.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-log-requests",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-log-requests"
+   ],
+   "dest": "enable_log_requests",
+   "group": "options",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable logging request information, dependent on log level:\n- INFO: Request ID, parameters and LoRA request.\n- DEBUG: Prompt inputs (e.g: text, token IDs).\nYou can set the minimum log level via `VLLM_LOGGING_LEVEL`.\nYou can also set a separate log level for request JSON body via `VLLM_REQUEST_BODY_LOG_LEVEL` (default: DEBUG).",
+   "limits": null
+  },
+  {
+   "flag": "--chat-template",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "chat_template",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The file path to the chat template, or the template in single-line form\nfor the specified model.",
+   "limits": null
+  },
+  {
+   "flag": "--chat-template-content-format",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "chat_template_content_format",
+   "group": "Frontend",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "openai",
+    "string"
+   ],
+   "suggestions": null,
+   "help": "The format to render message content within a chat template.\n\n* \"string\" will render the content as a string. Example: `\"Hello World\"`\n* \"openai\" will render the content as a list of dictionaries, similar to\n  OpenAI schema. Example: `[{\"type\": \"text\", \"text\": \"Hello world!\"}]`",
+   "limits": null
+  },
+  {
+   "flag": "--trust-request-chat-template",
+   "aliases": [],
+   "negative_flags": [
+    "--no-trust-request-chat-template"
+   ],
+   "dest": "trust_request_chat_template",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to trust the chat template provided in the request. If False,\nthe server will always use the chat template specified by `--chat-template`\nor the ones from tokenizer.",
+   "limits": null
+  },
+  {
+   "flag": "--trust-request-mm-kwargs",
+   "aliases": [],
+   "negative_flags": [
+    "--no-trust-request-mm-kwargs"
+   ],
+   "dest": "trust_request_mm_kwargs",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to trust per-request multimodal kwargs (`mm_processor_kwargs`\nand `media_io_kwargs`). If False, the server rejects non-empty values\nbecause they can change multimodal preprocessing resource usage. Only\nenable this when API clients are trusted.",
+   "limits": null
+  },
+  {
+   "flag": "--default-chat-template-kwargs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "default_chat_template_kwargs",
+   "group": "Frontend",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Default keyword arguments to pass to the chat template renderer.\nThese will be merged with request-level chat_template_kwargs,\nwith request values taking precedence. Useful for setting default\nbehavior for reasoning models. Example: '{\"enable_thinking\": false}'\nto disable thinking mode by default for Qwen3/DeepSeek models.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--reasoning-effort-map",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "reasoning_effort_map",
+   "group": "Frontend",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "JSON mapping that rewrites a request's reasoning effort to a value the\nchat template supports, for templates that silently fall back on efforts\nthey do not recognize. Applies to the effort set through the Chat\nCompletions, Responses and Anthropic Messages APIs; efforts not listed\npass through unchanged. Example: '{\"medium\": \"low\", \"xhigh\": \"max\"}'\nfor a template that only knows low, high and max.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--response-role",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "response_role",
+   "group": "Frontend",
+   "kind": "text",
+   "default": "assistant",
+   "choices": null,
+   "suggestions": null,
+   "help": "The role name to return if `request.add_generation_prompt=true`.",
+   "limits": null
+  },
+  {
+   "flag": "--return-tokens-as-token-ids",
+   "aliases": [],
+   "negative_flags": [
+    "--no-return-tokens-as-token-ids"
+   ],
+   "dest": "return_tokens_as_token_ids",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "When `--max-logprobs` is specified, represents single tokens as\nstrings of the form 'token_id:{token_id}' so that tokens that are not\nJSON-encodable can be identified.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-auto-tool-choice",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-auto-tool-choice"
+   ],
+   "dest": "enable_auto_tool_choice",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable auto tool choice for supported models. Use `--tool-call-parser`\nto specify which parser to use.",
+   "limits": null
+  },
+  {
+   "flag": "--exclude-tools-when-tool-choice-none",
+   "aliases": [],
+   "negative_flags": [
+    "--no-exclude-tools-when-tool-choice-none"
+   ],
+   "dest": "exclude_tools_when_tool_choice_none",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If specified, exclude tool definitions in prompts when\ntool_choice='none'.",
+   "limits": null
+  },
+  {
+   "flag": "--tool-call-parser",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tool_call_parser",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Select the tool call parser depending on the model that you're using.\nThis is used to parse the model-generated tool call into OpenAI API format.\nRequired for `--enable-auto-tool-choice`. You can choose any option from\nthe built-in parsers or register a plugin via `--tool-parser-plugin`.",
+   "limits": null
+  },
+  {
+   "flag": "--tool-parser-plugin",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tool_parser_plugin",
+   "group": "Frontend",
+   "kind": "text",
+   "default": "",
+   "choices": null,
+   "suggestions": null,
+   "help": "Special the tool parser plugin write to parse the model-generated tool\ninto OpenAI API format, the name register in this plugin can be used in\n`--tool-call-parser`.",
+   "limits": null
+  },
+  {
+   "flag": "--tool-strict-level",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tool_strict_level",
+   "group": "Frontend",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "auto",
+    "function",
+    "parameter",
+    null
+   ],
+   "suggestions": null,
+   "help": "Server-side floor for structural-tag based tool calling, applied on top\nof the per-tool `strict` field. `auto` follows the request's tool choice\nand per-tool strictness; `function` constrains the\ntool-call envelope (markup and function name) for every request with\ntools; `parameter` additionally pins argument schemas, as if every tool\nwere `strict: true`. When unset, the tool parser's default level applies,\nwhich is `auto` for most parsers.",
+   "limits": null
+  },
+  {
+   "flag": "--tool-server",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tool_server",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Comma-separated list of host:port pairs (IPv4, IPv6, or hostname).\nExamples: 127.0.0.1:8000, [::1]:8000, localhost:1234. Or `demo` for\nbuilt-in demo tools (browser and Python code interpreter). WARNING:\nThe `demo` Python tool executes model-generated code in Docker without\nnetwork isolation by default. See the security guide for more\ninformation.",
+   "limits": null
+  },
+  {
+   "flag": "--max-log-len",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_log_len",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Max number of prompt characters or prompt ID numbers being printed in\nlog. The default of None means unlimited.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-prompt-tokens-details",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-prompt-tokens-details"
+   ],
+   "dest": "enable_prompt_tokens_details",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, enable prompt_tokens_details in usage.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-per-request-metrics",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-per-request-metrics"
+   ],
+   "dest": "enable_per_request_metrics",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, include per-request timing metrics in API responses.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-server-load-tracking",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-server-load-tracking"
+   ],
+   "dest": "enable_server_load_tracking",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, enable tracking server_load_metrics in the app state.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-force-include-usage",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-force-include-usage"
+   ],
+   "dest": "enable_force_include_usage",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, including usage on every request.",
+   "limits": null
+  },
+  {
+   "flag": "--sse-keep-alive-interval",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "sse_keep_alive_interval",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Send an SSE keep-alive comment line every this many seconds when a\n`/v1/chat/completions` or `/v1/completions` streaming response is idle\n(queued, prefill, or between tokens), to prevent reverse proxies/tunnels\nwith read timeouts from closing the connection. Defaults to 0, which\ndisables keep-alive comments entirely.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-tokenizer-info-endpoint",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-tokenizer-info-endpoint"
+   ],
+   "dest": "enable_tokenizer_info_endpoint",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable the `/tokenizer_info` endpoint. May expose chat\ntemplates and other tokenizer configuration.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-log-outputs",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-log-outputs"
+   ],
+   "dest": "enable_log_outputs",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, log model outputs (generations). Requires\n`--enable-log-requests`. Output text and finish reasons are logged at INFO,\nwhile output token IDs are logged at DEBUG.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-log-deltas",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-log-deltas"
+   ],
+   "dest": "enable_log_deltas",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to False, output deltas will not be logged. Relevant only if \n--enable-log-outputs is set.",
+   "limits": null
+  },
+  {
+   "flag": "--cohere-is-reasoning-model",
+   "aliases": [],
+   "negative_flags": [
+    "--no-cohere-is-reasoning-model"
+   ],
+   "dest": "cohere_is_reasoning_model",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "Cohere ``/cohere/v2/chat`` only. Whether the served model is a\nreasoning Command-family model. When True (default), the assistant's\nchain-of-thought is surfaced as a ``thinking`` content block (or\n``content-*`` events on the stream). When False, reasoning is\nsurfaced as Cohere's ``tool_plan`` field (or ``tool-plan-delta``\nevents) whenever the model emits tool calls, matching older non-\nreasoning Command models. Has no effect on the non-Cohere\nendpoints.",
+   "limits": null
+  },
+  {
+   "flag": "--cohere-format",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cohere_format",
+   "group": "Frontend",
+   "kind": "text",
+   "default": "cmd4",
+   "choices": null,
+   "suggestions": null,
+   "help": "Cohere ``--tokenizer-mode cohere`` only. Which Cohere prompt\nformat to render: ``cmd4`` (current Command A+ models; default) or\n``cmd3`` (earlier Cmd-A and Cmd-A reasoning models). Selecting the\nwrong format silently produces a prompt the model wasn't trained\non, which most commonly manifests as the model emitting text but no\ncitations / tool calls / thinking blocks. Equivalent to passing\n``--default-chat-template-kwargs '{\"cohere_format\": \"...\"}'`` -- any\nexplicit request-level ``chat_template_kwargs.cohere_format`` takes\npriority.",
+   "limits": null
+  },
+  {
+   "flag": "--anthropic-disabled-thinking-effort",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "anthropic_disabled_thinking_effort",
+   "group": "Frontend",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "high",
+    "low",
+    "max",
+    "medium",
+    "none",
+    "xhigh"
+   ],
+   "suggestions": null,
+   "help": "The ``reasoning_effort`` used for Anthropic Messages, token counting,\nand render requests with ``thinking: {\"type\": \"disabled\"}`` or\n``thinking: {\"type\": \"between_tools\"}``.\n``none`` turns thinking off for models that support it; ``low`` suits\nmodels that always think\n(e.g. GLM-5.3) or reject ``none`` (e.g. gpt-oss). ``auto`` (default) uses\n``low`` when the renderer rejects ``none`` or renders it the same as a\nthinking effort, and ``none`` otherwise.",
+   "limits": null
+  },
+  {
+   "flag": "--log-error-stack",
+   "aliases": [],
+   "negative_flags": [
+    "--no-log-error-stack"
+   ],
+   "dest": "log_error_stack",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, log the stack trace of error responses",
+   "limits": null
+  },
+  {
+   "flag": "--tokens-only",
+   "aliases": [],
+   "negative_flags": [
+    "--no-tokens-only"
+   ],
+   "dest": "tokens_only",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, only enable the Tokens In<>Out endpoint.\nThis is intended for use in a Disaggregated Everything setup.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-scale-out",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-scale-out"
+   ],
+   "dest": "enable_scale_out",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, register the scale-out endpoints (`/render`, `/derender`,\n`/inference/v1/generate` and `/inference/v1/abort_requests`) on `vllm serve`.\nHas no effect on `vllm launch render` or `vllm serve --tokens-only` which\nalways register their required endpoints regardless of this flag.",
+   "limits": null
+  },
+  {
+   "flag": "--fingerprint-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "fingerprint_mode",
+   "group": "Frontend",
+   "kind": "choice",
+   "default": "full",
+   "choices": [
+    "custom",
+    "full",
+    "hash",
+    "none"
+   ],
+   "suggestions": null,
+   "help": "Controls the ``system_fingerprint`` field on responses.\n\n- ``full`` (default): ``vllm-<version>[-<parallelism>]-<hash8>``. Encodes\n  server version, non-trivial parallelism degrees (tp/pp/dp/ep), and an\n  8-char config hash.\n- ``hash``: ``vllm-<version>-<hash8>``. Parallelism stripped.\n- ``custom``: emits the literal string from ``--fingerprint-value``.\n- ``none``: the field is omitted (serialized as ``null``).",
+   "limits": null
+  },
+  {
+   "flag": "--fingerprint-value",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "fingerprint_value",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Literal fingerprint string used when ``--fingerprint-mode=custom``.",
+   "limits": null
+  },
+  {
+   "flag": "--host",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "host",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Host name.",
+   "limits": null
+  },
+  {
+   "flag": "--port",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "port",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 8000,
+   "choices": null,
+   "suggestions": null,
+   "help": "Port number.",
+   "limits": null
+  },
+  {
+   "flag": "--grpc-port",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "grpc_port",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable the Rust frontend's additional gRPC Inference and Control services\non this port. Requires `VLLM_USE_RUST_FRONTEND=1 vllm serve`; HTTP remains on\n`--port`. Binds on `--host`, or 127.0.0.1 with `--uds`. Cannot be combined\nwith the Python gRPC server's `--grpc` flag.",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-supervisor-port",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "data_parallel_supervisor_port",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 9256,
+   "choices": null,
+   "suggestions": null,
+   "help": "HTTP port for aggregated health endpoints in multi-port external LB\nmode.",
+   "limits": null
+  },
+  {
+   "flag": "--dp-supervisor-probe-interval-s",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dp_supervisor_probe_interval_s",
+   "group": "Frontend",
+   "kind": "number",
+   "default": 5.0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Seconds between aggregated health probes in multi-port external LB mode.",
+   "limits": null
+  },
+  {
+   "flag": "--dp-supervisor-probe-timeout-s",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dp_supervisor_probe_timeout_s",
+   "group": "Frontend",
+   "kind": "number",
+   "default": 5.0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Seconds to wait between retries when a child health probe fails with a\nconnection error in multi-port external LB mode.",
+   "limits": null
+  },
+  {
+   "flag": "--dp-supervisor-probe-failure-threshold",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dp_supervisor_probe_failure_threshold",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 3,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of consecutive connection-error retries before a child health\nprobe is declared failed in multi-port external LB mode.",
+   "limits": null
+  },
+  {
+   "flag": "--uds",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "uds",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Unix domain socket path. If set, host and port arguments are ignored.",
+   "limits": null
+  },
+  {
+   "flag": "--uvicorn-log-level",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "uvicorn_log_level",
+   "group": "Frontend",
+   "kind": "choice",
+   "default": "info",
+   "choices": [
+    "critical",
+    "debug",
+    "error",
+    "info",
+    "trace",
+    "warning"
+   ],
+   "suggestions": null,
+   "help": "Log level for uvicorn.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-uvicorn-access-log",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-uvicorn-access-log"
+   ],
+   "dest": "disable_uvicorn_access_log",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Disable uvicorn access log.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-access-log-for-endpoints",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "disable_access_log_for_endpoints",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Comma-separated list of endpoint paths to exclude from uvicorn access\nlogs. This is useful to reduce log noise from high-frequency endpoints\nlike health checks. Example: \"/health,/metrics,/ping\".\nWhen set, access logs for requests to these paths will be suppressed\nwhile keeping logs for other endpoints.",
+   "limits": null
+  },
+  {
+   "flag": "--allow-credentials",
+   "aliases": [],
+   "negative_flags": [
+    "--no-allow-credentials"
+   ],
+   "dest": "allow_credentials",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Allow credentials.",
+   "limits": null
+  },
+  {
+   "flag": "--allowed-origins",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "allowed_origins",
+   "group": "Frontend",
+   "kind": "json",
+   "default": [],
+   "choices": null,
+   "suggestions": null,
+   "help": "Allowed origins. Cross-origin browser access is disabled by default.",
+   "limits": null
+  },
+  {
+   "flag": "--allowed-methods",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "allowed_methods",
+   "group": "Frontend",
+   "kind": "json",
+   "default": [
+    "*"
+   ],
+   "choices": null,
+   "suggestions": null,
+   "help": "Allowed methods.",
+   "limits": null
+  },
+  {
+   "flag": "--allowed-headers",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "allowed_headers",
+   "group": "Frontend",
+   "kind": "json",
+   "default": [
+    "*"
+   ],
+   "choices": null,
+   "suggestions": null,
+   "help": "Allowed headers.",
+   "limits": null
+  },
+  {
+   "flag": "--api-key",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "api_key",
+   "group": "Frontend",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If provided, the server will require one of these keys to be presented in\nthe header.\n\nWarning: this only authenticates endpoints under the `/v1`, `/v2`,\n`/inference`, and `/cohere` path prefixes. Other endpoints on the same\nserver, including `/invocations` (which exposes the same inference\ncapabilities as `/v1`), remain unauthenticated. Do not rely on `--api-key`\nalone to secure vLLM; see\nhttps://docs.vllm.ai/en/latest/usage/security.html#api-key-authentication-limitations\nfor what it does and does not protect.",
+   "limits": null
+  },
+  {
+   "flag": "--ssl-keyfile",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ssl_keyfile",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The file path to the SSL key file.",
+   "limits": null
+  },
+  {
+   "flag": "--ssl-certfile",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ssl_certfile",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The file path to the SSL cert file.",
+   "limits": null
+  },
+  {
+   "flag": "--ssl-ca-certs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ssl_ca_certs",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The CA certificates file.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-ssl-refresh",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-ssl-refresh"
+   ],
+   "dest": "enable_ssl_refresh",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Refresh SSL Context when SSL certificate files change",
+   "limits": null
+  },
+  {
+   "flag": "--ssl-cert-reqs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ssl_cert_reqs",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether client certificate is required (see stdlib ssl module's).",
+   "limits": null
+  },
+  {
+   "flag": "--ssl-ciphers",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ssl_ciphers",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "SSL cipher suites for HTTPS (TLS 1.2 and below only).\nExample: 'ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-CHACHA20-POLY1305'",
+   "limits": null
+  },
+  {
+   "flag": "--root-path",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "root_path",
+   "group": "Frontend",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "FastAPI root_path when app is behind a path based routing proxy.",
+   "limits": null
+  },
+  {
+   "flag": "--middleware",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "middleware",
+   "group": "Frontend",
+   "kind": "list",
+   "default": [],
+   "choices": null,
+   "suggestions": null,
+   "help": "Additional ASGI middleware to apply to the app. We accept multiple\n--middleware arguments. The value should be an import path. If a function\nis provided, vLLM will add it to the server using\n`@app.middleware('http')`. If a class is provided, vLLM will\nadd it to the server using `app.add_middleware()`.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-request-id-headers",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-request-id-headers"
+   ],
+   "dest": "enable_request_id_headers",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If specified, API server will add X-Request-Id header to responses.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-fastapi-docs",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-fastapi-docs"
+   ],
+   "dest": "disable_fastapi_docs",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Disable FastAPI's OpenAPI schema, Swagger UI, and ReDoc endpoint.",
+   "limits": null
+  },
+  {
+   "flag": "--h11-max-incomplete-event-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "h11_max_incomplete_event_size",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 4194304,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum size (bytes) of an incomplete HTTP event (header or body) for\nh11 parser. Helps mitigate header abuse. Default: 4194304 (4 MB).",
+   "limits": null
+  },
+  {
+   "flag": "--h11-max-header-count",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "h11_max_header_count",
+   "group": "Frontend",
+   "kind": "integer",
+   "default": 256,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of HTTP headers allowed in a request for h11 parser.\nHelps mitigate header abuse. Default: 256.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-offline-docs",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-offline-docs"
+   ],
+   "dest": "enable_offline_docs",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable offline FastAPI documentation for air-gapped environments.\nUses vendored static assets bundled with vLLM.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-flash-late-interaction",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-flash-late-interaction"
+   ],
+   "dest": "enable_flash_late_interaction",
+   "group": "Frontend",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set, run pooling score MaxSim on GPU in the API server process.\nCan significantly improve late-interaction scoring performance.\nWhen disabled, the setting is also propagated to the engine's\n`PoolerConfig`, so the engine-side scorer uses the reference MaxSim\npath instead of the fused Triton kernel.",
+   "limits": null
+  },
+  {
+   "flag": "--model",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "model",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "Qwen/Qwen3-0.6B",
+   "choices": null,
+   "suggestions": null,
+   "help": "Name or path of the Hugging Face model to use. It is also used as the\ncontent for `model_name` tag in metrics output when `served_model_name` is\nnot specified.",
+   "limits": null
+  },
+  {
+   "flag": "--runner",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "runner",
+   "group": "ModelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "draft",
+    "generate",
+    "pooling"
+   ],
+   "suggestions": null,
+   "help": "The type of model runner to use. Each vLLM instance only supports one\nmodel runner, even if the same model can be used for multiple types.",
+   "limits": null
+  },
+  {
+   "flag": "--convert",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "convert",
+   "group": "ModelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "classify",
+    "embed",
+    "none"
+   ],
+   "suggestions": null,
+   "help": "Convert the model using adapters defined in\n[vllm.model_executor.models.adapters][]. The most common use case is to\nadapt a text generation model to be used for pooling tasks.",
+   "limits": null
+  },
+  {
+   "flag": "--tokenizer",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tokenizer",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Name or path of the Hugging Face tokenizer to use. If unspecified, model\nname or path will be used.",
+   "limits": null
+  },
+  {
+   "flag": "--tokenizer-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tokenizer_mode",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": [
+    "alpamayo2_super",
+    "auto",
+    "cohere",
+    "deepseek_v32",
+    "deepseek_v4",
+    "glm5_next",
+    "hf",
+    "inkling",
+    "kimi_k3",
+    "mistral"
+   ],
+   "help": "Tokenizer mode:\n\n- \"auto\" will use the tokenizer from `mistral_common` for Mistral models\n  if available, otherwise it will use the \"hf\" tokenizer.\n- \"hf\" will use the fast tokenizer if available.\n- \"alpamayo2_super\" uses the \"hf\" tokenizer with Alpamayo 2 Super's\n  trajectory and special tokens added; selected automatically for\n  `nvidia/Alpamayo2-Super`.\n- \"mistral\" will always use the tokenizer from `mistral_common`.\n- \"deepseek_v32\" will always use the tokenizer from `deepseek_v32`.\n- \"deepseek_v4\" will always use the tokenizer from `deepseek_v4`.\n- \"deepseek_v41\" will use the DeepSeek V4.1 prompt encoder.\n- \"kimi_k3\" will always use the \"hf\" tokenizer but render chat prompts\n  with Kimi K3's Python XTML encoding instead of a Jinja template.\n- \"glm5_next\" uses the \"hf\" tokenizer and renderer on the Python frontend;\n  the Rust frontend renders GLM-5.3 and GLM-5.3-Flash prompts natively,\n  and selects this under \"auto\" for the `glm5_next` model type\n  (GLM-5.3-Flash).\n- \"cohere\" uses the standard HF tokenizer but renders the chat template\n  via the `cohere_melody` library (cmd3 / cmd4 templates) instead of\n  Jinja, and surfaces grounded-citation metadata on responses.\n- Other custom values can be supported via plugins.\n\nTo swap the Rust BPE backend that powers HF fast tokenizers for the\n[fastokens](https://github.com/crusoecloud/fastokens) implementation, set\n`VLLM_USE_FASTOKENS=1` instead — that override applies to any mode that\nloads an HF fast tokenizer (`hf`, `deepseek_v32`, `deepseek_v4`, …).",
+   "limits": null
+  },
+  {
+   "flag": "--trust-remote-code",
+   "aliases": [],
+   "negative_flags": [
+    "--no-trust-remote-code"
+   ],
+   "dest": "trust_remote_code",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Trust remote code (e.g., from HuggingFace) when downloading the model\nand tokenizer.",
+   "limits": null
+  },
+  {
+   "flag": "--dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dtype",
+   "group": "ModelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "bfloat16",
+    "float",
+    "float16",
+    "float32",
+    "half"
+   ],
+   "suggestions": null,
+   "help": "Data type for model weights and activations:\n\n- \"auto\" will use FP16 precision for FP32 and FP16 models, and BF16\n  precision for BF16 models.\n- \"half\" for FP16. Recommended for AWQ quantization.\n- \"float16\" is the same as \"half\".\n- \"bfloat16\" for a balance between precision and range.\n- \"float\" is shorthand for FP32 precision.\n- \"float32\" for FP32 precision.",
+   "limits": null
+  },
+  {
+   "flag": "--seed",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "seed",
+   "group": "ModelConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Random seed for reproducibility.\n\nThe seed must be in the range [0, 2**32 - 1].\n\nWe must set the global seed because otherwise,\ndifferent tensor parallel workers would sample different tokens,\nleading to inconsistent results.",
+   "limits": {
+    "ge": 0,
+    "le": 4294967295
+   }
+  },
+  {
+   "flag": "--hf-config-path",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "hf_config_path",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Name or path of the Hugging Face config to use. If unspecified, model\nname or path will be used.",
+   "limits": null
+  },
+  {
+   "flag": "--allowed-local-media-path",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "allowed_local_media_path",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "",
+   "choices": null,
+   "suggestions": null,
+   "help": "Allowing API requests to read local images or videos from directories\nspecified by the server file system. This is a security risk. Should only\nbe enabled in trusted environments.",
+   "limits": null
+  },
+  {
+   "flag": "--allowed-media-domains",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "allowed_media_domains",
+   "group": "ModelConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set, only media URLs that belong to this domain can be used for\nmulti-modal inputs.",
+   "limits": null
+  },
+  {
+   "flag": "--revision",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "revision",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The specific model version to use. It can be a branch name, a tag name,\nor a commit id. If unspecified, will use the default version.",
+   "limits": null
+  },
+  {
+   "flag": "--code-revision",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "code_revision",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The specific revision to use for the model code on the Hugging Face Hub.\nIt can be a branch name, a tag name, or a commit id. If unspecified, will\nuse the default version.",
+   "limits": null
+  },
+  {
+   "flag": "--tokenizer-revision",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "tokenizer_revision",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The specific revision to use for the tokenizer on the Hugging Face Hub.\nIt can be a branch name, a tag name, or a commit id. If unspecified, will\nuse the default version.",
+   "limits": null
+  },
+  {
+   "flag": "--max-model-len",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_model_len",
+   "group": "ModelConfig",
+   "kind": "size",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Model context length (prompt and output). If unspecified, will be\nautomatically derived from the model config.\n\nWhen passing via `--max-model-len`, supports k/m/g/K/M/G in human-readable\nformat. Examples:\n\n- 1k -> 1000\n- 1K -> 1024\n- 25.6k -> 25,600\n- -1 or 'auto' -> Automatically choose the maximum model length that fits in\n  GPU memory. This will use the model's maximum context length if it fits,\n  otherwise it will find the largest length that can be accommodated.",
+   "limits": {
+    "ge": -1
+   }
+  },
+  {
+   "flag": "--quantization",
+   "aliases": [
+    "-q"
+   ],
+   "negative_flags": [],
+   "dest": "quantization",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Method used to quantize the weights. If `None`, we first check the\n`quantization_config` attribute in the model config file. If that is\n`None`, we assume the model weights are not quantized and use `dtype` to\ndetermine the data type of the weights.",
+   "limits": null
+  },
+  {
+   "flag": "--quantization-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "quantization_config",
+   "group": "ModelConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "User-facing quantization configuration. Carries per-layer-kind specs\n(linear, moe) and ignore patterns; see :class:`QuantizationConfigArgs`.\nAuto-populated from the matching online shorthand when `quantization` is\none of the values in `ONLINE_QUANT_SHORTHAND_NAMES`.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--allow-deprecated-quantization",
+   "aliases": [],
+   "negative_flags": [
+    "--no-allow-deprecated-quantization"
+   ],
+   "dest": "allow_deprecated_quantization",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to allow deprecated quantization methods.",
+   "limits": null
+  },
+  {
+   "flag": "--enforce-eager",
+   "aliases": [],
+   "negative_flags": [
+    "--no-enforce-eager"
+   ],
+   "dest": "enforce_eager",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to always use eager-mode PyTorch. If True, we will disable CUDA\ngraph and always execute the model in eager mode. If False, we will use\nCUDA graph and eager execution in hybrid for maximal performance and\nflexibility.\n\nNOTE: This disables both `torch.compile` and CUDA graphs, and is\nequivalent to setting `-cc.mode=none -cc.cudagraph_mode=none`.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-return-routed-experts",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-return-routed-experts"
+   ],
+   "dest": "enable_return_routed_experts",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Capture and return routed-experts auxiliary outputs.",
+   "limits": null
+  },
+  {
+   "flag": "--return-sampling-mask",
+   "aliases": [],
+   "negative_flags": [
+    "--no-return-sampling-mask"
+   ],
+   "dest": "return_sampling_mask",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to return the post-processing token support for each sample.",
+   "limits": null
+  },
+  {
+   "flag": "--max-logprobs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_logprobs",
+   "group": "ModelConfig",
+   "kind": "integer",
+   "default": 20,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of log probabilities to return when `logprobs` is\nspecified in `SamplingParams`. The default value comes the default for the\nOpenAI Chat Completions API. -1 means no cap, i.e. all (output_length *\nvocab_size) logprobs are allowed to be returned and it may cause OOM.",
+   "limits": {
+    "ge": -1
+   }
+  },
+  {
+   "flag": "--logprobs-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "logprobs_mode",
+   "group": "ModelConfig",
+   "kind": "choice",
+   "default": "raw_logprobs",
+   "choices": [
+    "processed_logits",
+    "processed_logprobs",
+    "raw_logits",
+    "raw_logprobs"
+   ],
+   "suggestions": null,
+   "help": "Indicates the content returned in the logprobs and prompt_logprobs.\nSupported mode:\n1) raw_logprobs, 2) processed_logprobs, 3) raw_logits, 4) processed_logits.\nRaw means the values before applying any logit processors, like bad words.\nProcessed means the values after applying all processors, including\ntemperature and top_k/top_p.\nNote: for prompt_logprobs, processed_* and raw_* yield identical results\nbecause prompt tokens do not go through sampling processors.",
+   "limits": null
+  },
+  {
+   "flag": "--use-fp64-gumbel",
+   "aliases": [],
+   "negative_flags": [
+    "--no-use-fp64-gumbel"
+   ],
+   "dest": "use_fp64_gumbel",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to use FP64 (instead of FP32) random noise for Gumbel-max and\nequivalent exponential-race sampling. FP64 preserves lower-tail sampling\nevents that fp32 uniform/exponential draws can truncate, at the cost of\nsignificantly lower throughput on most GPUs.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-trace-replay",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-trace-replay"
+   ],
+   "dest": "enable_trace_replay",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to allow requests to set\n`SamplingParams.trace_decode_token_ids`, which forces decoding to follow a\npredetermined token sequence while still computing real logprobs. Reserved\nfor debugging and RL workflows: enabling it reserves a per-request trace\nbuffer, so it is off by default.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-sliding-window",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-sliding-window"
+   ],
+   "dest": "disable_sliding_window",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to disable sliding window. If True, we will disable the sliding\nwindow functionality of the model, capping to sliding window size. If the\nmodel does not support sliding window, this argument is ignored.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-cascade-attn",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-cascade-attn"
+   ],
+   "dest": "disable_cascade_attn",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "--disable-cascade-attn is deprecated and has no effect since cascade attention has been removed. It will be removed in v0.33.0.",
+   "limits": null
+  },
+  {
+   "flag": "--skip-tokenizer-init",
+   "aliases": [],
+   "negative_flags": [
+    "--no-skip-tokenizer-init"
+   ],
+   "dest": "skip_tokenizer_init",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Skip initialization of tokenizer and detokenizer. Expects valid\n`prompt_token_ids` and `None` for prompt from the input. The generated\noutput will contain token ids.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-prompt-embeds",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-prompt-embeds"
+   ],
+   "dest": "enable_prompt_embeds",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If `True`, enables passing text embeddings as inputs via the\n`prompt_embeds` key.\n\nWARNING: The vLLM engine may crash if incorrect shape of embeddings is passed.\nOnly enable this flag for trusted users!",
+   "limits": null
+  },
+  {
+   "flag": "--served-model-name",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "served_model_name",
+   "group": "ModelConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The model name(s) used in the API. If multiple names are provided, the\nserver will respond to any of the provided names. The model name in the\nmodel field of a response will be the first name in this list. If not\nspecified, the model name will be the same as the `--model` argument. Noted\nthat this name(s) will also be used in `model_name` tag content of\nprometheus metrics, if multiple names provided, metrics tag will take the\nfirst one.",
+   "limits": null
+  },
+  {
+   "flag": "--config-format",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "config_format",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": [
+    "auto",
+    "hf",
+    "mistral"
+   ],
+   "help": "The format of the model config to load:\n\n- \"auto\" will try to load the config in hf format if available after trying\n  to load in mistral format.\n- \"hf\" will load the config in hf format.\n- \"mistral\" will load the config in mistral format.",
+   "limits": null
+  },
+  {
+   "flag": "--hf-token",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "hf_token",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The token to use as HTTP bearer authorization for remote files . If\n`True`, will use the token generated when running `hf auth login`\n(stored in `~/.cache/huggingface/token`).",
+   "limits": null
+  },
+  {
+   "flag": "--hf-overrides",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "hf_overrides",
+   "group": "ModelConfig",
+   "kind": "json",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "If a dictionary, contains arguments to be forwarded to the Hugging Face\nconfig. If a callable, it is called to update the HuggingFace config.",
+   "limits": null
+  },
+  {
+   "flag": "--model-class-overrides",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "model_class_overrides",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "Override the model class used for one or more architectures, mapping the\narchitecture name to a `\"module:class\"` target (the same format accepted by\n`ModelRegistry.register_model`). This registers the target class at runtime,\ne.g. `{\"GlmMoeDsaForCausalLM\":\n\"vllm.models.deepseek_v32.nvidia.model:DeepseekV32ForCausalLM\"}`. This\nargument is for development and debugging purposes only.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--pooler-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "pooler_config",
+   "group": "ModelConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Pooler config which controls the behaviour of output pooling in pooling\nmodels.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.PoolerConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--generation-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "generation_config",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": null,
+   "help": "The folder path to the generation config. Defaults to `\"auto\"`, the\ngeneration config will be loaded from model path. If set to `\"vllm\"`, no\ngeneration config is loaded, vLLM defaults will be used. If set to a folder\npath, the generation config will be loaded from the specified folder path.\nIf `max_new_tokens` is specified in generation config, then it sets a\nserver-wide limit on the number of output tokens for all requests.",
+   "limits": null
+  },
+  {
+   "flag": "--override-generation-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "override_generation_config",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "Overrides or sets generation config. e.g. `{\"temperature\": 0.5}`. If\nused with `--generation-config auto`, the override parameters will be\nmerged with the default config from the model. If used with\n`--generation-config vllm`, only the override parameters are used.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-sleep-mode",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-sleep-mode"
+   ],
+   "dest": "enable_sleep_mode",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable sleep mode for the engine (only cuda and\nhip platforms are supported).",
+   "limits": null
+  },
+  {
+   "flag": "--sleep-mode-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "sleep_mode_backend",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "cumem",
+   "choices": null,
+   "suggestions": null,
+   "help": "Mechanism used to free and restore GPU state for sleep mode. ``\"cumem\"``\n(default) uses the built-in ``CuMemAllocator`` and is behavior-compatible\nwith prior releases. Additional backends (CUDA checkpoint, CRIU, durable\nsnapshot) may be registered in-tree or by plugins (RFC #34303).",
+   "limits": null
+  },
+  {
+   "flag": "--sleep-mode-offload-cudagraph",
+   "aliases": [],
+   "negative_flags": [
+    "--no-sleep-mode-offload-cudagraph"
+   ],
+   "dest": "sleep_mode_offload_cudagraph",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Back up CUDA graph memory to CPU during sleep, restored in place on wake.\nTakes effect with enable_sleep_mode, the cumem backend and CUDA graphs.",
+   "limits": null
+  },
+  {
+   "flag": "--sleep-preserve-parameter-names",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "sleep_preserve_parameter_names",
+   "group": "ModelConfig",
+   "kind": "list",
+   "default": [],
+   "choices": null,
+   "suggestions": null,
+   "help": "Parameter-name globs to preserve across level-2 sleep.\nUse target globs for frozen Engram table weights and scales omitted by the\ntrainer (e.g. ``*.engram.embed_tokens.weight*``).\nUse ``draft.<name>`` for draft-private parameters, or ``draft.*`` for all.\nThe sender must omit these parameters; loaders must preserve their storage.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-cumem-allocator",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-cumem-allocator"
+   ],
+   "dest": "enable_cumem_allocator",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable the custom cumem allocator to leverage advanced GPU memory\nallocation features such as multi-node NVLink support.\n\nSleep mode automatically enables this allocator. Only cuda and hip\nplatforms are supported.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-nccl-comm-suspend",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-nccl-comm-suspend"
+   ],
+   "dest": "enable_nccl_comm_suspend",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable releasing NCCL communicator memory during sleep mode\n(``ncclCommSuspend``/``ncclCommResume``). Experimental; when disabled\n(the default) sleep still releases weights/KV-cache memory as before.",
+   "limits": null
+  },
+  {
+   "flag": "--checkpoint-prepare-on-startup",
+   "aliases": [],
+   "negative_flags": [
+    "--no-checkpoint-prepare-on-startup"
+   ],
+   "dest": "checkpoint_prepare_on_startup",
+   "group": "ModelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Prepare each engine for a process checkpoint once it starts, as\n`/checkpoint/prepare` does. It serves only after `/checkpoint/restore`.\nRequires sleep mode.",
+   "limits": null
+  },
+  {
+   "flag": "--model-impl",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "model_impl",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": [
+    "auto",
+    "terratorch",
+    "transformers",
+    "vllm"
+   ],
+   "help": "Which implementation of the model to use:\n\n- \"auto\" will try to use the vLLM implementation, if it exists, and fall back to the\n  Transformers implementation if no vLLM implementation is available.\n- \"vllm\" will use the vLLM model implementation.\n- \"transformers\" will use the Transformers model implementation.\n- \"terratorch\" will use the TerraTorch model implementation.",
+   "limits": null
+  },
+  {
+   "flag": "--logits-processors",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "logits_processors",
+   "group": "ModelConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "One or more logits processors' fully-qualified class names or class\ndefinitions",
+   "limits": null
+  },
+  {
+   "flag": "--io-processor-plugin",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "io_processor_plugin",
+   "group": "ModelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "IOProcessor plugin name to load at model startup",
+   "limits": null
+  },
+  {
+   "flag": "--renderer-num-workers",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "renderer_num_workers",
+   "group": "ModelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of worker threads in the renderer thread pool. The pool is\nconsumed by the async renderer path (e.g. the OpenAI-compatible API\nserver started by `vllm serve`) to parallelize tokenization, chat\ntemplate rendering, and multimodal preprocessing across concurrent\nrequests.\n\nThe offline `LLM` entrypoint uses the synchronous renderer path and\nprocesses prompts (including multimodal preprocessing) serially, so\nthis setting has no effect there.",
+   "limits": null
+  },
+  {
+   "flag": "--load-format",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "load_format",
+   "group": "LoadConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": null,
+   "help": "The format of the model weights to load.\n\n- \"auto\" will try to load the weights in the safetensors format and fall\n  back to the pytorch bin format if safetensors format is not available.\n- \"pt\" will load the weights in the pytorch bin format.\n- \"safetensors\" will load the weights in the safetensors format.\n- \"instanttensor\" will load the Safetensors weights on CUDA devices using\n  InstantTensor, which enables distributed loading with pipelined prefetching\n  and fast direct I/O.\n- \"ipc_cache\" will map post-quantized weights from a local weight cache\n  daemon via CUDA IPC for fast engine restarts. Launch the daemon with\n  `vllm preload` first.\n- \"npcache\" will load the weights in pytorch format and store a numpy cache\n  to speed up the loading.\n- \"dummy\" will initialize the weights with random values, which is mainly\n  for profiling.\n- \"tensorizer\" will use CoreWeave's tensorizer library for fast weight\n  loading. See the Tensorize vLLM Model script in the Examples section for\n  more information.\n- \"runai_streamer\" will load the Safetensors weights using Run:ai Model\n  Streamer.\n- \"runai_streamer_sharded\" will load weights from pre-sharded checkpoint\n  files using Run:ai Model Streamer.\n- \"sharded_state\" will load weights from pre-sharded checkpoint files,\n  supporting efficient loading of tensor-parallel models.\n- \"mistral\" will load weights from consolidated safetensors files used by\n  Mistral models.\n- \"modelexpress\" will load weights using ModelExpress.\n- Other custom values can be supported via plugins.",
+   "limits": null
+  },
+  {
+   "flag": "--download-dir",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "download_dir",
+   "group": "LoadConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Directory to download and load the weights, default to the default\ncache directory of Hugging Face.",
+   "limits": null
+  },
+  {
+   "flag": "--safetensors-load-strategy",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "safetensors_load_strategy",
+   "group": "LoadConfig",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "eager",
+    "lazy",
+    "prefetch",
+    "torchao",
+    null
+   ],
+   "suggestions": null,
+   "help": "Specifies the loading strategy for safetensors weights.\n\n- None (default): Uses memory-mapped (lazy) loading. When an NFS\n  filesystem is detected and the total checkpoint size fits within 90%\n  of available RAM, prefetching is enabled automatically.\n- \"lazy\": Weights are memory-mapped from the file. This enables\n  on-demand loading and is highly efficient for models on local storage.\n  Unlike the default (None), auto-prefetch on NFS is not performed.\n- \"eager\": The entire file is read into CPU memory upfront before loading.\n  This is recommended for models on network filesystems (e.g., Lustre, NFS)\n  as it avoids inefficient random reads, significantly speeding up model\n  initialization. However, it uses more CPU RAM.\n- \"prefetch\": Checkpoint files are read into the OS page cache before\n  workers load them, speeding up the model loading phase. Useful on\n  network or high-latency storage.\n- \"torchao\": Weights are loaded in upfront and then reconstructed\n  into torchao tensor subclasses. This is used when the checkpoint\n  was quantized using torchao and saved using safetensors.\n  Needs `torchao >= 0.14.0`.",
+   "limits": null
+  },
+  {
+   "flag": "--safetensors-prefetch-num-threads",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "safetensors_prefetch_num_threads",
+   "group": "LoadConfig",
+   "kind": "integer",
+   "default": 8,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of worker threads used to prefetch safetensors checkpoint files\ninto the OS page cache when safetensors prefetching is enabled.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--safetensors-prefetch-block-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "safetensors_prefetch_block_size",
+   "group": "LoadConfig",
+   "kind": "size",
+   "default": 16777216,
+   "choices": null,
+   "suggestions": null,
+   "help": "Read size in bytes for each safetensors checkpoint file prefetch.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--model-loader-extra-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "model_loader_extra_config",
+   "group": "LoadConfig",
+   "kind": "json",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "Extra config for model loader. This will be passed to the model loader\ncorresponding to the chosen load_format.",
+   "limits": null
+  },
+  {
+   "flag": "--ignore-patterns",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ignore_patterns",
+   "group": "LoadConfig",
+   "kind": "list",
+   "default": [
+    "original/**/*"
+   ],
+   "choices": null,
+   "suggestions": null,
+   "help": "The list of patterns to ignore when loading the model. Default to\n\"original/**/*\" to avoid repeated loading of llama's checkpoints.",
+   "limits": null
+  },
+  {
+   "flag": "--use-tqdm-on-load",
+   "aliases": [],
+   "negative_flags": [
+    "--no-use-tqdm-on-load"
+   ],
+   "dest": "use_tqdm_on_load",
+   "group": "LoadConfig",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to enable tqdm for showing progress bar when loading model\nweights.",
+   "limits": null
+  },
+  {
+   "flag": "--pt-load-map-location",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "pt_load_map_location",
+   "group": "LoadConfig",
+   "kind": "json",
+   "default": "cpu",
+   "choices": null,
+   "suggestions": null,
+   "help": "The map location for loading pytorch checkpoint, to support loading\ncheckpoints can only be loaded on certain devices like \"cuda\", this\nis equivalent to `{\"\": \"cuda\"}`. Another supported format is mapping\nfrom different devices like from GPU 1 to GPU 0: `{\"cuda:1\": \"cuda:0\"}`.\nNote that when passed from command line, the strings in dictionary\nneed to be double quoted for json parsing. For more details, see\nthe original doc for `map_location` parameter in [`torch.load`][] parameter.",
+   "limits": null
+  },
+  {
+   "flag": "--shuffle-safetensors-files",
+   "aliases": [],
+   "negative_flags": [
+    "--no-shuffle-safetensors-files"
+   ],
+   "dest": "shuffle_safetensors_files",
+   "group": "LoadConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to shuffle the safetensors checkpoint files during loading.\nWhen enabled, files are randomly shuffled based on the distributed rank,\nwhich can help with load balancing and improve weight loading speed in\nstartup scenarios. This reduces I/O contention by ensuring different ranks\nload different files in a randomized order.\nSet to True to enable shuffling. Default is False.",
+   "limits": null
+  },
+  {
+   "flag": "--attention-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "attention_backend",
+   "group": "AttentionConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Attention backend to use. Use \"auto\" or None for automatic selection.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_backend",
+   "group": "MambaConfig",
+   "kind": "text",
+   "default": "triton",
+   "choices": null,
+   "suggestions": null,
+   "help": "Mamba SSU backend to use.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-ssu-algorithm",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_ssu_algorithm",
+   "group": "MambaConfig",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "auto",
+    "horizontal",
+    "simple",
+    "vertical",
+    null
+   ],
+   "suggestions": null,
+   "help": "Selective state update algorithm to use with the FlashInfer backend.\nNone defaults to FlashInfer's \"auto\" algorithm. Forced algorithms must\nbe supported by FlashInfer for the active GPU, state dtype, and decoding\nmode.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-mamba-cache-stochastic-rounding",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-mamba-cache-stochastic-rounding"
+   ],
+   "dest": "enable_mamba_cache_stochastic_rounding",
+   "group": "MambaConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable stochastic rounding when writing SSM state to fp16 cache.\nUses random bits to unbias the rounding error, which can improve\nnumerical stability for long sequences.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-cache-philox-rounds",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_cache_philox_rounds",
+   "group": "MambaConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of Philox PRNG rounds for stochastic rounding random number\ngeneration. 0 uses the Triton default. Higher values improve randomness\nquality at the cost of compute.",
+   "limits": null
+  },
+  {
+   "flag": "--reasoning-parser",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "reasoning_parser",
+   "group": "StructuredOutputsConfig",
+   "kind": "text",
+   "default": "",
+   "choices": null,
+   "suggestions": null,
+   "help": "Select the reasoning parser depending on the model that you're using.\nThis is used to parse the reasoning content into OpenAI API format.\n\n`none` disables reasoning parsing, the same as leaving it unset.",
+   "limits": null
+  },
+  {
+   "flag": "--reasoning-parser-plugin",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "reasoning_parser_plugin",
+   "group": "StructuredOutputsConfig",
+   "kind": "text",
+   "default": "",
+   "choices": null,
+   "suggestions": null,
+   "help": "Path to a dynamically reasoning parser plugin that can be dynamically\nloaded and registered.",
+   "limits": null
+  },
+  {
+   "flag": "--distributed-executor-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "distributed_executor_backend",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": [
+    "external_launcher",
+    "mp",
+    "ray",
+    "uni"
+   ],
+   "help": "Backend to use for distributed model workers, either \"ray\" or \"mp\"\n(multiprocessing). If the product of pipeline_parallel_size and tensor_parallel_size\nis less than or equal to the number of GPUs available, \"mp\" will be used to\nkeep processing on a single host. Otherwise, an error will be raised. To use \"mp\"\nyou must also set nnodes, and to use \"ray\" you must manually set\ndistributed_executor_backend to \"ray\".\n\nNote:\n    [TPU](https://docs.vllm.ai/projects/tpu/en/latest/) platform only supports Ray\n    for distributed inference.",
+   "limits": null
+  },
+  {
+   "flag": "--pipeline-parallel-size",
+   "aliases": [
+    "-pp"
+   ],
+   "negative_flags": [],
+   "dest": "pipeline_parallel_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of pipeline parallel groups.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--master-addr",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "master_addr",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": "127.0.0.1",
+   "choices": null,
+   "suggestions": null,
+   "help": "distributed master address for multi-node distributed \ninference when distributed_executor_backend is mp.",
+   "limits": null
+  },
+  {
+   "flag": "--master-port",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "master_port",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 29501,
+   "choices": null,
+   "suggestions": null,
+   "help": "distributed master port for multi-node distributed \ninference when distributed_executor_backend is mp.",
+   "limits": null
+  },
+  {
+   "flag": "--nnodes",
+   "aliases": [
+    "-n"
+   ],
+   "negative_flags": [],
+   "dest": "nnodes",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "num of nodes for multi-node distributed\ninference when distributed_executor_backend is mp.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--node-rank",
+   "aliases": [
+    "-r"
+   ],
+   "negative_flags": [],
+   "dest": "node_rank",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "distributed node rank for multi-node distributed\ninference when distributed_executor_backend is mp.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--distributed-timeout-seconds",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "distributed_timeout_seconds",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Timeout in seconds for distributed operations (e.g., init_process_group).\nIf set, this value is passed to torch.distributed.init_process_group as the\ntimeout parameter. If None, PyTorch's default timeout is used (600s for NCCL).\nIncrease this for multi-node setups where model downloads may be slow.",
+   "limits": null
+  },
+  {
+   "flag": "--cpu-distributed-timeout-seconds",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cpu_distributed_timeout_seconds",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Timeout (in seconds) for cpu communication groups. If None, PyTorch's\ndefault timeout is used (1800s for gloo).",
+   "limits": null
+  },
+  {
+   "flag": "--numa-bind",
+   "aliases": [],
+   "negative_flags": [
+    "--no-numa-bind"
+   ],
+   "dest": "numa_bind",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable NUMA binding for GPU worker subprocesses.\n\nWorkers are pinned to their GPU's NUMA-local CPUs; on PCT-capable\nXeons they also auto-bind to the SKU's PCT priority cores.\n\nIf None (default), vLLM binds only when the environment supports it\n(multiple NUMA nodes, `numactl` installed, unrestricted CPU affinity,\na default NUMA memory policy, and the `spawn` start method with an\nmp/uni executor and mp DP, including PCP).\nRay, external launchers and device-ID remapping are excluded\nfrom automatic binding. Automatic mode prefers GPU-local memory but\npermits allocations on other nodes. Unsupported environments start\nunbound. With `True`, strict memory binding may override an existing\npolicy, and a missing `numactl` or undetectable GPU-to-NUMA topology is\na startup error; `False` disables binding.",
+   "limits": null
+  },
+  {
+   "flag": "--numa-bind-nodes",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "numa_bind_nodes",
+   "group": "ParallelConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "NUMA node to bind each GPU worker to.\n\nSetting this list implies explicit `numa_bind=True` and requests strict\n`--membind`, not automatic soft memory preference. It cannot be combined\nwith `numa_bind=False`.\n\nSpecify one NUMA node per visible GPU, for example `[0, 0, 1, 1]`\nfor a 4-GPU system with GPUs 0-1 on NUMA node 0 and GPUs 2-3 on\nNUMA node 1. If unset and `numa_bind=True`, vLLM auto-detects the\nGPU-to-NUMA topology. The values are passed to `numactl --membind`\nand `--cpunodebind`, so they must be valid `numactl` NUMA node indices.",
+   "limits": null
+  },
+  {
+   "flag": "--numa-bind-cpus",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "numa_bind_cpus",
+   "group": "ParallelConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Optional CPU lists to bind each GPU worker to.\n\nSetting this list implies explicit `numa_bind=True` and requests strict\n`--membind`, not CPU-only binding or automatic soft memory preference.\nIt cannot be combined with `numa_bind=False`.\n\nSpecify one CPU list per visible GPU, for example\n`[\"0-3\", \"4-7\", \"8-11\", \"12-15\"]`. When set, vLLM uses\n`numactl --physcpubind` instead of `--cpunodebind`. This is useful\nfor custom policies such as binding to PCT or other high-frequency cores.\nEach entry must use `numactl --physcpubind` CPU-list syntax, for example\n`\"0-3\"` or `\"0,2,4-7\"`.",
+   "limits": null
+  },
+  {
+   "flag": "--device-ids",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "device_ids",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Comma-separated physical GPU device IDs or UUIDs to use (e.g. --device-ids \"2,3,5,7\"). Avoids setting CUDA_VISIBLE_DEVICES, preserving full GPU topology visibility for GPU-NIC affinity and DeepGEMM. Note: has no effect with Ray executors; use Ray placement groups for GPU selection instead.",
+   "limits": null
+  },
+  {
+   "flag": "--tensor-parallel-size",
+   "aliases": [
+    "-tp"
+   ],
+   "negative_flags": [],
+   "dest": "tensor_parallel_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of tensor parallel groups.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--decode-context-parallel-size",
+   "aliases": [
+    "-dcp"
+   ],
+   "negative_flags": [],
+   "dest": "decode_context_parallel_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of ranks that shard the decode KV cache. DCP does not expand\nthe process world size. Without PCP, DCP reuses TP ranks. With PCP, DCP\neither spans the PCP axis or the full TP x PCP block.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--dcp-comm-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dcp_comm_backend",
+   "group": "ParallelConfig",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "a2a",
+    "ag_rs",
+    null
+   ],
+   "suggestions": null,
+   "help": "Communication backend for Decode Context Parallel (DCP).\n- \"ag_rs\": AllGather + ReduceScatter (existing behavior)\n- \"a2a\": All-to-All exchange of partial outputs + LSE, then\n  combine with Triton kernel. Reduces NCCL calls from 3 to 2\n  per layer for MLA models.\n\n`None` selects the model default, which is \"ag_rs\" unless the model\noverrides it via [`set_dcp_defaults`][vllm.config.ParallelConfig.set_dcp_defaults].",
+   "limits": null
+  },
+  {
+   "flag": "--dcp-q-replicate",
+   "aliases": [],
+   "negative_flags": [
+    "--no-dcp-q-replicate"
+   ],
+   "dest": "dcp_q_replicate",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Replicate the MLA query projection within each DCP group so decode can skip the\nquery all-gather.\n\nWith DCP the KV cache is sharded across the group, so the standard MLA decode path\nall-gathers the query every step. Replicating the (small) query projection at load\ntime lets each rank materialize the full group-local head set and skip that \ncollective, at the cost of computing the projection redundantly on every rank \nin the group.",
+   "limits": null
+  },
+  {
+   "flag": "--dcp-kv-cache-interleave-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dcp_kv_cache_interleave_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Interleave size of kv_cache storage while using DCP.\ndcp_kv_cache_interleave_size has been replaced by cp_kv_cache_interleave_size,\nand will be deprecated when PCP is fully supported.",
+   "limits": null
+  },
+  {
+   "flag": "--cp-kv-cache-interleave-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cp_kv_cache_interleave_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Interleave size of kv_cache storage while using DCP.\nStore interleave_size tokens on dcp_rank i, then store next\ninterleave_size tokens on dcp_rank i+1.\nInterleave_size=1: token-level alignment, where token `i` is stored on\n    dcp_rank `i % dcp_world_size`.\nInterleave_size=block_size: block-level alignment, where tokens are\n    first populated to the preceding ranks. Tokens are then stored\n    in (rank i+1, block j) only after (rank i, block j) is fully occupied.\nBlock_size should be greater than or equal to cp_kv_cache_interleave_size.\nBlock_size should be divisible by cp_kv_cache_interleave_size.\n\nWhen --cp-kv-cache-interleave-size is omitted (None), the interleave size\nis resolved automatically based on NIXL transfer requirements.\nExplicit settings take priority.",
+   "limits": null
+  },
+  {
+   "flag": "--prefill-context-parallel-size",
+   "aliases": [
+    "-pcp"
+   ],
+   "negative_flags": [],
+   "dest": "prefill_context_parallel_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of ranks that split prefill sequence computation. PCP expands\nthe process world size but does not increase the KV-cache shard count.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--data-parallel-size",
+   "aliases": [
+    "-dp"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of data parallel groups. MoE layers will be sharded according to\nthe product of the tensor, prefill-context, and data parallel sizes.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--data-parallel-rank",
+   "aliases": [
+    "-dpn"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_rank",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Data parallel rank of this instance. When set, enables external load balancer mode for MoE data-parallel deployments. Unsupported for non-MoE models; launch independent vLLM instances instead.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--data-parallel-start-rank",
+   "aliases": [
+    "-dpr"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_start_rank",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Starting data parallel rank for secondary nodes.",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-size-local",
+   "aliases": [
+    "-dpl"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_size_local",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of data parallel replicas to run on this node.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--data-parallel-address",
+   "aliases": [
+    "-dpa"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_address",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Address of data parallel cluster head-node.",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-rpc-port",
+   "aliases": [
+    "-dpp"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_rpc_port",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Fixed port for data parallel RPC communication. All nodes must use the same port.",
+   "limits": {
+    "ge": 1,
+    "le": 65535
+   }
+  },
+  {
+   "flag": "--data-parallel-backend",
+   "aliases": [
+    "-dpb"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_backend",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": "mp",
+   "choices": null,
+   "suggestions": null,
+   "help": "Backend for data parallel, either \"mp\" or \"ray\".",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-hybrid-lb",
+   "aliases": [
+    "-dph"
+   ],
+   "negative_flags": [
+    "--no-data-parallel-hybrid-lb"
+   ],
+   "dest": "data_parallel_hybrid_lb",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to use \"hybrid\" DP LB mode. Applies only to online serving\nand when data_parallel_size > 0. Enables running an AsyncLLM\nand API server on a \"per-node\" basis where vLLM load balances\nbetween local data parallel ranks, but an external LB balances\nbetween vLLM nodes/replicas. Set explicitly in conjunction with\n--data-parallel-start-rank.",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-external-lb",
+   "aliases": [
+    "-dpe"
+   ],
+   "negative_flags": [
+    "--no-data-parallel-external-lb"
+   ],
+   "dest": "data_parallel_external_lb",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to use \"external\" DP LB mode. Applies only to online serving\nand when data_parallel_size > 0. This is useful for a \"one-pod-per-rank\"\nwide-EP setup in Kubernetes. Supported only for MoE deployments; non-MoE\nmodels should use independent vLLM instances without --data-parallel-*\narguments. Set implicitly when --data-parallel-rank is provided explicitly\nto vllm serve.",
+   "limits": null
+  },
+  {
+   "flag": "--data-parallel-multi-port-external-lb",
+   "aliases": [
+    "-dpm"
+   ],
+   "negative_flags": [],
+   "dest": "data_parallel_multi_port_external_lb",
+   "group": "ParallelConfig",
+   "kind": "switch",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Run a node-local supervisor that launches one external-LB API server per local data parallel rank and exposes aggregated health on a supervisor port.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-hc-sp",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-hc-sp"
+   ],
+   "dest": "enable_hc_sp",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable sequence parallelism for HyperConnection (HC) computation.\nCurrently supported by Qwen4Exp on CUDA/ROCm with TP>1 and PP=1 (ignored when TP=1).\nDoes not change MoE parallelism. MoE SP may enable HC SP independently of this flag.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-expert-parallel",
+   "aliases": [
+    "-ep"
+   ],
+   "negative_flags": [
+    "--disable-expert-parallel"
+   ],
+   "dest": "enable_expert_parallel",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Use expert parallelism instead of tensor parallelism for MoE layers.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-batch-sharded-sampling",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-batch-sharded-sampling"
+   ],
+   "dest": "enable_batch_sharded_sampling",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Use sharded sampling across tensor parallel ranks. Each rank samples\na slice of the batch instead of every rank sampling all of it. Currently\ndefaults to False if not set. Enabling it explicitly raises when the config\ncannot support it (`tensor_parallel_size` must be > 1, `max_num_seqs` at\nleast `tensor_parallel_size`, and `max_logprobs` non-negative). Models opt in\nby implementing `compute_logits_local`.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-ep-weight-filter",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-ep-weight-filter"
+   ],
+   "dest": "enable_ep_weight_filter",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Skip non-local expert weights during model loading when expert\nparallelism is active.  Each rank only reads its own expert shard from\ndisk, which can drastically reduce storage I/O for MoE models with\nper-expert weight tensors (e.g. DeepSeek, Mixtral, Kimi-K2.5).  With EPLB,\neach rank also reads the experts its redundant slots replicate in the\ninitial placement; elastic EP loads every expert.  Has no effect on 3D\nfused-expert checkpoints (e.g. GPT-OSS) or non-MoE models.",
+   "limits": null
+  },
+  {
+   "flag": "--all2all-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "all2all_backend",
+   "group": "ParallelConfig",
+   "kind": "choice",
+   "default": "allgather_reducescatter",
+   "choices": [
+    "allgather_reducescatter",
+    "deepep_high_throughput",
+    "deepep_low_latency",
+    "deepep_v2",
+    "flashinfer_all2allv",
+    "flashinfer_nvlink_one_sided",
+    "flashinfer_nvlink_two_sided",
+    "moonep",
+    "mori",
+    "mori_high_throughput",
+    "mori_low_latency",
+    "naive",
+    "nixl_ep",
+    "pplx"
+   ],
+   "suggestions": null,
+   "help": "All2All backend for MoE expert parallel communication. Available options:\n\n- \"allgather_reducescatter\": All2all based on allgather and reducescatter\n- \"deepep_high_throughput\": Use deepep high-throughput kernels\n- \"deepep_low_latency\": Use deepep low-latency kernels\n- \"mori_high_throughput\": MoRI EP with InterNodeV1 for multi-node\n  (deprecated; use \"mori\")\n- \"mori_low_latency\": MoRI EP with InterNodeV1LL for multi-node\n  (deprecated; use \"mori\")\n- \"moonep\": MoonEP balanced EP with dynamic redundant experts (NVLink)\n- \"mori\": MoRI EP; uses EPv2 where supported (see `VLLM_MORI_EP_V2`) and\n  EPv1 otherwise, picking the EPv1 inter-node kernel from the token budget\n  (see `VLLM_MORI_DISPATCH_INTER_KERNEL_SWITCH_THRESHOLD`)\n- \"nixl_ep\": Use nixl-ep kernels\n- \"flashinfer_nvlink_one_sided\": Use flashinfer high-throughput a2a kernels\n- \"flashinfer_nvlink_two_sided\": Use flashinfer two-sided kernels for mnnvl\n- \"passthrough\": No all2all at all: the MoE backend dispatches and combines\n  itself (e.g. the FlashInfer MoE-EP megakernels). Bound automatically for\n  such MoE backends; not selectable from the CLI.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-dbo",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-dbo"
+   ],
+   "dest": "enable_dbo",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable dual batch overlap for the model executor.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-shm-tensor-arena",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-shm-tensor-arena"
+   ],
+   "dest": "enable_shm_tensor_arena",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Route large CPU tensors (e.g. multimodal ``pixel_values``) in the\nengine→worker broadcast through a zero-copy shared-memory arena instead of\nsending a copy to every reader. **Experimental**: may be reconciled with\nvLLM's existing multimodal shm tensor caching in a future release. Opt-in;\nmost beneficial for multimodal serving with large images and tensor\nparallelism. Active only when all queue readers are node-local; reserves\nslots in ``/dev/shm``.",
+   "limits": null
+  },
+  {
+   "flag": "--ubatch-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ubatch_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of ubatch size.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--enable-elastic-ep",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-elastic-ep"
+   ],
+   "dest": "enable_elastic_ep",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable elastic expert parallelism with stateless NCCL groups for DP/EP.",
+   "limits": null
+  },
+  {
+   "flag": "--elastic-ep-max-dp-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "elastic_ep_max_dp_size",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum data parallel size supported by elastic expert parallelism.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--dbo-decode-token-threshold",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dbo_decode_token_threshold",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 32,
+   "choices": null,
+   "suggestions": null,
+   "help": "The threshold for dual batch overlap for batches only containing decodes.\nIf the number of tokens in the request is greater than this threshold,\nmicrobatching will be used. Otherwise, the request will be processed in a\nsingle batch.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--dp-sync-interval",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dp_sync_interval",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 16,
+   "choices": null,
+   "suggestions": null,
+   "help": "Steps between DP finish-sync all-reduces; must match across DP ranks.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--dbo-prefill-token-threshold",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "dbo_prefill_token_threshold",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": 512,
+   "choices": null,
+   "suggestions": null,
+   "help": "The threshold for dual batch overlap for batches that contain one or more\nprefills. If the number of tokens in the request is greater than this\nthreshold, microbatching will be used. Otherwise, the request will be\nprocessed in a single batch.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--disable-nccl-for-dp-synchronization",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-nccl-for-dp-synchronization"
+   ],
+   "dest": "disable_nccl_for_dp_synchronization",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Forces the dp synchronization logic in vllm/v1/worker/dp_utils.py \nto use Gloo instead of NCCL for its all reduce.\n\nDefaults to True when async scheduling is enabled, False otherwise.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-eplb",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-eplb"
+   ],
+   "dest": "enable_eplb",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable expert parallelism load balancing for MoE layers.",
+   "limits": null
+  },
+  {
+   "flag": "--eplb-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "eplb_config",
+   "group": "ParallelConfig",
+   "kind": "json",
+   "default": "EPLBConfig(window_size=1000, step_interval=3000, num_redundant_experts=None, log_balancedness=False, log_balancedness_interval=1, use_async=True, policy='default', communicator=None, enable_migration_batching=False)",
+   "choices": null,
+   "suggestions": null,
+   "help": "Expert parallelism configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.EPLBConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--expert-placement-strategy",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "expert_placement_strategy",
+   "group": "ParallelConfig",
+   "kind": "choice",
+   "default": "linear",
+   "choices": [
+    "linear",
+    "round_robin"
+   ],
+   "suggestions": null,
+   "help": "The expert placement strategy for MoE layers:\n\n- \"linear\": Experts are placed in a contiguous manner. For example, with 4\n  experts and 2 ranks, rank 0 will have experts [0, 1] and rank 1 will have\n  experts [2, 3].\n- \"round_robin\": Experts are placed in a round-robin manner. For example,\n  with 4 experts and 2 ranks, rank 0 will have experts [0, 2] and rank 1\n  will have experts [1, 3]. This strategy can help improve load balancing\n  for grouped expert models with no redundant experts.",
+   "limits": null
+  },
+  {
+   "flag": "--max-parallel-loading-workers",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_parallel_loading_workers",
+   "group": "ParallelConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of parallel loading workers when loading model\nsequentially in multiple batches. To avoid RAM OOM when using tensor\nparallel and large models.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--ray-workers-use-nsight",
+   "aliases": [],
+   "negative_flags": [
+    "--no-ray-workers-use-nsight"
+   ],
+   "dest": "ray_workers_use_nsight",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to profile Ray workers with nsight, see https://docs.ray.io/en/latest/ray-observability/user-guides/profiling.html#profiling-nsight-profiler.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-custom-all-reduce",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-custom-all-reduce"
+   ],
+   "dest": "disable_custom_all_reduce",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Disable the custom all-reduce kernel and fall back to NCCL.",
+   "limits": null
+  },
+  {
+   "flag": "--worker-cls",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "worker_cls",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": null,
+   "help": "The full name of the worker class to use. If \"auto\", the worker class\nwill be determined based on the platform.",
+   "limits": null
+  },
+  {
+   "flag": "--worker-extension-cls",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "worker_extension_cls",
+   "group": "ParallelConfig",
+   "kind": "text",
+   "default": "",
+   "choices": null,
+   "suggestions": null,
+   "help": "The full name of the worker extension class to use. The worker extension\nclass is dynamically inherited by the worker class. This is used to inject\nnew attributes and methods to the worker class for use in collective_rpc\ncalls. It may also define `init_worker_extension(self)`, called after\ndevice and distributed initialization but before model loading, and\n`destroy_worker_extension(self)`, called (best-effort) before the worker\nshuts down.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-fault-tolerance",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-fault-tolerance"
+   ],
+   "dest": "enable_fault_tolerance",
+   "group": "ParallelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable fault tolerance for detailed error recovery,\nsuch as scaling down faulty DPEngineCores.",
+   "limits": null
+  },
+  {
+   "flag": "--fault-tolerance-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "fault_tolerance_config",
+   "group": "ParallelConfig",
+   "kind": "json",
+   "default": "FaultToleranceConfig(engine_recovery_timeout_sec=120)",
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for fault tolerance.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.FaultToleranceConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--block-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "block_size",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Size of a contiguous cache block in number of tokens.\nAccepts None (meaning \"use default\"). After construction, always int.",
+   "limits": {
+    "gt": 0
+   }
+  },
+  {
+   "flag": "--gpu-memory-utilization",
+   "aliases": [
+    "--device-memory-utilization"
+   ],
+   "negative_flags": [],
+   "dest": "gpu_memory_utilization",
+   "group": "CacheConfig",
+   "kind": "number",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The fraction of GPU memory to be used for the model executor, which can\nrange from 0 to 1. For example, a value of 0.5 would imply 50% GPU memory\nutilization. This is a per-instance limit, and only applies to the current\nvLLM instance. It does not matter if you have another vLLM instance running\non the same GPU. For example, if you have two vLLM instances running on the\nsame GPU, you can set the GPU memory utilization to 0.5 for each instance.\nOn non-GPU installs, this value controls the corresponding device memory\nutilization.\n\nIf unspecified, 1.0 with the extensible KV cache (sized from measured\nmemory) and 0.92 otherwise; see `resolved_gpu_memory_utilization`.\n\nWith the extensible KV cache (the default on CUDA and ROCm), leave this\nunset unless something needs memory that vLLM does not measure: other\nprocesses sharing the GPU (including ones that allocate after vLLM has\nstarted), unified-memory devices whose memory the CPU also uses, weight\ntransfer buffers for weight updates, or KV connectors that allocate their\nown device buffers. A lower value takes memory away from the KV cache.",
+   "limits": {
+    "gt": 0,
+    "le": 1
+   }
+  },
+  {
+   "flag": "--kv-cache-memory-bytes",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_cache_memory_bytes",
+   "group": "CacheConfig",
+   "kind": "size",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Size of KV Cache per GPU in bytes. By default, this is set to None\nand vllm can automatically infer the kv cache size based on\ngpu_memory_utilization. However, users may want to manually specify\nthe kv cache memory size. kv_cache_memory_bytes allows more fine-grain\ncontrol of how much memory gets used when compared with using\ngpu_memory_utilization. Note that kv_cache_memory_bytes\n(when not-None) ignores gpu_memory_utilization",
+   "limits": null
+  },
+  {
+   "flag": "--enable-extensible-kv-cache",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-extensible-kv-cache"
+   ],
+   "dest": "enable_extensible_kv_cache",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Reserve the KV cache address range with device virtual memory and commit\nphysical pages after warmup, so the cache is sized from the memory actually\nfree after CUDA graph capture rather than from a profiling estimate. If\nunspecified, enabled on CUDA and ROCm unless kv_cache_memory_bytes is set,\nor NIXL on device memory has no IMEX channel; falls back to estimate-based\nsizing where the driver lacks VMM support. Explicitly requesting it where\nunsupported is an error. When a KV connector registers the KV cache for\nRDMA or exports it to another process, each segment is backed by a single\nphysical allocation; connectors declare this by overriding\n`KVConnectorBase_V1.kv_cache_access`.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-cache-dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_cache_dtype",
+   "group": "CacheConfig",
+   "kind": "text",
+   "default": "auto",
+   "choices": null,
+   "suggestions": [
+    "auto",
+    "bfloat16",
+    "float16",
+    "fp8",
+    "fp8_ds_mla",
+    "fp8_e4m3",
+    "fp8_e5m2",
+    "fp8_inc",
+    "fp8_per_token_head",
+    "int4_per_token_head",
+    "int8_per_token_head",
+    "nvfp4",
+    "nvfp4_4over6",
+    "nvfp4_ds_mla",
+    "octave_k3v3",
+    "octave_k3v3_compact",
+    "octave_k3v4",
+    "turboquant_3bit_nc",
+    "turboquant_4bit_nc",
+    "turboquant_k3v4_nc",
+    "turboquant_k8v4",
+    "ultraquant_4bit"
+   ],
+   "help": "Data type for kv cache storage. If \"auto\", will use model data type.\nAn explicit float16 or bfloat16 must match the model data type.\nCustom dtypes can registered by platform backends via\n``register_kv_cache_dtype`` are accepted (see vllm.config.cache).\nCUDA 11.8+ supports fp8 (=fp8_e4m3) and fp8_e5m2. ROCm (AMD GPU) supports\nfp8 (=fp8_e4m3). Intel Gaudi (HPU) supports fp8 (using fp8_inc).\nSome models (namely DeepSeekV3.2) default to fp8, set to bfloat16 to use\nbfloat16 instead, this is an invalid option for models that do not default\nto fp8.\n\"nvfp4_4over6\" uses the NVFP4 layout and selects between max/6 and max/4\nscales per 16 values by minimizing squared reconstruction error.",
+   "limits": null
+  },
+  {
+   "flag": "--num-gpu-blocks-override",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "num_gpu_blocks_override",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of GPU blocks to use. This overrides the profiled `num_gpu_blocks`\nif specified. Does nothing if `None`. Used for testing preemption.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-prefix-caching",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-prefix-caching"
+   ],
+   "dest": "enable_prefix_caching",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to enable prefix caching.",
+   "limits": null
+  },
+  {
+   "flag": "--prefix-caching-hash-algo",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "prefix_caching_hash_algo",
+   "group": "CacheConfig",
+   "kind": "choice",
+   "default": "sha256",
+   "choices": [
+    "sha256",
+    "sha256_cbor",
+    "xxhash",
+    "xxhash_cbor"
+   ],
+   "suggestions": null,
+   "help": "Set the hash algorithm for prefix caching:\n\n- \"sha256\" uses Pickle for object serialization before hashing. This is the current\n  default, as SHA256 is the most secure choice to avoid potential hash collisions.\n- \"sha256_cbor\" provides a reproducible, cross-language compatible hash. It\n  serializes objects using canonical CBOR and hashes them with SHA-256.\n- \"xxhash\" uses Pickle serialization with xxHash (128-bit) for faster,\n  non-cryptographic hashing. Requires the optional ``xxhash`` package.\n  IMPORTANT: Use of a hashing algorithm that is not considered  cryptographically\n  secure theoretically increases the risk of hash collisions, which can cause\n  undefined behavior or even leak private information in multi-tenant environments.\n  Even if collisions are still very unlikely, it is important to consider your\n  security risk tolerance against the performance benefits before turning this on.\n- \"xxhash_cbor\" combines canonical CBOR serialization with xxHash for\n  reproducible hashing. Requires the optional ``xxhash`` package.",
+   "limits": null
+  },
+  {
+   "flag": "--prefix-cache-retention-interval",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "prefix_cache_retention_interval",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Token interval between retained sliding-window and Mamba prefix-cache\ncheckpoints. ``0`` retains only semantic checkpoints, including the latest\nreplay boundary and shared-prefix junctions. Positive values additionally\nretain periodic checkpoints at the specified interval, which must be a\nmultiple of the scheduler block size. ``None`` retains checkpoints densely.\nApplies only to sliding-window and Mamba cache groups.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--kv-cache-dtype-skip-layers",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_cache_dtype_skip_layers",
+   "group": "CacheConfig",
+   "kind": "list",
+   "default": [],
+   "choices": null,
+   "suggestions": null,
+   "help": "Layer patterns to skip KV cache quantization. Accepts layer indices\n(e.g., '0', '2', '4') or attention type names (e.g., 'sliding_window').",
+   "limits": null
+  },
+  {
+   "flag": "--kv-sharing-fast-prefill",
+   "aliases": [],
+   "negative_flags": [
+    "--no-kv-sharing-fast-prefill"
+   ],
+   "dest": "kv_sharing_fast_prefill",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "In some KV sharing setups, e.g. YOCO (https://arxiv.org/abs/2405.05254),\nsome layers can skip tokens corresponding to prefill. This flag enables\nattention metadata for eligible layers to be overridden with metadata\nnecessary for implementing this optimization in some models (e.g. Gemma3n).\nIn Model Runner V2, batches containing LoRA requests use regular prefill;\nbatches without LoRA requests can still use fast prefill.",
+   "limits": null
+  },
+  {
+   "flag": "--swa-bounded-replay",
+   "aliases": [],
+   "negative_flags": [
+    "--no-swa-bounded-replay"
+   ],
+   "dest": "swa_bounded_replay",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "Keep the sliding-window KV of models that support it (DeepSeek-V4.1)\nout of prefix caching and rebuild it after a prefix hit by recomputing the\nhit's last window. The layers past the last KV-source layer then also run\neager prefill steps on each request's trailing window only. Requires model\nrunner V2.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-cache-dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_cache_dtype",
+   "group": "CacheConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "bfloat16",
+    "float16",
+    "float32"
+   ],
+   "suggestions": null,
+   "help": "The data type to use for the Mamba cache (both the conv as well as the\nssm state). If set to 'auto', the data type will be inferred from the model\nconfig.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-ssm-cache-dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_ssm_cache_dtype",
+   "group": "CacheConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "bfloat16",
+    "float16",
+    "float32"
+   ],
+   "suggestions": null,
+   "help": "The data type to use for the Mamba cache (ssm state only, conv state will\nstill be controlled by mamba_cache_dtype). If set to 'auto', the data type\nfor the ssm state will be determined by mamba_cache_dtype.",
+   "limits": null
+  },
+  {
+   "flag": "--mamba-block-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_block_size",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Size of a contiguous cache block in number of tokens for mamba cache.\nCan be set only when prefix caching is enabled.",
+   "limits": {
+    "gt": 0
+   }
+  },
+  {
+   "flag": "--prefix-match-unit",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "prefix_match_unit",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The finest token boundary (in tokens) a prefix-cache hit can land on.\n\nPrefix-cache keys are computed every `prefix_match_unit` tokens. It can\nbe set finer than the physical KV cache block sizes (e.g. 32 vs a\n1024-token hybrid-model block) as long as every KV cache group's\n`block_size` is divisible by it, enabling cache hits at boundaries\ninside a physical block. It controls matching granularity only, not how\noften states are stored.\n\nThis equals to the `hash_block_size` used throughout the KV cache code.",
+   "limits": {
+    "gt": 0
+   }
+  },
+  {
+   "flag": "--mamba-cache-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mamba_cache_mode",
+   "group": "CacheConfig",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "align",
+    "none"
+   ],
+   "suggestions": null,
+   "help": "--mamba-cache-mode is deprecated and will be removed in v0.34.0. It has no effect: Mamba prefix caching follows --enable-prefix-caching.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-mamba-shared-prefix-checkpoint",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-mamba-shared-prefix-checkpoint"
+   ],
+   "dest": "enable_mamba_shared_prefix_checkpoint",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Also register a Mamba \"align\" checkpoint at the shared-prefix junction --\nwhere an EAGLE/MTP sibling was observed to resume -- instead of only at the\nprompt tail. Off by default; only takes effect with prefix caching enabled,\nEAGLE on the Mamba group, and a prefix match unit smaller than the Mamba\nblock size.",
+   "limits": null
+  },
+  {
+   "flag": "--replayssm-buffer-len",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "replayssm_buffer_len",
+   "group": "CacheConfig",
+   "kind": "integer",
+   "default": 16,
+   "choices": null,
+   "suggestions": null,
+   "help": "ReplaySSM logical history length B for Mamba2. Triton uses B physical\nrows and FlashInfer uses B+T, where T is the target verification length.\nKimi-K3 speculative decode does not use B. Default 16.",
+   "limits": {
+    "gt": 0
+   }
+  },
+  {
+   "flag": "--use-replayssm",
+   "aliases": [],
+   "negative_flags": [
+    "--no-use-replayssm"
+   ],
+   "dest": "use_replayssm",
+   "group": "CacheConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Use the ReplaySSM Mamba2 decode kernel: cache recent SSM inputs and skip\nthe per-step full-state store, writing the checkpoint back only on flush.\nTriton and FlashInfer support the 'none' and 'align' Mamba cache modes.\nMamba2 speculative decoding requires FlashInfer. Pipeline parallelism is not\nsupported. Flushes are most efficient when mamba_block_size is a\nmultiple of replayssm_buffer_len, but this is not required.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-offloading-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_offloading_size",
+   "group": "CacheConfig",
+   "kind": "number",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Size of the KV cache offloading buffer in GiB. When TP > 1, this is\nthe total buffer size summed across all TP ranks. By default, this is set\nto None, which means no KV offloading is enabled. When set, vLLM will\nenable KV cache offloading to CPU using the kv_offloading_backend.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-offloading-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_offloading_backend",
+   "group": "CacheConfig",
+   "kind": "choice",
+   "default": "native",
+   "choices": [
+    "lmcache",
+    "native"
+   ],
+   "suggestions": null,
+   "help": "The backend to use for KV cache offloading. Supported backends include\n'native' (vLLM native CPU offloading), 'lmcache'.\nKV offloading is only activated when kv_offloading_size is set.",
+   "limits": null
+  },
+  {
+   "flag": "--offload-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "offload_backend",
+   "group": "OffloadConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "prefetch",
+    "uva"
+   ],
+   "suggestions": null,
+   "help": "The backend for weight offloading. Options:\n- \"auto\": Selects based on which sub-config has non-default values\n  (prefetch if offload_group_size > 0, uva if cpu_offload_gb > 0).\n- \"uva\": UVA (Unified Virtual Addressing) zero-copy offloading.\n- \"prefetch\": Async prefetch with group-based layer offloading.",
+   "limits": null
+  },
+  {
+   "flag": "--cpu-offload-gb",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cpu_offload_gb",
+   "group": "OffloadConfig",
+   "kind": "number",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "The space in GiB to offload to CPU, per GPU. Default is 0, which means\nno offloading. Intuitively, this argument can be seen as a virtual way to\nincrease the GPU memory size. For example, if you have one 24 GB GPU and\nset this to 10, virtually you can think of it as a 34 GB GPU. Then you can\nload a 13B model with BF16 weight, which requires at least 26GB GPU memory.\nNote that this requires fast CPU-GPU interconnect, as part of the model is\nloaded from CPU memory to GPU memory on the fly in each model forward pass.\nThis uses UVA (Unified Virtual Addressing) for zero-copy access.",
+   "limits": null
+  },
+  {
+   "flag": "--cpu-offload-params",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cpu_offload_params",
+   "group": "OffloadConfig",
+   "kind": "list",
+   "default": "set()",
+   "choices": null,
+   "suggestions": null,
+   "help": "The set of parameter name segments to target for CPU offloading.\nUnmatched parameters are not offloaded. If this set is empty, parameters\nare offloaded non-selectively until the memory limit defined by\n`cpu_offload_gb` is reached.\nExamples:\n    - For parameter name \"mlp.experts.w2_weight\":\n        - \"experts\" or \"experts.w2_weight\" will match.\n        - \"expert\" or \"w2\" will NOT match (must be exact segments).\nThis allows distinguishing parameters like \"w2_weight\" and \"w2_weight_scale\".",
+   "limits": null
+  },
+  {
+   "flag": "--offload-group-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "offload_group_size",
+   "group": "OffloadConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Group every N layers together. Offload last `offload_num_in_group`\nlayers of each group. Default is 0 (disabled).\nExample: group_size=8, num_in_group=2 offloads layers 6,7,14,15,22,23,...\nUnlike cpu_offload_gb, this uses explicit async prefetching to hide transfer\nlatency.",
+   "limits": null
+  },
+  {
+   "flag": "--offload-num-in-group",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "offload_num_in_group",
+   "group": "OffloadConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of layers to offload per group.\nMust be <= offload_group_size. Default is 1.",
+   "limits": null
+  },
+  {
+   "flag": "--offload-prefetch-step",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "offload_prefetch_step",
+   "group": "OffloadConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Number of layers to prefetch ahead.\nHigher values hide more latency but use more GPU memory. Default is 1.",
+   "limits": null
+  },
+  {
+   "flag": "--offload-params",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "offload_params",
+   "group": "OffloadConfig",
+   "kind": "list",
+   "default": "set()",
+   "choices": null,
+   "suggestions": null,
+   "help": "The set of parameter name segments to target for prefetch offloading.\nUnmatched parameters are not offloaded. If this set is empty, ALL\nparameters of each offloaded layer are offloaded.\nUses segment matching: \"w13_weight\" matches \"mlp.experts.w13_weight\"\nbut not \"mlp.experts.w13_weight_scale\".",
+   "limits": null
+  },
+  {
+   "flag": "--language-model-only",
+   "aliases": [],
+   "negative_flags": [
+    "--no-language-model-only"
+   ],
+   "dest": "language_model_only",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, disables all multimodal inputs by setting all modality limits to 0.\nEquivalent to setting `--limit-mm-per-prompt` to 0 for every modality.",
+   "limits": null
+  },
+  {
+   "flag": "--limit-mm-per-prompt",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "limit_mm_per_prompt",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "The maximum number of input items and options allowed per\nprompt for each modality.\n\nDefaults to 999 for each modality.\n\nLegacy format (count only):\n    {\"image\": 16, \"video\": 2}\n\nConfigurable format (with options):\n    {\"video\": {\"count\": 1, \"num_frames\": 32, \"width\": 512, \"height\": 512},\n    \"image\": {\"count\": 5, \"width\": 512, \"height\": 512}}\n\nMixed format (combining both):\n    {\"image\": 16, \"video\": {\"count\": 1, \"num_frames\": 32, \"width\": 512,\n    \"height\": 512}}\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-mm-embeds",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-mm-embeds"
+   ],
+   "dest": "enable_mm_embeds",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If `True`, enables passing multimodal embeddings:\nfor `LLM` class, this refers to tensor inputs under `multi_modal_data`;\nfor the OpenAI-compatible server, this refers to chat messages with content\n`\"type\": \"*_embeds\"`.\n\nWhen enabled with `--limit-mm-per-prompt` set to 0 for a modality,\nprecomputed embeddings skip count validation for that modality, \nsaving memory by not loading encoder modules while still enabling \nembeddings as an input. Limits greater than 0 still apply to embeddings.\n\nWARNING: The vLLM engine may crash if incorrect shape of embeddings is passed.\nOnly enable this flag for trusted users!",
+   "limits": null
+  },
+  {
+   "flag": "--media-io-kwargs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "media_io_kwargs",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "Additional args passed to process media inputs, keyed by modalities.\nFor example, to set num_frames for video, set\n`--media-io-kwargs '{\"video\": {\"num_frames\": 40} }'`\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-processor-kwargs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_processor_kwargs",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Arguments to be forwarded to the model's processor for multi-modal data,\ne.g., image processor. Overrides for the multi-modal processor obtained\nfrom `transformers.AutoProcessor.from_pretrained`.\n\nThe available overrides depend on the model that is being run.\n\nFor example, for Phi-3-Vision:\n`{\"num_crops\": 4}`.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-processor-cache-gb",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_processor_cache_gb",
+   "group": "MultiModalConfig",
+   "kind": "number",
+   "default": 4,
+   "choices": null,
+   "suggestions": null,
+   "help": "The size (in GiB) of the multi-modal processor cache, which is used to\navoid re-processing past multi-modal inputs.\n\nThis cache is duplicated for each API process and engine core process,\nresulting in a total memory usage of\n`mm_processor_cache_gb * (api_server_count + data_parallel_size)`.\n\nA single processed item larger than this budget is served uncached\n(with a warning) instead of failing. Raise this value to cache such items.\n\nSet to `0` to disable this cache completely (not recommended).",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--mm-processor-cache-type",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_processor_cache_type",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "lru",
+   "choices": [
+    "lru",
+    "shm"
+   ],
+   "suggestions": null,
+   "help": "Type of cache to use for the multi-modal preprocessor/mapper. If `shm`,\nuse shared memory FIFO cache. If `lru`, use mirrored LRU cache.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-hasher-algorithm",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_hasher_algorithm",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "blake3",
+   "choices": [
+    "blake3",
+    "sha256",
+    "sha512"
+   ],
+   "suggestions": null,
+   "help": "Hash algorithm to use for multi-modal input caching. Use `\"sha256\"` or\n`\"sha512\"` for FIPS-compliant deployments.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-shm-cache-max-object-size-mb",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_shm_cache_max_object_size_mb",
+   "group": "MultiModalConfig",
+   "kind": "integer",
+   "default": 128,
+   "choices": null,
+   "suggestions": null,
+   "help": "Size limit (in MiB) for each object stored in the multi-modal processor\nshared memory cache. Only effective when `mm_processor_cache_type` is\n`\"shm\"`.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--mm-encoder-only",
+   "aliases": [],
+   "negative_flags": [
+    "--no-mm-encoder-only"
+   ],
+   "dest": "mm_encoder_only",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "When enabled, skips the language component of the model.\n\nThis is usually only valid in disaggregated Encoder process.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-tp-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_tp_mode",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "weights",
+   "choices": [
+    "data",
+    "weights"
+   ],
+   "suggestions": null,
+   "help": "Indicates how to optimize multi-modal encoder inference using tensor\nparallelism (TP).\n\n- `\"weights\"`: Within the same vLLM engine, split the weights of\n  each layer across TP ranks. (default TP behavior)\n- `\"data\"`: Within the same vLLM engine, split the batched input data\n  across TP ranks to process the data in parallel, while hosting\n  the full weights on each TP rank.\n  This batch-level DP is not to be confused with API request-level\n  DP (which is controlled by `--data-parallel-size`).\n  This is only supported on a per-model basis and falls back to\n  `\"weights\"` if the encoder does not support DP.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-attn-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_attn_backend",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Optional override for the multi-modal encoder attention backend when\nusing vision transformers. Accepts any value from\n`vllm.v1.attention.backends.registry.AttentionBackendEnum` (e.g. `FLASH_ATTN`).",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-attn-dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_attn_dtype",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": null,
+   "choices": [
+    "fp8",
+    null
+   ],
+   "suggestions": null,
+   "help": "Optional dtype override for ViT encoder attention. Set to `\"fp8\"` to\nenable FP8 quantization via the FlashInfer cuDNN backend. When set to\n`\"fp8\"` without a scale file, dynamic scaling is used automatically.\nSee docs/features/quantization/fp8_vit_attn.md for details.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-fp8-scale-path",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_fp8_scale_path",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Path to a JSON file containing per-layer FP8 Q/K/V scales for ViT\nencoder attention. When provided (with `mm_encoder_attn_dtype=\"fp8\"`),\nstatic scaling is used. When omitted, dynamic scaling is used.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-fp8-scale-save-path",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_fp8_scale_save_path",
+   "group": "MultiModalConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "When set with dynamic FP8 scaling (`mm_encoder_attn_dtype=\"fp8\"`\nand no `mm_encoder_fp8_scale_path`), saves the calibrated scales to\nthis file after the amax history buffer is full. The saved file can\nthen be used as `mm_encoder_fp8_scale_path` in subsequent runs.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-encoder-fp8-scale-save-margin",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_encoder_fp8_scale_save_margin",
+   "group": "MultiModalConfig",
+   "kind": "number",
+   "default": 1.5,
+   "choices": null,
+   "suggestions": null,
+   "help": "Safety margin multiplied onto scales when auto-saving. A value > 1\nleaves headroom so that inputs with larger activations than the\ncalibration set do not overflow FP8 range. Default 1.5.",
+   "limits": {
+    "gt": 0.0
+   }
+  },
+  {
+   "flag": "--interleave-mm-strings",
+   "aliases": [],
+   "negative_flags": [
+    "--no-interleave-mm-strings"
+   ],
+   "dest": "interleave_mm_strings",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable fully interleaved support for multimodal prompts, while using\n--chat-template-content-format=string.",
+   "limits": null
+  },
+  {
+   "flag": "--skip-mm-profiling",
+   "aliases": [],
+   "negative_flags": [
+    "--no-skip-mm-profiling"
+   ],
+   "dest": "skip_mm_profiling",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "When enabled, skips multimodal memory profiling and only profiles with\nlanguage backbone model during engine initialization.\n\nThis reduces engine startup time but shifts the responsibility to users for\nestimating the peak memory usage of the activation of multimodal encoder and\nembedding cache.",
+   "limits": null
+  },
+  {
+   "flag": "--video-pruning-rate",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "video_pruning_rate",
+   "group": "MultiModalConfig",
+   "kind": "number",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Fraction of video tokens to prune from each video. Value sits in range\n[0;1); pruning is enabled when it is greater than 0. The pruning algorithm\nis selected by `video_pruning_method`.",
+   "limits": {
+    "ge": 0.0,
+    "lt": 1.0
+   }
+  },
+  {
+   "flag": "--video-pruning-method",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "video_pruning_method",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "evs",
+   "choices": [
+    "evs",
+    "vidcom2"
+   ],
+   "suggestions": null,
+   "help": "Video token pruning algorithm applied when `video_pruning_rate` > 0:\n- \"evs\": Efficient Video Sampling.\n- \"vidcom2\": Video Compression Commander.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-tensor-ipc",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_tensor_ipc",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "direct_rpc",
+   "choices": [
+    "direct_rpc",
+    "torch_shm"
+   ],
+   "suggestions": null,
+   "help": "IPC (inter-process communication) method for multimodal tensors.\n- \"direct_rpc\": Use msgspec serialization via RPC\n- \"torch_shm\": Use torch.multiprocessing shared memory for zero-copy IPC\nDefaults to \"direct_rpc\".",
+   "limits": null
+  },
+  {
+   "flag": "--mm-processor-device",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_processor_device",
+   "group": "MultiModalConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "cpu"
+   ],
+   "suggestions": null,
+   "help": "Device the HF multi-modal processor runs the image/video transform on. Convenience for `--mm-processor-kwargs '{\"device\": ...}'`: the value is resolved here and stored there, it is not kept as separate state. Only takes effect for HF \"fast\" (torchvision-backed) processors, which accept a `device` argument; the others ignore it and stay on CPU.\n\n\"auto\" uses the accelerator on encoder instances of an encode/prefill/decode deployment -- an EC producer that is not also a consumer allocates no KV cache, so its accelerator is not contended by the language model -- and then only when `--mm-tensor-ipc=torch_shm` can carry device tensors, since every other transport would copy the result back to the host and that copy costs more than it saves. \"auto\" resolves to \"cpu\" everywhere else.",
+   "limits": null
+  },
+  {
+   "flag": "--mm-ipc-gpu-memory-gb",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "mm_ipc_gpu_memory_gb",
+   "group": "MultiModalConfig",
+   "kind": "number",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Amount of GPU memory (in GiB) sequestered on the engine's device for\nGPU-side multimodal work in the API-server (frontend) process, such as\nhardware video decoding.\n\nThis budget is carved out of the engine's KV-cache memory so the headroom\nphysically exists, and frontend GPU decode paths acquire from a blocking\nbyte-counting semaphore of this size before allocating on the device.\n\nSet to `0` (default) to disable frontend GPU multimodal memory gating.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--mm-device-do-normalize",
+   "aliases": [],
+   "negative_flags": [
+    "--no-mm-device-do-normalize"
+   ],
+   "dest": "mm_device_do_normalize",
+   "group": "MultiModalConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Move the do_normalize computation in the mm preprocessing to before the ViT, \nand let the device do it, so that CPU computation can be saved.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-lora",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-lora"
+   ],
+   "dest": "enable_lora",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, enable handling of LoRA adapters.",
+   "limits": null
+  },
+  {
+   "flag": "--max-loras",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_loras",
+   "group": "LoRAConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Max number of LoRAs in a single batch.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-lora-rank",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_lora_rank",
+   "group": "LoRAConfig",
+   "kind": "choice",
+   "default": 16,
+   "choices": [
+    1,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    320,
+    512
+   ],
+   "suggestions": null,
+   "help": "Max LoRA rank.",
+   "limits": null
+  },
+  {
+   "flag": "--lora-dtype",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "lora_dtype",
+   "group": "LoRAConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "auto",
+    "bfloat16",
+    "float16"
+   ],
+   "suggestions": null,
+   "help": "Data type for LoRA. If auto, will default to base model dtype.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-tower-connector-lora",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-tower-connector-lora"
+   ],
+   "dest": "enable_tower_connector_lora",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If `True`, LoRA support for the tower (vision encoder) and connector \nof multimodal models will be enabled. This is an experimental feature and \ncurrently only supports some MM models such as the Qwen VL series. The default \nis False.",
+   "limits": null
+  },
+  {
+   "flag": "--max-cpu-loras",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_cpu_loras",
+   "group": "LoRAConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of LoRAs to store in CPU memory. Must be >= than\n`max_loras`.",
+   "limits": null
+  },
+  {
+   "flag": "--fully-sharded-loras",
+   "aliases": [],
+   "negative_flags": [
+    "--no-fully-sharded-loras"
+   ],
+   "dest": "fully_sharded_loras",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "By default, only half of the LoRA computation is sharded with tensor\nparallelism. Enabling this will use the fully sharded layers. At high\nsequence length, max rank or tensor parallel size, this is likely faster.",
+   "limits": null
+  },
+  {
+   "flag": "--lora-target-modules",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "lora_target_modules",
+   "group": "LoRAConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Restrict LoRA to specific module suffixes (e.g., [\"o_proj\", \"qkv_proj\"]).\nIf None, all supported LoRA modules are used. This allows deployment-time\ncontrol over which modules have LoRA applied, useful for performance tuning.",
+   "limits": null
+  },
+  {
+   "flag": "--default-mm-loras",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "default_mm_loras",
+   "group": "LoRAConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Dictionary mapping specific modalities to LoRA model paths; this field\nis only applicable to multimodal models and should be leveraged when a\nmodel always expects a LoRA to be active when a given modality is present.\nNote that currently, if a request provides multiple additional\nmodalities, each of which have their own LoRA, we do NOT apply\ndefault_mm_loras because we currently only support one lora adapter\nper prompt. When run in offline mode, the lora IDs for n modalities\nwill be automatically assigned to 1-n with the names of the modalities\nin alphabetic order.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--specialize-active-lora",
+   "aliases": [],
+   "negative_flags": [
+    "--no-specialize-active-lora"
+   ],
+   "dest": "specialize_active_lora",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Whether to construct lora kernel grid by the number of active LoRA adapters.\nWhen set to True, separate cuda graphs will be captured for different counts\nof active LoRAs (powers of 2 up to max_loras), which can improve performance\nfor variable LoRA usage patterns at the cost of increased startup time and\nmemory usage. Only takes effect when cudagraph_specialize_lora is True.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-mixed-moe-lora-format",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-mixed-moe-lora-format"
+   ],
+   "dest": "enable_mixed_moe_lora_format",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, force the engine to use the universal 2D MoE LoRA wrapper\n(`FusedMoEWithLoRA`) regardless of the model's `is_3d_moe_weight` flag, so\nthat 2D-format and 3D-format MoE LoRA adapters can be served in the same\ndeployment. Only meaningful for MoE models; ignored otherwise. Default False\nkeeps the existing model-driven behavior.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-moe-shared-loras",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-moe-shared-loras"
+   ],
+   "dest": "enable_moe_shared_loras",
+   "group": "LoRAConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, load MoE expert adapters in the \"shared-outer\" layout, where the\ngate/up (`w1`/`w3`) lora_A and the down (`w2`) lora_B are shared across all\nexperts (stored once with expert-dim 1) instead of per-expert. The shared\nfactors are broadcast to the expert count at kernel time. 3D-weight MoE\nmodels use `FusedMoEWithLoRA` for this layout. Only meaningful for MoE\nmodels whose adapters use this layout; ignored otherwise.",
+   "limits": null
+  },
+  {
+   "flag": "--max-lora-cls-labels",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_lora_cls_labels",
+   "group": "LoRAConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum output size for LoRA classification heads. Defaults to the\nbase classification head size.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--logging-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "logging_config",
+   "group": "LoggingConfig",
+   "kind": "json",
+   "default": "==SUPPRESS==",
+   "choices": null,
+   "suggestions": null,
+   "help": "Logging configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.LoggingConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--log-level",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "log_level",
+   "group": "LoggingConfig",
+   "kind": "choice",
+   "default": "==SUPPRESS==",
+   "choices": [
+    "CRITICAL",
+    "ERROR",
+    "WARNING",
+    "INFO",
+    "DEBUG",
+    "NOTSET"
+   ],
+   "suggestions": null,
+   "help": "Shortcut for --logging-config.log_level. Overrides that field if both are specified.",
+   "limits": null
+  },
+  {
+   "flag": "--show-hidden-metrics-for-version",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "show_hidden_metrics_for_version",
+   "group": "ObservabilityConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable deprecated Prometheus metrics that have been hidden since the\nspecified version. For example, if a previously deprecated metric has been\nhidden since the v0.7.0 release, you use\n`--show-hidden-metrics-for-version=0.7` as a temporary escape hatch while\nyou migrate to new metrics. The metric is likely to be removed completely\nin an upcoming release.",
+   "limits": null
+  },
+  {
+   "flag": "--otlp-traces-endpoint",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "otlp_traces_endpoint",
+   "group": "ObservabilityConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Target URL to which OpenTelemetry traces will be sent.",
+   "limits": null
+  },
+  {
+   "flag": "--collect-detailed-traces",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "collect_detailed_traces",
+   "group": "ObservabilityConfig",
+   "kind": "list",
+   "default": null,
+   "choices": [
+    "all",
+    "model",
+    "worker",
+    null
+   ],
+   "suggestions": null,
+   "help": "It makes sense to set this only if `--otlp-traces-endpoint` is set. If\nset, it will collect detailed traces for the specified modules. This\ninvolves use of possibly costly and or blocking operations and hence might\nhave a performance impact.\n\nNote that collecting detailed timing information for each request can be\nexpensive.",
+   "limits": null
+  },
+  {
+   "flag": "--per-request-spec-decode-metrics",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "per_request_spec_decode_metrics",
+   "group": "ObservabilityConfig",
+   "kind": "choice",
+   "default": "none",
+   "choices": [
+    "detailed",
+    "none",
+    "summary"
+   ],
+   "suggestions": null,
+   "help": "Include per-request speculative-decoding acceptance metrics in the\nresponse under `metrics.speculative_decoding`. `none` disables; `summary` adds mean\nacceptance length, draft acceptance rate, and the step-by-draft-length\nhistogram; `detailed` additionally records the ordered per-step\naccepted/proposed arrays (one entry per verify step). Only reported for\nsingle-sequence requests (`n == 1`), mirroring the timing metrics. No effect\nunless speculative decoding is enabled. Independent of `--disable-log-stats`.\nThis is the per-request response-body counterpart of the aggregate\n`vllm:spec_decode_*` Prometheus metrics. The response field is experimental\nand its shape may change in a future release.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-cache-metrics",
+   "aliases": [],
+   "negative_flags": [
+    "--no-kv-cache-metrics"
+   ],
+   "dest": "kv_cache_metrics",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable KV cache residency metrics (lifetime, idle time, reuse gaps).\nUses sampling to minimize overhead.\nRequires log stats to be enabled (i.e., --disable-log-stats not set).",
+   "limits": null
+  },
+  {
+   "flag": "--kv-cache-metrics-sample",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_cache_metrics_sample",
+   "group": "ObservabilityConfig",
+   "kind": "number",
+   "default": 0.01,
+   "choices": null,
+   "suggestions": null,
+   "help": "Sampling rate for KV cache metrics (0.0, 1.0]. Default 0.01 = 1% of blocks.",
+   "limits": {
+    "gt": 0,
+    "le": 1
+   }
+  },
+  {
+   "flag": "--custom-histogram-buckets",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "custom_histogram_buckets",
+   "group": "ObservabilityConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Custom Prometheus histogram bucket boundaries, as a JSON mapping from\nbucket-family key to a list of strictly increasing, positive, finite\nupper bounds. When a family key is present, its list replaces the default\nbuckets for every histogram in that family; families not listed keep\ntheir defaults. Known families: `request_latency`, `time_to_first_token`,\n`inter_token_latency`, `iteration_tokens`, `request_params_n`,\n`request_num_preemptions`, `request_tokens`, `kv_cache_residency`. Example:\n`--custom-histogram-buckets '{\"request_latency\": [0.01, 0.05, 0.1, 0.5]}'`.\nNote that every extra bucket adds one time series per metric and label\nset.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--cudagraph-metrics",
+   "aliases": [],
+   "negative_flags": [
+    "--no-cudagraph-metrics"
+   ],
+   "dest": "cudagraph_metrics",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable CUDA graph metrics (number of padded/unpadded tokens, runtime cudagraph\ndispatch modes, and their observed frequencies at every logging interval).",
+   "limits": null
+  },
+  {
+   "flag": "--enable-layerwise-nvtx-tracing",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-layerwise-nvtx-tracing"
+   ],
+   "dest": "enable_layerwise_nvtx_tracing",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Deprecated: per-layer tracing was only implemented by the removed Model Runner\nV1. This now only adds NVTX range markers around calls to the compiled model, and\nwill be removed in a future release. It doesn't work with CUDA graphs enabled.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-mfu-metrics",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-mfu-metrics"
+   ],
+   "dest": "enable_mfu_metrics",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable Model FLOPs Utilization (MFU) metrics.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-logging-iteration-details",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-logging-iteration-details"
+   ],
+   "dest": "enable_logging_iteration_details",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Enable detailed logging of iteration details.\nIf set, vllm EngineCore will log iteration details\nThis includes number of context/generation requests and tokens\nand the elapsed cpu time for the iteration.",
+   "limits": null
+  },
+  {
+   "flag": "--jit-monitor-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "jit_monitor_mode",
+   "group": "ObservabilityConfig",
+   "kind": "choice",
+   "default": "warn",
+   "choices": [
+    "error",
+    "warn"
+   ],
+   "suggestions": null,
+   "help": "How to handle post-warmup JIT compilation events.",
+   "limits": null
+  },
+  {
+   "flag": "--jit-monitor-verbose",
+   "aliases": [],
+   "negative_flags": [
+    "--no-jit-monitor-verbose"
+   ],
+   "dest": "jit_monitor_verbose",
+   "group": "ObservabilityConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Log every monitored JIT compile with runtime details. This can emit many\nlogs and add overhead, so it is intended for debugging.",
+   "limits": null
+  },
+  {
+   "flag": "--max-num-batched-tokens",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_batched_tokens",
+   "group": "SchedulerConfig",
+   "kind": "size",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of tokens that can be processed in a single iteration.\n\nThe default value here is mainly for convenience when testing.\nIn real usage, this should be set in `EngineArgs.create_engine_config`.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-num-scheduled-tokens",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_scheduled_tokens",
+   "group": "SchedulerConfig",
+   "kind": "size",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of tokens that the scheduler may issue in a single iteration.\n\nThis is usually equal to max_num_batched_tokens, but can be smaller in cases\nwhen the model might append tokens into the batch (such as speculative decoding).\nDefaults to max_num_batched_tokens.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-num-seqs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_seqs",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of sequences to be processed in a single iteration.\n\nThe default value here is mainly for convenience when testing.\nIn real usage, this should be set in `EngineArgs.create_engine_config`.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-num-active-seqs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_active_seqs",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of requests the scheduler admits into RUNNING.\n\n``max_num_seqs`` sizes the model runner (per-request buffers and CUDA\ngraph capture) and is also the default admission limit. Setting this\nlowers only the number of requests that may occupy RUNNING, so decode\nbatches stay smaller without shrinking runner or graph capacity. Must\nbe ``<= max_num_seqs``. ``None`` (default) keeps current behavior.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-num-inflight-kv-loads",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_inflight_kv_loads",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of requests holding KV blocks for an async KV connector\nload (e.g. a P/D NIXL pull) before they run: loads in progress, or finished\nand waiting for a running slot.\n\nSetting it also lets requests the connector may load asynchronously\n(``KVConnectorBase_V1.may_load_async``, by default P/D remote-prefill\nrequests) start their loads while the running batch is full, so they are\nready when a slot frees. ``None`` (default) keeps current behavior: no cap,\nand loads start only when a running slot is free.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--max-num-queued-reqs",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_queued_reqs",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum number of requests that can be in-flight (waiting or running)\nat the same time, or None for no limit. When the limit is reached, new\nrequests are rejected with HTTP 503 so the client can retry on another\ninstance. This bounds vLLM's otherwise unbounded request queue and is\nprimarily a coarse capacity valve.\n\nUnlike ``max_num_seqs``, which applies per data-parallel rank, this\nlimit is enforced in the API server process and counts in-flight\nrequests across all DP ranks it routes to. Size it as roughly\n``data_parallel_size * max_num_seqs`` plus the desired queue depth if\nit should not bind before per-rank admission does.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--max-num-queued-tokens",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_num_queued_tokens",
+   "group": "SchedulerConfig",
+   "kind": "size",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Maximum total prompt tokens of requests currently in the prefill\nphase, or None for no limit. When the limit is reached, new requests\nare rejected with HTTP 503.\n\nThis is a TTFT QoS mechanism: by setting it to\n``target_TTFT * prefill_throughput`` you reject requests when the\nprefill backlog would exceed the latency target.  In a disaggregated\nprefill-decode setup this maps directly to the prefill pool's\ncapacity.\n\nLike ``max_num_queued_reqs``, this limit is enforced in the API\nserver process and covers the prefill backlog across all DP ranks it\nroutes to, so ``prefill_throughput`` in the formula above is the\naggregate throughput of the deployment.\n\nNote: the count is conservative.  A partially prefilled request\nstill contributes its full ``prompt_len`` until it transitions out\nof the prefill phase, because the scheduler's per-iteration\n``num_computed_tokens`` progress is not propagated to the API\nserver process during prefill (``EngineCoreOutput`` is only\nemitted once the request starts producing tokens).  Similarly,\nprefix-cache hits (``num_cached_tokens``) are only known to the\nOutputProcessor after prefill completes.  This overestimates the\nreal backlog, causing earlier rejection than strictly necessary\n— the safe direction for QoS.  The impact is limited to long\nprompts under chunked prefill; short prompts that prefill in a\nsingle iteration are unaffected.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--long-prefill-token-threshold",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "long_prefill_token_threshold",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "For chunked prefill, a request is considered long if the prompt is\nlonger than this number of tokens. 0 disables the cap (default).\nIgnored when chunked prefill is disabled.\n\nThe cap is not applied when the request is the only one in the batch,\nsince there is no other request for it to starve.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--long-prefill-token-threshold-adaptive",
+   "aliases": [],
+   "negative_flags": [
+    "--no-long-prefill-token-threshold-adaptive"
+   ],
+   "dest": "long_prefill_token_threshold_adaptive",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "Floor the effective long prefill token threshold at a fair share of\nthe token budget: max_num_batched_tokens divided by the number of\nqueued and running requests. Only applies when\nlong_prefill_token_threshold is nonzero.",
+   "limits": null
+  },
+  {
+   "flag": "--scheduling-policy",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "scheduling_policy",
+   "group": "SchedulerConfig",
+   "kind": "choice",
+   "default": "fcfs",
+   "choices": [
+    "fcfs",
+    "priority"
+   ],
+   "suggestions": null,
+   "help": "The scheduling policy to use:\n\n- \"fcfs\" means first come first served, i.e. requests are handled in order \n  of arrival.\n- \"priority\" means requests are handled based on given priority (lower\n  value means earlier handling) and time of arrival deciding any ties).",
+   "limits": null
+  },
+  {
+   "flag": "--enable-chunked-prefill",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-chunked-prefill"
+   ],
+   "dest": "enable_chunked_prefill",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, prefill requests can be chunked based\non the remaining `max_num_batched_tokens`.\n\nThe default value here is mainly for convenience when testing.\nIn real usage, this should be set in `EngineArgs.create_engine_config`.",
+   "limits": null
+  },
+  {
+   "flag": "--disable-chunked-mm-input",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-chunked-mm-input"
+   ],
+   "dest": "disable_chunked_mm_input",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to true and chunked prefill is enabled, we do not want to\npartially schedule a multimodal item. Only used in V1\nThis ensures that if a request has a mixed prompt\n(like text tokens TTTT followed by image tokens IIIIIIIIII) where only\nsome image tokens can be scheduled (like TTTTIIIII, leaving IIIII),\nit will be scheduled as TTTT in one step and IIIIIIIIII in the next.",
+   "limits": null
+  },
+  {
+   "flag": "--scheduler-cls",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "scheduler_cls",
+   "group": "SchedulerConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The scheduler class to use. \"vllm.v1.core.sched.scheduler.Scheduler\" is\nthe default scheduler. Can be a class directly or the path to a class of\nform \"mod.custom_class\".",
+   "limits": null
+  },
+  {
+   "flag": "--scheduler-reserve-full-isl",
+   "aliases": [],
+   "negative_flags": [
+    "--no-scheduler-reserve-full-isl"
+   ],
+   "dest": "scheduler_reserve_full_isl",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": true,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, the scheduler checks whether the full input sequence length\nfits in the KV cache before admitting a new request, rather than only\nchecking the first chunk. Prevents over-admission and KV cache thrashing\nwith chunked prefill.",
+   "limits": null
+  },
+  {
+   "flag": "--watermark",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "watermark",
+   "group": "SchedulerConfig",
+   "kind": "number",
+   "default": 0.0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Fraction of total KV cache blocks to keep free (the watermark) when\nadmitting waiting or preempted requests into the running queue. This headroom\nhelps avoid frequent KV cache eviction and the resulting repeated preemption\nof requests when GPU memory is scarce. Must be in the range [0.0, 1.0); 0.0\n(the default) disables the watermark.",
+   "limits": {
+    "ge": 0.0,
+    "lt": 1.0
+   }
+  },
+  {
+   "flag": "--prefill-schedule-interval",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "prefill_schedule_interval",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "Only admit prefill once every N engine steps, leaving the steps in\nbetween to decode alone. 1 (the default) admits prefill on every step.\n\nA deferred step carries no prefill at all, including chunks of an\nalready-admitted prompt, so a long prompt can take up to N times as many\nsteps to finish prefilling.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--cache-aware-admission-window",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cache_aware_admission_window",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": 0,
+   "choices": null,
+   "suggestions": null,
+   "help": "Look-ahead window for cache-aware admission. Within the first N waiting\nrequests, those whose prefix is already in the KV cache are admitted ahead\nof requests that would have to compute theirs, so a cold request does not\nevict blocks a resident one still needs. 0 (the default) admits strictly in\narrival order.\n\nReordering is confined to the window and to requests that are merely\nwaiting, so a request that is blocked or already partially computed keeps\nits position and nothing is moved past it. Requires prefix caching and the\n\"fcfs\" policy; it is ignored otherwise. Costs one prefix-cache lookup per\nrequest in the window per step, so prefer the smallest window that spans\nthe usual queue depth.",
+   "limits": {
+    "ge": 0
+   }
+  },
+  {
+   "flag": "--cache-aware-admission-threshold",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cache_aware_admission_threshold",
+   "group": "SchedulerConfig",
+   "kind": "number",
+   "default": 0.5,
+   "choices": null,
+   "suggestions": null,
+   "help": "KV cache usage below which `cache_aware_admission_window` is not applied.\n\nDefaults to 0.5, so the window engages only once the cache is at least half\nused. Below that there is room for both prompts and reordering would change\nadmission order without an eviction to avoid, which is a fairness cost for\nno benefit. It also means the per-request cache probe is skipped entirely\nwhile the cache is roomy. Set to 0.0 to reorder on every step.",
+   "limits": {
+    "ge": 0.0,
+    "le": 1.0
+   }
+  },
+  {
+   "flag": "--disable-hybrid-kv-cache-manager",
+   "aliases": [],
+   "negative_flags": [
+    "--enable-hybrid-kv-cache-manager"
+   ],
+   "dest": "disable_hybrid_kv_cache_manager",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to True, KV cache manager will allocate the same size of KV cache\nfor all attention layers even if there are multiple type of attention layers\nlike full attention and sliding window attention.\nIf set to None, the default value will be determined based on the environment\nand starting configuration.",
+   "limits": null
+  },
+  {
+   "flag": "--async-scheduling",
+   "aliases": [],
+   "negative_flags": [
+    "--no-async-scheduling"
+   ],
+   "dest": "async_scheduling",
+   "group": "SchedulerConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "If set to False, disable async scheduling. Async scheduling helps to\navoid gaps in GPU utilization, leading to better latency and throughput.",
+   "limits": null
+  },
+  {
+   "flag": "--stream-interval",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "stream_interval",
+   "group": "SchedulerConfig",
+   "kind": "integer",
+   "default": 1,
+   "choices": null,
+   "suggestions": null,
+   "help": "The interval (or buffer size) for streaming in terms of token length.\nA smaller value (1) makes streaming smoother by sending each token immediately,\nwhile a larger value (e.g., 10) reduces host overhead and may increase throughput\nby batching multiple tokens before sending.",
+   "limits": {
+    "ge": 1
+   }
+  },
+  {
+   "flag": "--cudagraph-capture-sizes",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "cudagraph_capture_sizes",
+   "group": "CompilationConfig",
+   "kind": "list",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Sizes to capture cudagraph.\n- None (default): capture sizes are inferred from vllm config.\n- list[int]: capture sizes are specified as given.\n\nDeprecated with model runner V2, which takes\n`prefill_cudagraph_capture_token_sizes` and\n`decode_cudagraph_capture_request_sizes` instead. Set there, these token\ncounts are the prefill sizes and, rounded up to whole requests of the target\nmodel's query length, the decode sizes. After config resolution it holds the\ntoken count of every captured graph.",
+   "limits": null
+  },
+  {
+   "flag": "--max-cudagraph-capture-size",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "max_cudagraph_capture_size",
+   "group": "CompilationConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The maximum cudagraph capture size.\n\nIf cudagraph_capture_sizes is specified, this will be set to the largest\nsize in that list (or checked for consistency if specified). If\ncudagraph_capture_sizes is not specified, the list of sizes is generated\nautomatically following the pattern:\n\n    [1, 2, 4] + list(range(8, 256, 8)) + list(\n    range(256, max_cudagraph_capture_size + 1, 16))\n\nIf not specified, max_cudagraph_capture_size is capped at 512 by default,\nor 1024 on data center Blackwell GPUs. This avoids OOM in tight memory\nscenarios with small max_num_seqs, and limits capture of large graphs that\nincrease startup time and memory usage. Uniform decode sizes are appended\nonly within this default ceiling.\n\nDeprecated with model runner V2, which takes\n`max_prefill_cudagraph_capture_tokens` (tokens) and\n`max_decode_cudagraph_capture_requests` (requests) instead. After config\nresolution it holds the token count of the widest captured graph.",
+   "limits": null
+  },
+  {
+   "flag": "--ir-op-priority",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ir_op_priority",
+   "group": "KernelConfig",
+   "kind": "json",
+   "default": "IrOpPriorityConfig(rms_norm=[], fused_add_rms_norm=[], gelu_and_mul_sparse=[])",
+   "choices": null,
+   "suggestions": null,
+   "help": "vLLM IR op priority for dispatching/lowering during the forward pass.\nPlatform defaults appended automatically during VllmConfig.__post_init__.\n\nDeprecated: vLLM IR is being removed, and this option will be removed in\nv0.34.0. Kernels will be selected by the platform, as for other custom ops.\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--enable-flashinfer-autotune",
+   "aliases": [],
+   "negative_flags": [
+    "--disable-flashinfer-autotune"
+   ],
+   "dest": "enable_flashinfer_autotune",
+   "group": "KernelConfig",
+   "kind": "boolean",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Benchmark FlashInfer kernel implementations during warmup and use the\nfastest. Enabled by default except at `-O0`; disable for faster startup.",
+   "limits": null
+  },
+  {
+   "flag": "--monokernel",
+   "aliases": [],
+   "negative_flags": [
+    "--no-monokernel"
+   ],
+   "dest": "monokernel",
+   "group": "KernelConfig",
+   "kind": "boolean",
+   "default": false,
+   "choices": null,
+   "suggestions": null,
+   "help": "If True, run the eligible layers of decode steps on the model's\nMonoKernel: a persistent kernel that runs most or all of one decoder layer\nin a single launch (DeepSeek-V4.1 on MI355X, DeepSeek-V4-Pro at TP8 on\nMI355X; Muse Spark MXFP4 on MI355X with tensor parallel size 8, expert\nparallelism and a 7-token DSpark draft, for speculative verify steps of 1-16\nrequests, with bf16 MoE activations instead of the checkpoint's MXFP4). A\ndeployment that cannot run it is refused at startup.",
+   "limits": null
+  },
+  {
+   "flag": "--moe-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "moe_backend",
+   "group": "KernelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "aiter",
+    "aiter_mega_moe",
+    "aiter_triton_mxfp4_bf16",
+    "aiter_triton_mxfp4_mxfp4",
+    "auto",
+    "b12x",
+    "batched_triton",
+    "cutlass",
+    "deep_gemm",
+    "deep_gemm_mega_moe",
+    "emulation",
+    "flashinfer_b12x",
+    "flashinfer_cutedsl",
+    "flashinfer_cutlass",
+    "flashinfer_moe_ep_cutedsl",
+    "flashinfer_moe_ep_mega_deep_gemm",
+    "flashinfer_trtllm",
+    "flydsl",
+    "hpc",
+    "humming",
+    "marlin",
+    "rdna3",
+    "triton",
+    "triton_unfused"
+   ],
+   "suggestions": null,
+   "help": "Backend for MoE expert computation kernels. Available options:\n\n- \"auto\": Automatically select the best backend based on model and hardware\n- \"triton\": Use Triton-based fused MoE kernels\n- \"batched_triton\": Use batched Triton experts (moe_mmk) on the batched\n  activation format ([E_local, max_num_tokens, K])\n- \"deep_gemm\": Use DeepGEMM kernels (FP8 block-quantized only)\n- \"deep_gemm_mega_moe\": Use DeepGEMM mega MoE kernels\n- \"cutlass\": Use vLLM CUTLASS kernels\n- \"flashinfer_trtllm\": Use FlashInfer with TRTLLM-GEN kernels\n- \"flashinfer_cutlass\": Use FlashInfer with CUTLASS kernels\n- \"flashinfer_cutedsl\": Use FlashInfer with CuteDSL kernels (FP4 only)\n- \"flashinfer_moe_ep_cutedsl\": Use FlashInfer's CuTeDSL MoE-EP\n  mega-kernel with NVFP4 weights (MXFP4 checkpoints are requantized at\n  load); requires Blackwell, expert parallelism, and NVSHMEM\n- \"flashinfer_b12x\": Use FlashInfer CuteDSL fused MoE for SM12x\n  (RTX Pro 6000 / DGX Spark)\n- \"b12x\": Use b12x FP4 MoE kernels on SM12x\n- \"flashinfer_moe_ep_mega_deep_gemm\": Use the FlashInfer moe_ep\n  expert-parallel mega-MoE with the DeepGEMM megakernel, which consumes an\n  MXFP4 checkpoint verbatim (Blackwell, requires expert parallel;\n  DeepSeek-V4 only)\n- \"marlin\": Use Marlin kernels (weight-only quantization)\n- \"humming\": Use Humming Mixed Precision kernels\n- \"triton_unfused\": Use Triton unfused MoE kernels\n- \"aiter\": Use AMD AITer kernels (ROCm only)\n- \"aiter_mega_moe\": Use the AITER MegaMoE fused dispatch/GEMM/combine\n  kernel (ROCm gfx950, requires DP+EP with a MoRI all2all backend;\n  DeepSeek-V4 only)\n- \"aiter_triton_mxfp4_bf16\": Use the AITER Triton MXFP4 W4A16\n  (moe_gemm_a16w4) MoE kernel (ROCm gfx942/gfx950/gfx1250)\n- \"aiter_triton_mxfp4_mxfp4\": Use the AITER Triton/Gluon MXFP4 W4A4\n  (moe_gemm_a4w4) MoE kernel (ROCm gfx1250)\n- \"flydsl\": Use AMD FlyDSL kernels (ROCm only)\n- \"rdna3\": Use the fused RDNA3 W4A16 HIP kernel (ROCm gfx1100 only)\n- \"hpc\": Use HPC kernels (FP8 and Hopper only)\n- \"emulation\": use BF16/FP16 GEMM, dequantizing weights and\n               running QDQ on activations.",
+   "limits": null
+  },
+  {
+   "flag": "--linear-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "linear_backend",
+   "group": "KernelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "aiter",
+    "auto",
+    "b12x",
+    "conch",
+    "cutlass",
+    "deep_gemm",
+    "emulation",
+    "exllama",
+    "fbgemm",
+    "flashinfer_b12x",
+    "flashinfer_cudnn",
+    "flashinfer_cutedsl",
+    "flashinfer_cutlass",
+    "flashinfer_trtllm",
+    "humming",
+    "machete",
+    "marlin",
+    "torch",
+    "triton",
+    "xpu",
+    "xpu_woq"
+   ],
+   "suggestions": null,
+   "help": "Backend for linear layer GEMM kernels. Available options:\n\nLayer types without an implementation from the requested backend use\nautomatic selection.\n\n- \"auto\": Automatically select the best backend based on model and hardware\n- \"cutlass\": Use CUTLASS-based kernels\n- \"flashinfer_cutlass\": Use FlashInfer with CUTLASS kernels\n- \"flashinfer_cutedsl\": Use FlashInfer with CuTe-DSL kernels\n  (BF16, NVFP4, MXFP8, W4A16_NVFP4)\n- \"flashinfer_trtllm\": Use FlashInfer with TensorRT-LLM kernels\n- \"flashinfer_cudnn\": Use FlashInfer with cuDNN kernels\n- \"flashinfer_b12x\": Use FlashInfer b12x CuteDSL NVFP4 GEMM (SM120+)\n- \"b12x\": Use native B12X FP8 and FP4 linear kernels on SM12x\n- \"marlin\": Use Marlin kernels\n- \"triton\": Use Triton-based kernels\n- \"deep_gemm\": Use DeepGEMM kernels\n- \"torch\": Use PyTorch native scaled_mm kernels\n- \"aiter\": Use AMD AITer kernels (ROCm only)\n- \"machete\": Use Machete kernels (mixed-precision)\n- \"fbgemm\": Use FBGEMM kernels\n- \"conch\": Use Conch mixed-precision kernels\n- \"exllama\": Use Exllama mixed-precision kernels\n- \"emulation\": Use slow dequant-to-BF16 emulation (for testing only)\n- \"xpu\": Use XPU kernels\n- \"xpu_woq\": Use XPU kernels for weight-only quantization (e.g. W8A16)",
+   "limits": null
+  },
+  {
+   "flag": "--sparse-indexer-topk-backend",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "sparse_indexer_topk_backend",
+   "group": "KernelConfig",
+   "kind": "choice",
+   "default": "auto",
+   "choices": [
+    "aiter",
+    "auto",
+    "cooperative",
+    "deep_select",
+    "flashinfer",
+    "per_row",
+    "persistent",
+    "torch"
+   ],
+   "suggestions": null,
+   "help": "Backend for the DSA sparse indexer decode top-k kernel. Available options:\n\n- \"auto\": The pre-existing chain (cooperative -> persistent -> per_row);\n  the other backends are opt-in\n- \"deep_select\": Use DeepSelect kernels (SM100a/SM103a only)\n- \"cooperative\": Use vLLM's cooperative_topk kernel\n- \"persistent\": Use vLLM's persistent_topk kernel\n- \"per_row\": Use vLLM's top_k_per_row_decode kernel\n- \"flashinfer\": Use FlashInfer's top_k_ragged_transform kernel\n- \"torch\": Use a plain torch.topk implementation (debug reference)\n- \"aiter\": Use AITER's top_k_per_row_decode kernel (ROCm gfx950 only,\n  requires VLLM_ROCM_USE_AITER)\n\nExplicit values raise RuntimeError when their constraints are not met.\n\nOn SM100 decode without DCP, cooperative and persistent (including auto\nselecting them) read BF16 logits directly and widen scores inside the\nkernel, avoiding a full FP32 logits copy.",
+   "limits": null
+  },
+  {
+   "flag": "--speculative-config",
+   "aliases": [
+    "-sc"
+   ],
+   "negative_flags": [],
+   "dest": "speculative_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Speculative decoding configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.SpeculativeConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--spec-method",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "spec_method",
+   "group": "VllmConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": [
+    "bailing_hybrid_mtp",
+    "bailing_hybrid_v3_mtp",
+    "deepseek_mtp",
+    "dflash",
+    "dots3_note_mtp",
+    "draft_model",
+    "dspark",
+    "eagle",
+    "eagle3",
+    "ernie_mtp",
+    "exaone4_5_mtp",
+    "exaone_moe_mtp",
+    "extract_hidden_states",
+    "gemma4_mtp",
+    "glm4_moe_lite_mtp",
+    "glm4_moe_mtp",
+    "glm5_next_mtp",
+    "glm_ocr_mtp",
+    "hy_v3_mtp",
+    "hy_v4_mtp",
+    "inkling_mtp",
+    "kimi_k3_mtp",
+    "longcat_flash_mtp",
+    "mimo_mtp",
+    "mimo_v2_mtp",
+    "minimax_m3_mtp",
+    "mtp",
+    "nemotron3_5_transcribe_mtp",
+    "nemotron_h_mtp",
+    "ngram",
+    "ngram_gpu",
+    "pangu_ultra_moe_mtp",
+    "qwen3_5_mtp",
+    "qwen3_next_mtp",
+    "qwen4_exp_mtp",
+    "step3p5_mtp",
+    "step5_mtp",
+    "suffix"
+   ],
+   "help": "The name of the speculative method to use. If users provide and set the\n`model` param, the speculative method type will be detected automatically\nif possible, if `model` param is not provided, the method name must be\nprovided.\n\nIf using `ngram` method, the related configuration `prompt_lookup_max` and\n`prompt_lookup_min` should be considered.\n\nA configured method is never changed based on the draft checkpoint, but it\nis checked against it where the checkpoint can be recognized (e.g. `mtp`\nrequires an MTP draft, and `draft_model` rejects one).\n\nBesides the built-in methods, this can be a custom method registered with\n`vllm.v1.worker.gpu.spec_decode.speculator_config.register_speculative_method`\n(e.g. by a vLLM plugin). It is then moved to `custom_method`, and this is\nset to the built-in method that its config is based on (None if it isn't\nbased on one).",
+   "limits": null
+  },
+  {
+   "flag": "--spec-model",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "spec_model",
+   "group": "VllmConfig",
+   "kind": "text",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The name of the draft model, eagle head, or additional weights, if\nprovided.",
+   "limits": null
+  },
+  {
+   "flag": "--spec-tokens",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "spec_tokens",
+   "group": "VllmConfig",
+   "kind": "integer",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The number of speculative tokens, if provided. It will default to the\nnumber in the draft model config if present, otherwise, it is required.",
+   "limits": null
+  },
+  {
+   "flag": "--watermark-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "watermark_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Text watermarking configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.WatermarkConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--diffusion-config",
+   "aliases": [
+    "-dc"
+   ],
+   "negative_flags": [],
+   "dest": "diffusion_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "Diffusion LLM (dLLM) configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.DiffusionConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-transfer-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_transfer_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for distributed KV cache transfer.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.KVTransferConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--kv-events-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kv_events_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for event publishing.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.KVEventsConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--ec-transfer-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ec_transfer_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for distributed EC cache transfer.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.ECTransferConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--ec-manager-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "ec_manager_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "EncoderCacheManagerConfig(encoder_cache_manager_cls=None, manager_config={})",
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for custom encoder cache manager.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.EncoderCacheManagerConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--compilation-config",
+   "aliases": [
+    "-cc"
+   ],
+   "negative_flags": [],
+   "dest": "compilation_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "{'mode': None, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': [], 'ir_enable_torch_wrap': None, 'splitting_ops': None, 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_token_budget': 5120, 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'cudagraph_decoder_replay': True, 'decoder_replay_cudagraph_capture_sizes': [], 'decoder_replay_trim_threshold': 768, 'compile_sizes': None, 'compile_ranges_endpoints': None, 'inductor_compile_config': {'enable_auto_functionalized_v2': False}, 'inductor_passes': {}, 'cudagraph_mode': None, 'use_breakable_cudagraph': None, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': None, 'prefill_cudagraph_capture_token_sizes': None, 'max_prefill_cudagraph_capture_tokens': None, 'decode_cudagraph_capture_request_sizes': None, 'max_decode_cudagraph_capture_requests': None, 'max_decode_cudagraph_capture_tokens': None, 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': None, 'pass_config': {}, 'max_cudagraph_capture_size': None, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': None, 'static_all_moe_layers': []}",
+   "choices": null,
+   "suggestions": null,
+   "help": "`torch.compile` and cudagraph capture configuration for the model.\n\nAs a shorthand, one can append compilation arguments via\n-cc.parameter=argument such as `-cc.mode=3` (same as `-cc='{\"mode\":3}'`).\n\nYou can specify the full compilation config like so:\n`{\"mode\": 3, \"cudagraph_capture_sizes\": [1, 2, 4, 8]}`\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.CompilationConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--attention-config",
+   "aliases": [
+    "-ac"
+   ],
+   "negative_flags": [],
+   "dest": "attention_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "AttentionConfig(backend=None, minimax_m3_msa_decode_backend='cutlass', backend_per_kind={}, flash_attn_version=None, flash_attn_max_num_splits_for_cuda_graph=32, tokenspeed_mla_min_split_kv=1, tq_max_kv_splits_for_cuda_graph=32, use_trtllm_attention=None, disable_flashinfer_q_quantization=False, mla_prefill_backend=None, use_prefill_query_quantization=False, trtllm_ragged_backend='trtllm-gen', indexer_kv_dtype='auto', indexer_decode_cp=False, indexer_sparse_logits=None, indexer_logits_dtype='auto', indexer_tp_shard_min_rows=None, sparse_mla_shard_q=True, sparse_mla_shard_q_min_tokens=1024, minimax_m3_indexer_cp=False, hisparse_config=None, use_non_causal=False, sparse_mla_force_mqa=False, sparse_mla_prefill_workspace_factor=None, flex_attn_block_m=None, flex_attn_block_n=None, flex_attn_q_block_size=None, flex_attn_kv_block_size=None)",
+   "choices": null,
+   "suggestions": null,
+   "help": "Attention configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.AttentionConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--engram-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "engram_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "N-gram embedding storage and sharding settings.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.EngramConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--reasoning-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "reasoning_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for reasoning model.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.ReasoningConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--kernel-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "kernel_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=[], fused_add_rms_norm=[], gelu_and_mul_sparse=[]), enable_flashinfer_autotune=None, enable_rocm_segmented_attn_autotune=False, enable_rocm_aiter_gemm_warmup=False, enable_cutedsl_warmup=True, enable_jit_warmup=True, monokernel=False, moe_backend='auto', sparse_indexer_topk_backend='auto', linear_backend='auto', linear_backend_per_quant=None, rdna_hybrid_w4a16_prefill_dequant='disable')",
+   "choices": null,
+   "suggestions": null,
+   "help": "Kernel configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.KernelConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--additional-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "additional_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": {},
+   "choices": null,
+   "suggestions": null,
+   "help": "Additional config for specified platform. Different platforms may\nsupport different configs. Make sure the configs are valid for the platform\nyou are using. Contents must be hashable.",
+   "limits": null
+  },
+  {
+   "flag": "--structured-outputs-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "structured_outputs_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False)",
+   "choices": null,
+   "suggestions": null,
+   "help": "Structured outputs configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.StructuredOutputsConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--aux-output-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "aux_output_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "AuxOutputConfig(enable_return_routed_experts=False, max_bytes=None)",
+   "choices": null,
+   "suggestions": null,
+   "help": "Execution auxiliary output configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.AuxOutputConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--profiler-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "profiler_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "ProfilerConfig(profiler=None, torch_profiler_dir='', torch_profiler_activities=None, proton_profiler_dir='', proton_context='shadow', proton_data='tree', proton_backend=None, proton_mode=None, proton_hook=None, proton_output_format=None, proton_graph_attribution=False, torch_profiler_with_stack=True, torch_profiler_with_flops=False, torch_profiler_use_gzip=True, torch_profiler_dump_cuda_time_total=True, torch_profiler_record_shapes=False, torch_profiler_with_memory=False, capture_torch_profiler=False, detailed_trace_annotation=False, ignore_frontend=False, delay_iterations=0, max_iterations=0, warmup_iterations=0, active_iterations=5, wait_iterations=0)",
+   "choices": null,
+   "suggestions": null,
+   "help": "Profiling configuration.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.ProfilerConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--watchdog-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "watchdog_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": "WatchdogConfig(timeout=300, check_interval=10, dump_dir='')",
+   "choices": null,
+   "suggestions": null,
+   "help": "Configuration for the stack-dump watchdog.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.WatchdogConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  },
+  {
+   "flag": "--optimization-level",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "optimization_level",
+   "group": "VllmConfig",
+   "kind": "text",
+   "default": 2,
+   "choices": null,
+   "suggestions": null,
+   "help": "The optimization level. These levels trade startup time cost for\nperformance, with -O0 having the best startup time and -O3 having the best\nperformance. -O2 is used by default. See OptimizationLevel for full\ndescription.",
+   "limits": null
+  },
+  {
+   "flag": "--performance-mode",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "performance_mode",
+   "group": "VllmConfig",
+   "kind": "choice",
+   "default": "balanced",
+   "choices": [
+    "balanced",
+    "interactivity",
+    "throughput"
+   ],
+   "suggestions": null,
+   "help": "Performance mode for runtime behavior, 'balanced' is the default.\n'interactivity' favors low end-to-end per-request latency at small batch\nsizes (fine-grained CUDA graphs, latency-oriented kernels).\n'throughput' favors aggregate tokens/sec at high concurrency (larger CUDA\ngraphs, more aggressive batching, throughput-oriented kernels).",
+   "limits": null
+  },
+  {
+   "flag": "--weight-transfer-config",
+   "aliases": [],
+   "negative_flags": [],
+   "dest": "weight_transfer_config",
+   "group": "VllmConfig",
+   "kind": "json",
+   "default": null,
+   "choices": null,
+   "suggestions": null,
+   "help": "The configurations for weight transfer during RL training.\n\nAPI docs: https://docs.vllm.ai/en/latest/api/vllm/config/#vllm.config.WeightTransferConfig\n\nShould either be a valid JSON string or JSON keys passed individually.",
+   "limits": null
+  }
+ ]
+}

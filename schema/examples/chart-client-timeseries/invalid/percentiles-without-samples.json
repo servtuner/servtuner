@@ -1,0 +1,72 @@
+{
+  "analyzer_version": "1.6.0",
+  "start": "2026-10-30T12:00:00Z",
+  "bucket_seconds": 1,
+  "stages": [
+    {
+      "stage_index": 0,
+      "start_offset_seconds": 0,
+      "end_offset_seconds": 2,
+      "offered_rps": 2,
+      "is_valid": true,
+      "is_excluded": false
+    },
+    {
+      "stage_index": 1,
+      "start_offset_seconds": 2,
+      "end_offset_seconds": 3,
+      "offered_rps": 4,
+      "is_valid": false,
+      "is_excluded": true
+    }
+  ],
+  "buckets": [
+    {
+      "offset_seconds": 0,
+      "stage_index": 0,
+      "requests": 2,
+      "errors": 0,
+      "achieved_rps": 2,
+      "send_lag_p99_seconds": 0.001,
+      "ttft_seconds": {
+        "samples": 2,
+        "p50": 0.1,
+        "p95": 0.12,
+        "p99": 0.12
+      },
+      "e2e_seconds": {
+        "samples": 2,
+        "p50": 0.5,
+        "p95": 0.6,
+        "p99": 0.6
+      },
+      "output_tokens_per_second": 40
+    },
+    {
+      "offset_seconds": 1,
+      "stage_index": 0,
+      "requests": 0,
+      "errors": 0,
+      "achieved_rps": 0,
+      "ttft_seconds": {
+        "samples": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      }
+    },
+    {
+      "offset_seconds": 2,
+      "stage_index": 1,
+      "requests": 4,
+      "errors": 1,
+      "achieved_rps": 4,
+      "e2e_seconds": {
+        "samples": 4,
+        "p50": 0.7,
+        "p95": 0.9,
+        "p99": 0.9
+      }
+    }
+  ]
+}

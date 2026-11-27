@@ -1,0 +1,7 @@
+# expect: is set by the chart from tls.hops.ingressApi
+tls: {mode: mtls, source: cert-manager, certManager: {issuerRef: {name: x}}}
+storage: {file: {pvc: {create: true}}}
+ingress:
+  enabled: true
+  host: servtuner.example.test
+  annotations: {nginx.ingress.kubernetes.io/proxy-ssl-verify: "off"}

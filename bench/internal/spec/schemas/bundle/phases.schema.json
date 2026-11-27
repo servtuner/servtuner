@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/phases.schema.json",
+  "title": "Phases",
+  "description": "phases.json: exact UTC windows of warmup, each stage and cooldown.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["phases"],
+  "properties": {
+    "phases": { "type": "array", "items": { "$ref": "#/definitions/phase" } },
+    "scrape_warnings": { "description": "Relevant Prometheus scrape roles that have no job, found when the scrape interval was resolved (the structured form of the text warning servtuner validate prints). The run still ran; series of that role may be missing or scraped more slowly than reported.", "type": "array", "items": { "$ref": "#/definitions/scrapeWarning" } },
+    "warnings": { "description": "Stage-length rule violations found by servtuner validate. The run still ran; the analyzer marks the affected stages.", "type": "array", "items": { "$ref": "#/definitions/stageLengthWarning" } }
+  },
+  "definitions": {
+    "stageLengthRule": { "description": "Which stage-length rule was broken. warmup_duration is the warmup rule (at least 2 x the interval and 30s) and carries no stage_index; percentile_sample_count is Rule A and carries percentile and required_requests.", "type": "string", "enum": ["min_stage_duration", "warmup_duration", "percentile_sample_count", "request_duration_ratio"] },
+    "scrapeWarningRule": { "description": "missing_scrape_role: Prometheus has no job with the role, so series of that role may be missing or scraped more slowly than reported.", "type": "string", "enum": ["missing_scrape_role"] },
+    "scrapeWarning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "role", "message"],
+      "properties": {
+        "rule": { "$ref": "#/definitions/scrapeWarningRule" },
+        "role": { "$ref": "prometheus-targets.schema.json#/definitions/jobRole" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "percentileName": { "type": "string", "enum": ["p50", "p90", "p95", "p99"] },
+    "stageLengthWarning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "required_duration_seconds", "actual_duration_seconds", "scrape_interval_seconds", "scrape_interval_source", "message"],
+      "properties": {
+        "stage_index": { "description": "Absent for the warmup_duration rule, required for every other rule.", "type": "integer", "minimum": 0 },
+        "rule": { "$ref": "#/definitions/stageLengthRule" },
+        "required_duration_seconds": { "description": "The minimum length the rule demands of the stage (or of the warmup).", "type": "number", "exclusiveMinimum": 0 },
+        "actual_duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "scrape_interval_seconds": { "description": "The scrape interval the rule was evaluated with: that of the slowest relevant job.", "type": "number", "exclusiveMinimum": 0 },
+        "scrape_interval_source": { "$ref": "../common.schema.json#/definitions/scrapeIntervalSource" },
+        "job": { "description": "The Prometheus job whose interval limits resolution. Absent when the interval was assumed.", "type": "string", "minLength": 1 },
+        "percentile": { "description": "Rule A: the percentile that lacks samples.", "$ref": "#/definitions/percentileName" },
+        "required_requests": { "description": "Rule A: requests the stage needs for that percentile.", "type": "integer", "minimum": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        { "if": { "properties": { "rule": { "const": "warmup_duration" } }, "required": ["rule"] }, "then": { "not": { "required": ["stage_index"] } }, "else": { "required": ["stage_index"] } },
+        { "if": { "properties": { "rule": { "const": "percentile_sample_count" } }, "required": ["rule"] }, "then": { "required": ["percentile", "required_requests"] } }
+      ]
+    },
+    "phaseKind": { "type": "string", "enum": ["warmup", "stage", "cooldown"] },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "start", "end"],
+      "properties": {
+        "name": { "description": "warmup, stage-<index>, or cooldown.", "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/definitions/phaseKind" },
+        "stage_index": { "description": "Zero-based; present when kind is stage.", "type": "integer", "minimum": 0 },
+        "offered_rps": { "type": "number", "exclusiveMinimum": 0 },
+        "start": { "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+        "end": { "$ref": "../common.schema.json#/definitions/utcTimestamp" }
+      }
+    }
+  }
+}

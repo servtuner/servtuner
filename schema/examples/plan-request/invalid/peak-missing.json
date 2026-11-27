@@ -1,0 +1,20 @@
+{
+  "baseline_rps": 80,
+  "slos": {
+    "ttft_p95": "500ms",
+    "e2e_p99": "3s"
+  },
+  "availability": {
+    "min_replicas": 2,
+    "spare": true,
+    "zones": 3
+  },
+  "replica_headroom": 0.2,
+  "overrides": [
+    {
+      "node": "bifrost.h_rep",
+      "kind": "parameter",
+      "value": 0.1
+    }
+  ]
+}

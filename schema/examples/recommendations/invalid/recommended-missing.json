@@ -1,0 +1,91 @@
+{
+  "analyzer_version": "1.1.0",
+  "operating_point": {
+    "mode": "slo_max",
+    "stage_index": 1,
+    "rps": 49.99
+  },
+  "policy": {
+    "cpu_limit": "follow",
+    "memory_limit": "set",
+    "qos": "burstable",
+    "headroom": {
+      "request": 0.2,
+      "limit": 0.3,
+      "replicas": 0.2,
+      "gpu": 0.1
+    }
+  },
+  "recommendations": [
+    {
+      "id": "sizing.cpu.request/target/bifrost",
+      "rule": "sizing.cpu_request",
+      "target": {
+        "role": "target",
+        "target_type": "bifrost",
+        "namespace": "llm",
+        "container": "bifrost"
+      },
+      "subject": {
+        "kind": "resource",
+        "name": "cpu.request"
+      },
+      "unit": "cores",
+      "current": "250m",
+      "min": 0.3,
+      "tier": "diagnostic",
+      "confidence": "medium",
+      "derivation_node": "bifrost.cpu.request",
+      "evidence": [
+        {
+          "text": "CPU p95 0.27 cores at 49.99 RPS",
+          "stage_index": 1,
+          "series": "kubernetes/cpu_cores_p95"
+        }
+      ],
+      "caveats": [
+        "The CPU peak is a 1-minute average."
+      ]
+    }
+  ],
+  "derivation": {
+    "nodes": [
+      {
+        "id": "bifrost.cpu.p95",
+        "kind": "measured",
+        "label": "CPU p95 at the operating point",
+        "unit": "cores",
+        "value": 0.27,
+        "source": {
+          "stage_index": 1,
+          "file": "prometheus/kubernetes/cpu_cores_p95.json"
+        }
+      },
+      {
+        "id": "h_req",
+        "kind": "parameter",
+        "label": "Request headroom",
+        "value": 0.2,
+        "default": 0.2,
+        "bounds": {
+          "min": 0,
+          "max": 2
+        },
+        "doc": "sizing policy"
+      },
+      {
+        "id": "bifrost.cpu.request",
+        "kind": "derived",
+        "label": "CPU request",
+        "unit": "cores",
+        "value": 0.35,
+        "formula": "roundup(bifrost.cpu.p95 * (1 + h_req), 0.05)",
+        "inputs": [
+          "bifrost.cpu.p95",
+          "h_req"
+        ],
+        "rendered": "roundup(0.27 × (1 + 0.2), 0.05) = 0.35"
+      }
+    ]
+  }
+}

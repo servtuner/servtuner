@@ -1,0 +1,4 @@
+# expect: auth.forwardHeader.provisioning "admin" is unknown
+auth:
+  forwardHeader:
+    provisioning: admin

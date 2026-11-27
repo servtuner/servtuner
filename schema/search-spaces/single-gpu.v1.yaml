@@ -1,0 +1,18 @@
+# A starting search space (search-space-template.schema.json): edit it in New session as needed.
+name: single-gpu
+version: 1
+title: One GPU, a model that fits comfortably
+description: >-
+  The scheduler knobs on one GPU: how many sequences run at once (max_num_seqs) and how many
+  tokens one step batches (max_num_batched_tokens). Start here when the model leaves room for the
+  KV cache; the advisors move both knobs within the bounds.
+fits:
+  placements: [kubernetes, host]
+  min_gpus: 1
+  max_gpus: 1
+space:
+  min_concurrency: 16
+  knobs:
+    - {name: vllm.max_num_seqs, tier: scheduler, min: 16, max: 512, default: 128}
+    - {name: vllm.max_num_batched_tokens, tier: scheduler, min: 2048, max: 16384, default: 8192}
+  confirm: {top: 2, repeats: 3}

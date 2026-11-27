@@ -1,0 +1,22 @@
+# schema recipes. Run through the root Justfile, or directly with
+# `just --justfile schema/Justfile --working-directory schema <recipe>`.
+#
+# The schemas are the source of truth and need no toolchain of their own. Each
+# consumer runs its own generator from its own `gen` recipe (bench/Justfile
+# for Go, api/Justfile for Python), next to the generator version it pins.
+# The conformance tests also live in bench and api, because they exercise the
+# generated code; both read schema/examples.
+
+setup:
+    @echo "schema: nothing to install"
+
+gen:
+    @echo "schema: nothing to generate here; see bench/Justfile and api/Justfile"
+
+# Every schema and example must be well-formed JSON. Draft-07 validity of the
+# schemas themselves is checked by both conformance suites.
+lint:
+    uv run --locked --project ../api python -c "import json, pathlib; [json.loads(p.read_text()) for p in sorted(pathlib.Path('.').rglob('*.json'))]"
+
+test:
+    @echo "schema: conformance tests run in bench (go test) and api (pytest)"

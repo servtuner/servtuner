@@ -1,0 +1,40 @@
+# api (Python) recipes. Run through the root Justfile, or directly with
+# `just --justfile api/Justfile --working-directory api <recipe>`.
+
+schema_dir := "../schema/json"
+models_dir := "src/servtuner_api/models/generated"
+openapi_file := "openapi.json"
+
+# Create .venv and install the locked dependencies.
+setup:
+    uv sync --locked
+
+# Regenerate the pydantic models from ../schema/json, then the OpenAPI document
+# from the app. The models are a package because the schemas reference each
+# other, and datamodel-code-generator only writes one file for a single
+# self-contained schema.
+gen:
+    rm -rf {{models_dir}}
+    uv run --locked datamodel-codegen \
+        --input {{schema_dir}} --input-file-type jsonschema \
+        --output-model-type pydantic_v2.BaseModel \
+        --use-annotated --field-constraints --disable-timestamp --set-default-enum-member --strict-nullable \
+        --formatters ruff-format \
+        --output {{models_dir}}
+    rm -rf {{models_dir}}/.ruff_cache
+    uv run --locked python -m servtuner_api.openapi {{openapi_file}}
+
+# Format the Python code with Black.
+format:
+    uv run --locked black --config pyproject.toml src tests ../e2e
+
+lint:
+    uv run --locked ruff check src tests ../e2e
+    # Black formats (the explicit --config: with ../e2e in the paths Black would look for one at the repo root).
+    uv run --locked black --config pyproject.toml --check src tests ../e2e
+    # ../e2e/local.py imports servtuner_api and tests.* like the e2e recipe (PYTHONPATH=api); here
+    # Type-check api, tests and e2e; the scope and strictness are in ../pyrefly.toml.
+    uv run --locked pyrefly check --config ../pyrefly.toml
+
+test:
+    uv run --locked pytest

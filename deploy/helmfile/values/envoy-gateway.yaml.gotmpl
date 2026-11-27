@@ -1,0 +1,23 @@
+# Envoy Gateway. servtuner's api route needs the Backend API.
+config:
+  envoyGateway:
+    extensionApis:
+      enableBackend: true
+global:
+  # The proxy image is compiled into Envoy Gateway unless named; naming it lets the registry below
+  # rewrite it, and puts it in deploy/release/images.lock. The default of v1.10.0
+  # (api/v1alpha1/shared_types.go DefaultEnvoyProxyImage), by its tag: the lock pins one platform's
+  # digest, and the multi-platform digest Envoy Gateway names is not in a registry fed from the lock.
+  images:
+    envoyProxy:
+      image: docker.io/envoyproxy/envoy:distroless-v1.40.2
+  {{- with .Values.registry }}
+  # The control plane, the proxy, the rate limiter and the shutdown manager from the site registry.
+  imageRegistry: {{ . }}
+  {{- end }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- range . }}
+    - name: {{ . }}
+    {{- end }}
+  {{- end }}

@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/prometheus-queries.schema.json",
+  "title": "PrometheusQueries",
+  "description": "prometheus/queries.json: the exact PromQL, step and window of every series, with how each was collected, and each optional catalog's detection result.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "queries",
+    "optional_catalogs"
+  ],
+  "properties": {
+    "queries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/query"
+      }
+    },
+    "optional_catalogs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/optionalCatalogResult"
+      }
+    }
+  },
+  "definitions": {
+    "timeWindow": {
+      "description": "A UTC range query window.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "../common.schema.json#/definitions/utcTimestamp"
+        },
+        "end": {
+          "$ref": "../common.schema.json#/definitions/utcTimestamp"
+        }
+      }
+    },
+    "queryResult": {
+      "description": "collected: series returned. empty: the query ran and returned nothing. error: the query failed.",
+      "type": "string",
+      "enum": [
+        "collected",
+        "empty",
+        "error"
+      ]
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog",
+        "name",
+        "query",
+        "step_seconds",
+        "window",
+        "result"
+      ],
+      "properties": {
+        "catalog": {
+          "$ref": "../common.schema.json#/definitions/catalogName"
+        },
+        "name": {
+          "description": "Series name; the raw result is prometheus/<catalog>/<name>.json.",
+          "$ref": "../common.schema.json#/definitions/metricName"
+        },
+        "query": {
+          "description": "The PromQL exactly as sent.",
+          "type": "string",
+          "minLength": 1
+        },
+        "step_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "window": {
+          "$ref": "#/definitions/timeWindow"
+        },
+        "result": {
+          "$ref": "#/definitions/queryResult"
+        },
+        "may_be_empty": {
+          "description": "The catalog declares an empty result normal for this series, such as no CPU limit, no HPA or no GPU, so an empty result is not counted as missing data.",
+          "type": "boolean"
+        },
+        "detail": {
+          "description": "Required when result is error: what failed.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "enum": [
+                  "error"
+                ]
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "required": [
+              "detail"
+            ]
+          }
+        }
+      ]
+    },
+    "catalogResult": {
+      "description": "collected: detected and queried. absent: not detected on this cluster. error: detection or a query failed.",
+      "type": "string",
+      "enum": [
+        "collected",
+        "absent",
+        "error"
+      ]
+    },
+    "optionalCatalogResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "result"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "../common.schema.json#/definitions/catalogName"
+        },
+        "result": {
+          "$ref": "#/definitions/catalogResult"
+        },
+        "detail": {
+          "description": "Required for absent and error: why.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "enum": [
+                  "absent",
+                  "error"
+                ]
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "required": [
+              "detail"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

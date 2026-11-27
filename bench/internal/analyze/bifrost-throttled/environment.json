@@ -1,0 +1,1 @@
+{"bench_version":"0.0.0-synthetic","clock_source":"synthetic","engine":{"name":"loadgen","version":"0"},"go_version":"go0","knobs":{"bifrost.buffer_size":5000,"bifrost.concurrency":1000},"pod":"bench-0","tls_relay_used":false,"transport":{"target":"platform"}}

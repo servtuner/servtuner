@@ -1,0 +1,44 @@
+# bench (Go) recipes. Run through the root Justfile, or directly with
+# `just --justfile bench/Justfile --working-directory bench <recipe>`.
+
+schema_dir := "../schema/json"
+schema_copy := "internal/spec/schemas"
+presets_dir := "../schema/presets"
+presets_copy := "internal/spec/presets"
+spaces_dir := "../schema/search-spaces"
+spaces_copy := "internal/spec/search-spaces"
+
+# Resolve Go modules, including the pinned tools (go-jsonschema, staticcheck).
+setup:
+    go mod download
+
+# Regenerate the spec types and the embedded copies of the schemas (../schema/json), the workload presets (../schema/presets) and the starting search spaces (../schema/search-spaces).
+# --disable-omitempty is deliberately off: with it nil pointers marshal as null, which the schemas reject.
+gen:
+    go tool go-jsonschema -p spec --tags json --struct-name-from-title \
+        -o internal/spec/zz_generated.go \
+        {{schema_dir}}/common.schema.json {{schema_dir}}/runspec.schema.json \
+        {{schema_dir}}/events.schema.json {{schema_dir}}/plan-request.schema.json {{schema_dir}}/plan.schema.json {{schema_dir}}/comparison.schema.json {{schema_dir}}/check-target-request.schema.json {{schema_dir}}/check-target-result.schema.json {{schema_dir}}/workload-preset.schema.json {{schema_dir}}/search-space.schema.json {{schema_dir}}/search-space-template.schema.json {{schema_dir}}/boot-results.schema.json {{schema_dir}}/proposal.schema.json {{schema_dir}}/boot-probe-request.schema.json {{schema_dir}}/knob-catalog.schema.json {{schema_dir}}/host-machine.schema.json \
+        {{schema_dir}}/bundle/*.schema.json
+    gofmt -w internal/spec/zz_generated.go
+    rm -rf {{schema_copy}}
+    cp -r {{schema_dir}} {{schema_copy}}
+    rm -rf {{presets_copy}}
+    cp -r {{presets_dir}} {{presets_copy}}
+    rm -rf {{spaces_copy}}
+    cp -r {{spaces_dir}} {{spaces_copy}}
+
+lint:
+    @unformatted="$(gofmt -l .)"; if [ -n "$unformatted" ]; then echo "gofmt needed:"; echo "$unformatted"; exit 1; fi
+    go vet ./...
+    go tool staticcheck ./...
+
+test:
+    go test ./...
+
+# Create the pinned inference-perf 0.7.0 virtualenv for local runs (not part of `setup`: it is
+# about 600 MB). The image builds the same venv at /opt/inference-perf; point the engine at
+# this one with SERVTUNER_INFERENCE_PERF_BIN=<path>/bin/inference-perf. Needs uv and Python 3.12.
+inference-perf-venv path=".venv/inference-perf":
+    uv venv --python 3.12 {{path}}
+    uv pip install --python {{path}}/bin/python --require-hashes --no-deps -r internal/engine/inferenceperf/requirements.txt

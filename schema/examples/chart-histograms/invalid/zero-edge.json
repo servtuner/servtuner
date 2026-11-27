@@ -1,0 +1,45 @@
+{
+  "analyzer_version": "1.6.0",
+  "edges_seconds": [
+    0,
+    0.01,
+    0.1,
+    1
+  ],
+  "stages": [
+    {
+      "stage_index": 0,
+      "ttft_counts": [
+        0,
+        0,
+        5,
+        1,
+        0
+      ],
+      "e2e_counts": [
+        0,
+        0,
+        0,
+        5,
+        1
+      ],
+      "itl_counts": [
+        0,
+        30,
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "stage_index": 1,
+      "e2e_counts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

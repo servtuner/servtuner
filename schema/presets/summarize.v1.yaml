@@ -1,0 +1,22 @@
+# Workload preset summarize@1. The workload block is immutable: a change to it
+# is a new version file. slos and rps_hint are suggestions and may be corrected in place.
+name: summarize
+version: 1
+description: Long documents with short summaries, about 8192 tokens in and 512 out. Stresses long-context prefill and max_model_len.
+engines: [loadgen]
+workload:
+  api: chat
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 8192, stddev: 2048}
+    output_tokens: {mean: 512, stddev: 128}
+slos:
+  ttft_p95: 4s
+  e2e_p95: 30s
+# Hand-written starting points, not measured capacity.
+rps_hint:
+  # rtx-3070-8gb: 8192 +- 2048 input tokens exceed the host's max-model-len 4096; it needs --max-model-len
+  # 16384 or more, which an 8 GiB card may not hold beside the model.
+  - {gpu_class: rtx-3070-8gb, start_rps: 0.25}
+  - {gpu_class: a100-80gb, start_rps: 1}
+  - {gpu_class: h100-80gb, start_rps: 2}

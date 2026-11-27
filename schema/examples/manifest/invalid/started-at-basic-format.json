@@ -1,0 +1,26 @@
+{
+  "bundle_version": 1,
+  "run_id": "run-0001",
+  "name": "vllm-smoke",
+  "bench_version": "0.0.0",
+  "status": "succeeded",
+  "started_at": "20261028T120000Z",
+  "finished_at": "2026-10-28T12:10:30.250Z",
+  "storage": {
+    "store": "default",
+    "key": "runs/run-0001/",
+    "node_pinned": false
+  },
+  "files": [
+    {
+      "path": "spec.yaml",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "size_bytes": 812
+    },
+    {
+      "path": "summary.json",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "size_bytes": 2048
+    }
+  ]
+}

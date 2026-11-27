@@ -1,0 +1,80 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "bifrost-payload-0",
+  "target": {
+    "type": "bifrost",
+    "endpoint": "http://servtuner-bifrost.servtuner-bifrost.svc:8080/v1",
+    "model": "servtuner-mock/mock-model",
+    "workload": {
+      "namespace": "servtuner-bifrost",
+      "selector": {
+        "app.kubernetes.io/name": "bifrost",
+        "app.kubernetes.io/instance": "servtuner-bifrost"
+      }
+    },
+    "upstreams": [
+      {
+        "name": "servtuner-mock",
+        "endpoint": "http://openai-mock.servtuner-mock.svc:8000/v1",
+        "workload": {
+          "namespace": "servtuner-mock",
+          "selector": {
+            "app.kubernetes.io/name": "openai-mock"
+          }
+        },
+        "tls": {
+          "mode": "platform"
+        }
+      }
+    ],
+    "tls": {
+      "mode": "platform"
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128
+      },
+      "output_tokens": {
+        "mean": 32
+      }
+    },
+    "seed": 42
+  },
+  "load": {
+    "pacing": "poisson",
+    "warmup": "30s",
+    "stages": [
+      {
+        "rate": 10,
+        "duration": "180s"
+      },
+      {
+        "rate": 20,
+        "duration": "180s"
+      },
+      {
+        "rate": 40,
+        "duration": "180s"
+      }
+    ]
+  },
+  "prometheus": {
+    "url": "http://kps-prometheus.monitoring.svc:9090",
+    "tls": {
+      "mode": "platform"
+    }
+  },
+  "slos": {
+    "ttft_p95": "2s",
+    "e2e_p95": "5s"
+  },
+  "experiment": "payload-size"
+}

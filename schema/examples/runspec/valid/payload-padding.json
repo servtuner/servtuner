@@ -1,0 +1,81 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "bifrost-payload-1mib",
+  "knobs": {
+    "bifrost.concurrency": 1000
+  },
+  "target": {
+    "type": "bifrost",
+    "endpoint": "http://bifrost.gateway.svc:8080/v1",
+    "model": "example/model-8b",
+    "workload": {
+      "namespace": "gateway",
+      "selector": {
+        "app": "bifrost"
+      }
+    },
+    "upstreams": [
+      {
+        "name": "mock-a",
+        "endpoint": "http://mock-a.mock.svc:8000/v1",
+        "tls": {
+          "mode": "platform"
+        }
+      },
+      {
+        "name": "mock-b",
+        "workload": {
+          "namespace": "mock",
+          "selector": {
+            "app": "mock-b"
+          }
+        },
+        "tls": {
+          "mode": "platform"
+        }
+      }
+    ],
+    "tls": {
+      "mode": "platform"
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "api": "completion",
+    "streaming": false,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 256,
+        "stddev": 32
+      },
+      "output_tokens": {
+        "mean": 128,
+        "stddev": 16
+      },
+      "padding_bytes": 1048576
+    }
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 100,
+        "duration": "60s"
+      },
+      {
+        "rate": 500.5,
+        "duration": "1m30s"
+      }
+    ],
+    "warmup": "10s"
+  },
+  "prometheus": {
+    "url": "http://prometheus.monitoring.svc:9090",
+    "tls": {
+      "mode": "platform"
+    }
+  }
+}

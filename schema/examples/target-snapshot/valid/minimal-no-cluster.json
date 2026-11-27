@@ -1,0 +1,11 @@
+{
+  "phase": "post",
+  "captured_at": "2026-10-28T12:11:00Z",
+  "workloads": [
+    {
+      "role": "target",
+      "target_type": "openai-compatible",
+      "pods": []
+    }
+  ]
+}

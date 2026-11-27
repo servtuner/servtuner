@@ -1,0 +1,5 @@
+# expect: is equal to or a prefix of the UI path
+tls: {mode: platform}
+storage: {file: {pvc: {create: true}}}
+frontend: {basePath: /a/b/}
+ingress: {enabled: true, host: servtuner.example.test, apiPath: /a}

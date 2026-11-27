@@ -1,0 +1,9 @@
+{
+  "read_at": "2026-11-25T18:00:00Z",
+  "hostname": "gpu-box",
+  "gpus": [{"model": "NVIDIA GeForce RTX 3070", "memory_bytes": 8589934592, "driver_version": "581.57"}],
+  "cpu_model": "AMD Ryzen 7 5800X 8-Core Processor",
+  "cpu_cores": 16,
+  "memory_bytes": 33554432000,
+  "problems": []
+}

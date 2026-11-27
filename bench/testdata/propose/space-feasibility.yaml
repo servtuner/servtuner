@@ -1,0 +1,8 @@
+# Feasibility knobs (max_model_len, kv_cache_dtype), booted with no load before
+# any run, and the preset needs the KV cache to hold 64 requests.
+base: {vllm.enable_prefix_caching: true, vllm.gpu_memory_utilization: 0.75}
+min_concurrency: 64
+knobs:
+  - {name: vllm.max_model_len, tier: feasibility, values: [4096, 8192, 16384], default: 8192}
+  - {name: vllm.kv_cache_dtype, tier: feasibility, values: [auto, fp8], default: auto}
+  - {name: vllm.max_num_seqs, tier: scheduler, min: 32, max: 512, default: 64}

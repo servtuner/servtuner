@@ -1,0 +1,3 @@
+# expect: tls.hops.benchApi and tls.hops.ingressApi must be the same mode
+tls: {mode: platform, hops: {benchApi: mtls}, source: cert-manager, certManager: {issuerRef: {name: x}}}
+storage: {file: {pvc: {create: true}}}

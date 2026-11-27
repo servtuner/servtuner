@@ -1,0 +1,46 @@
+# The mock target for servtuner (deploy/mocks/README.md). Install one release per namespace:
+#   helm install openai-mock deploy/mocks/chart -n servtuner-mock --create-namespace --set tls.mode=mtls ...
+image:
+  repository: servtuner-mock     # built by `just images` (servtuner-mock:<tag>); push or load it where the cluster can pull it
+  tag: e2e
+  pullPolicy: IfNotPresent
+
+# Mock behaviour; each key maps to an OPENAI_MOCK_* variable (deploy/mocks/openai-mock/config.go).
+mock:
+  model: mock-model
+  ttft: 200ms
+  itl: 20ms
+  outputTokens: 32
+  honorMaxTokens: true
+  roleOnlyFirstChunk: false
+  # Fault knobs (deploy/mocks/README.md "Fault knobs"): all off by default, so each advisor rule
+  # can be triggered on kind by turning one on.
+  faults:
+    extraLatency: 0s
+    latencyPerInFlight: 0s       # added per other request in service: latency rises with load
+    maxConcurrency: 0            # 0 = no cap
+    overCapacity: queue          # queue | reject (429)
+    errorRate: 0                 # share of requests answered with errorStatus, spread evenly
+    errorStatus: 500
+    memoryPerRequestBytes: 0     # held while each request is served
+    memoryRampBytesPerSecond: 0  # a leak; needs memoryRampMaxBytes
+    memoryRampMaxBytes: 0
+
+service:
+  port: 8000
+  metricsPort: 9100   # plain-HTTP /metrics listener (--metrics-listen), in both TLS modes
+
+# Transport security. The mock never mixes modes on one listener. The one exception is /metrics:
+# it is served on service.metricsPort in plain HTTP in both modes, because the mock's counters are not
+# sensitive and Prometheus cannot present a client certificate per target. The main port keeps the mode.
+tls:
+  mode: mtls                      # mtls (default) | platform
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}   # mtls only; ca.crt in the Secret is the client CA the mock trusts
+
+resources:
+  requests: {cpu: 100m, memory: 64Mi}
+  limits: {memory: 256Mi}
+
+nodeSelector: {}
+tolerations: []

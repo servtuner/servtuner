@@ -1,0 +1,37 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "preset-chat-short",
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/model-8b",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "preset": "chat-short",
+    "streaming": true
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 1,
+        "duration": "30s"
+      },
+      {
+        "rate": 3,
+        "duration": "20s",
+        "is_burst": true
+      }
+    ],
+    "pacing": "poisson"
+  }
+}

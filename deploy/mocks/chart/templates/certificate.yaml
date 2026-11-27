@@ -1,0 +1,25 @@
+{{- /* mtls only. One certificate for both roles: the mock presents it as a server, and the metrics proxy
+       sidecar presents it as a client. The issuer's CA (ca.crt) is the CA the mock accepts for clients, so
+       servtuner's bench certificate, issued by the same issuer, is accepted. */ -}}
+{{- if include "openaiMock.isMtls" . }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "openaiMock.tlsSecretName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "openaiMock.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "openaiMock.tlsSecretName" . }}
+  commonName: {{ include "openaiMock.name" . }}
+  dnsNames:
+    - {{ include "openaiMock.name" . }}
+    - {{ include "openaiMock.name" . }}.{{ .Release.Namespace }}
+    - {{ include "openaiMock.serviceHost" . }}
+    - {{ include "openaiMock.serviceHost" . }}.cluster.local
+  usages: [digital signature, key encipherment, server auth, client auth]
+  privateKey: {algorithm: ECDSA, size: 256, rotationPolicy: Always}
+  issuerRef:
+    group: cert-manager.io
+    kind: {{ .Values.tls.certManager.issuerRef.kind }}
+    name: {{ .Values.tls.certManager.issuerRef.name }}
+{{- end }}

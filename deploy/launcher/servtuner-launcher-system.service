@@ -1,0 +1,29 @@
+# servtuner launcher as a system service on a bare-metal GPU host: a dedicated user, the
+# config in /etc/servtuner/launcher.yaml, the token and vLLM's key as systemd credentials (readable by
+# this service only, under $CREDENTIALS_DIRECTORY). Install steps: deploy/launcher/README.md.
+[Unit]
+Description=servtuner launcher: starts and stops vllm serve for the api
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=servtuner
+Group=servtuner
+# /var/lib/servtuner-launcher for vllm.log (log_dir in the config), owned by the service user.
+StateDirectory=servtuner-launcher
+WorkingDirectory=/var/lib/servtuner-launcher
+LoadCredential=launcher-token:/etc/servtuner/launcher-token
+# Uncomment when vLLM runs with an API key (a missing credential file stops the unit from starting).
+# LoadCredential=vllm-api-key:/etc/servtuner/vllm-api-key
+ExecStart=/usr/local/bin/servtuner launcher --config=/etc/servtuner/launcher.yaml
+# SIGTERM: the launcher stops vLLM's process group (SIGKILL after 30 s), so wait longer than that.
+KillSignal=SIGTERM
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

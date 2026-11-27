@@ -1,0 +1,34 @@
+{
+  "vllm_version": "v0.34.0",
+  "vllm_commit": "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
+  "knobs": [
+    {
+      "name": "vllm.max_num_seqs",
+      "label": "Max sequences",
+      "flag": "--max-num-seqs",
+      "group": "SchedulerConfig",
+      "kind": "integer",
+      "default": null,
+      "limits": {
+        "ge": 1
+      },
+      "built_in": true
+    },
+    {
+      "name": "vllm.enable_prefix_caching",
+      "label": "Prefix caching",
+      "flag": "--enable-prefix-caching",
+      "negative_flags": [
+        "--disable-prefix-caching"
+      ],
+      "group": "CacheConfig",
+      "kind": "boolean",
+      "help": "Whether to enable prefix caching.",
+      "built_in": true
+    }
+  ],
+  "other_flags": [
+    "--compilation-config",
+    "--port"
+  ]
+}

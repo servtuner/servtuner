@@ -1,0 +1,40 @@
+{
+  "apiVersion": "servtuner.dev/v1",
+  "kind": "RunSpec",
+  "name": "poisson-pacing",
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/model-8b",
+    "tls": {
+      "mode": "mtls",
+      "secretRef": {
+        "name": "servtuner-client"
+      }
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128
+      },
+      "output_tokens": {
+        "mean": 64
+      }
+    }
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 1,
+        "duration": "30s"
+      }
+    ],
+    "pacing": "poisson"
+  }
+}

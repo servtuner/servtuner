@@ -1,0 +1,7 @@
+apiVersion: v2
+name: servtuner
+description: servtuner control plane (api, frontend), Postgres via CloudNativePG, RBAC and transport security for Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.35.0-0"

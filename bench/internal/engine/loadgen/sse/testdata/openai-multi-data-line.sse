@@ -1,0 +1,10 @@
+event: message
+id: 7
+data: {"choices":[{"index":0,
+data:   "delta":{"content":"Hi"},
+data:   "finish_reason":null}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

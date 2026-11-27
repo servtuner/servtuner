@@ -1,0 +1,7 @@
+# Mock resources for calibration. A calibration
+# measures the client's ceiling, so the target needs headroom: at 10k RPS the chart's default 256Mi
+# limit was OOM-killed on kind. Apply with:
+#   helm upgrade openai-mock deploy/mocks/chart -n servtuner-mock --reuse-values -f deploy/kind/calibration/mock-values.yaml
+resources:
+  requests: {cpu: "4", memory: 2Gi}
+  limits: {cpu: "4", memory: 2Gi}

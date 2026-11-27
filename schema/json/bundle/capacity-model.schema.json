@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/bundle/capacity-model.schema.json",
+  "title": "RunCapacityModel",
+  "description": "capacity_model.json: everything the planner needs from one run, so servtuner plan never reads raw data. Per-stage curves are per replica: the run's achieved RPS over its ready replicas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analyzer_version", "run_id", "identity", "ready_replicas", "stages", "scale_out"],
+  "properties": {
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "identity": { "$ref": "#/definitions/modelIdentity" },
+    "ready_replicas": { "description": "Replicas of the workload under test during the usable stages; 0 when unknown, and then the curves cannot be scaled.", "type": "integer", "minimum": 0 },
+    "stages": { "type": "array", "items": { "$ref": "#/definitions/modelStage" } },
+    "per_replica": { "$ref": "#/definitions/modelPerReplica" },
+    "queueing": { "$ref": "#/definitions/modelQueueing" },
+    "memory": { "$ref": "#/definitions/modelMemory" },
+    "scale_out": {
+      "description": "Replica counts the model was measured at. Linear scale-out is verified only by runs at two or more counts with per-replica RPS within 10%.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replica_counts", "is_verified"],
+      "properties": {
+        "replica_counts": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+        "is_verified": { "type": "boolean" }
+      }
+    },
+    "infra_cost": { "$ref": "#/definitions/infraCost" },
+    "token_cost": { "$ref": "#/definitions/tokenCost" }
+  },
+  "definitions": {
+    "tokenCost": {
+      "description": "Token cost of the requests at the SLO-max stage, from the bundled datasheet and the router's own cost counter. Absent when token_pricing is none. An unpriced model is is_priced false with a reason, never free.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["is_priced", "model"],
+      "properties": {
+        "is_priced": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 },
+        "model": { "description": "The model the requests named (target.model).", "type": "string", "minLength": 1 },
+        "datasheet_key": { "description": "The datasheet entry that priced it.", "type": "string", "minLength": 1 },
+        "datasheet_fetched_at": { "description": "When servtuner run fetched the datasheet that priced it (pricing/token.json): the prices are as of then.", "$ref": "../common.schema.json#/definitions/utcTimestamp" },
+        "datasheet_source": { "description": "Where that datasheet came from: pricing/token.json's url_basis (price_book is the operator's).", "type": "string", "enum": ["runspec", "price_book", "bifrost_config", "default"] },
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "method": { "description": "router_metric: the router's own cost counter (Bifrost bifrost_cost_total, LiteLLM litellm_spend_metric_total), authoritative; datasheet: servtuner's own tokens × base prices; manual: servtuner's own tokens × the RunSpec's manual prices.", "type": "string", "enum": ["router_metric", "datasheet", "manual"] },
+        "usd_per_1k_requests": { "type": "number", "minimum": 0 },
+        "usd_per_1m_output_tokens": { "type": "number", "minimum": 0 },
+        "datasheet_usd_per_1k_requests": { "description": "servtuner's calculation, kept as the cross-check when the router's metric is used.", "type": "number", "minimum": 0 },
+        "divergence": { "description": "|router − datasheet| ÷ router, when both exist; over 0.05 is reported.", "type": "number", "minimum": 0 },
+        "retry_added_usd_per_1k_requests": { "description": "Router cost minus the cost of the client's successful requests: what retries and fallbacks added (rules B4 and L3).", "type": "number" },
+        "approximations": { "description": "What the calculation does not model.", "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "infraCost": {
+      "description": "Infrastructure cost of one replica at the recommended sizing, from pricing/infra.json. Absent when the run's infra_pricing source is none; is_priced false, with a reason, when the source has no price for this hardware.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "is_priced"],
+      "properties": {
+        "source": { "type": "string", "enum": ["static", "aws"] },
+        "is_priced": { "type": "boolean" },
+        "reason": { "description": "Why there is no price.", "type": "string", "minLength": 1 },
+        "usd_per_replica_hour": { "type": "number", "minimum": 0 },
+        "method": { "description": "gpu: the replica pays for the GPUs it holds (node price ÷ node GPUs, or the GPU model's price). node_share: it pays for the larger of its share of the node's allocatable cores and memory.", "type": "string", "enum": ["gpu", "node_share"] },
+        "basis": { "description": "The calculation with its values, for display.", "type": "string", "minLength": 1 },
+        "discount": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "usd_per_1k_requests": { "description": "A replica's hour over the requests it serves in an hour at its SLO-max RPS, per thousand (the infra_cost_per_1k_requests objective).", "type": "number", "minimum": 0 },
+        "usd_per_1m_output_tokens": { "description": "The same per million output tokens, from the SLO-max stage's output token rate per replica.", "type": "number", "minimum": 0 },
+        "unit_cost_reason": { "description": "Why a priced replica has no cost per request or per output token (no SLO-max, no replica count, no output token rate).", "type": "string", "minLength": 1 }
+      }
+    },
+    "modelIdentity": {
+      "description": "What the model is valid for: a plan inherits this scope (Guard rails 3).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_type", "knobs", "workload_hash", "arrival_process", "quality_grade"],
+      "properties": {
+        "target_type": { "$ref": "../runspec.schema.json#/definitions/targetType" },
+        "knobs": { "description": "Knob values captured from the target.", "type": "object", "additionalProperties": { "$ref": "../runspec.schema.json#/definitions/knobValue" } },
+        "hardware_profile_id": { "type": "string", "minLength": 1 },
+        "workload_hash": { "description": "SHA-256 of the RunSpec's workload block as canonical JSON, without its seed: runs with the same hash measured the same request mix.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "workload_preset": { "description": "The workload preset the run named, when it named one.", "$ref": "../runspec.schema.json#/definitions/presetRef" },
+        "arrival_process": { "$ref": "../runspec.schema.json#/definitions/pacing" },
+        "quality_grade": { "$ref": "analysis.schema.json#/definitions/qualityGrade" }
+      }
+    },
+    "latencyPoint": {
+      "description": "A latency percentile of one stage, seconds; absent when the stage had too few samples for it.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "p50": { "type": "number", "minimum": 0 },
+        "p95": { "type": "number", "minimum": 0 },
+        "p99": { "type": "number", "minimum": 0 }
+      }
+    },
+    "modelStage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_index", "rps_per_replica", "is_usable", "error_rate"],
+      "properties": {
+        "stage_index": { "type": "integer", "minimum": 0 },
+        "rps_per_replica": { "type": "number", "minimum": 0 },
+        "is_usable": { "description": "Valid and not excluded: only usable stages may be interpolated between.", "type": "boolean" },
+        "error_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ttft_seconds": { "$ref": "#/definitions/latencyPoint" },
+        "e2e_seconds": { "$ref": "#/definitions/latencyPoint" },
+        "itl_seconds": { "$ref": "#/definitions/latencyPoint" }
+      }
+    },
+    "modelPerReplica": {
+      "description": "The recommended resources of one replica at the operating point (recommendations.json), summed over the workload's containers.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_request_cores", "memory_request_bytes"],
+      "properties": {
+        "cpu_request_cores": { "type": "number", "minimum": 0 },
+        "memory_request_bytes": { "type": "number", "minimum": 0 },
+        "cpu_limit_cores": { "type": "number", "minimum": 0 },
+        "memory_limit_bytes": { "type": "number", "minimum": 0 },
+        "gpus": { "type": "integer", "minimum": 0 },
+        "hpa_cpu_utilization_percent": { "type": "number", "minimum": 0 }
+      }
+    },
+    "modelQueueing": {
+      "description": "The operating stage's queueing inputs, for re-sizing C and B at a planned load.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["w_mean_seconds", "w_p99_seconds", "cv"],
+      "properties": {
+        "w_mean_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "w_p99_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "cv": { "type": "number", "minimum": 0 }
+      }
+    },
+    "modelMemory": {
+      "description": "The router's working set against requests in flight per replica, WS = baseline + m × L, with the request size it was measured at.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline_bytes", "bytes_per_in_flight", "stages"],
+      "properties": {
+        "baseline_bytes": { "type": "number", "minimum": 0 },
+        "bytes_per_in_flight": { "type": "number", "exclusiveMinimum": 0 },
+        "stages": { "description": "Usable stages the line was fitted through.", "type": "integer", "minimum": 2 },
+        "request_bytes_mean": { "description": "Mean request body size over the usable stages; absent when the engine reported none.", "type": "number", "exclusiveMinimum": 0 },
+        "queue_size": { "description": "The recommended B for the router, held in memory beside C.", "type": "integer", "minimum": 0 },
+        "limit_headroom": { "description": "The sizing policy's limit headroom h_lim, applied to the working set before it is compared with the memory limit.", "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

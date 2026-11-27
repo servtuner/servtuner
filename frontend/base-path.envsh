@@ -1,0 +1,27 @@
+# Sourced by the nginx image's entrypoint before envsubst runs (hence .envsh).
+# Validates SERVTUNER_BASE_PATH, normalizes it to a leading and trailing slash,
+# and derives SERVTUNER_BASE_PATH_PREFIX. Fails fast on an invalid value.
+# Reject control characters (a newline defeats line-based grep) before any pattern check.
+# Compare byte counts with and without them, because $(...) would strip a trailing newline.
+total_bytes="$(printf '%s' "${SERVTUNER_BASE_PATH:-/}" | wc -c)"
+printable_bytes="$(printf '%s' "${SERVTUNER_BASE_PATH:-/}" | tr -d '[:cntrl:]' | wc -c)"
+if [ "$total_bytes" -ne "$printable_bytes" ]; then
+  echo "base-path: invalid SERVTUNER_BASE_PATH: contains a control character such as a newline" >&2
+  exit 1
+fi
+raw_base_path="${SERVTUNER_BASE_PATH:-/}"
+case "$raw_base_path" in
+  /*) ;;
+  *) raw_base_path="/$raw_base_path" ;;
+esac
+trimmed_base_path="${raw_base_path%/}"
+# Each segment: only unreserved URL characters, and not "." or "..".
+if [ -n "$trimmed_base_path" ] && {
+  ! printf '%s' "$trimmed_base_path" | grep -Eq '^(/[A-Za-z0-9._~-]{1,64})+$' ||
+  printf '%s' "$trimmed_base_path" | grep -Eq '(^|/)\.{1,2}(/|$)'
+}; then
+  echo "base-path: invalid SERVTUNER_BASE_PATH '${SERVTUNER_BASE_PATH}': use segments of [A-Za-z0-9._~-] such as /tools/servtuner/" >&2
+  exit 1
+fi
+export SERVTUNER_BASE_PATH_PREFIX="$trimmed_base_path"
+export SERVTUNER_BASE_PATH="$trimmed_base_path/"

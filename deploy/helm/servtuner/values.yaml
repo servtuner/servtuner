@@ -1,0 +1,252 @@
+# servtuner chart values. Every value here is a neutral placeholder; put
+# cluster-specific values in your own values file.
+
+nameOverride: ""
+fullnameOverride: ""
+imagePullSecrets: []       # added to global.imagePullSecrets
+
+# Air-gapped and mirrored installs. imageRegistry replaces the registry host
+# of every image this chart renders and keeps its repository path, the way `hauler store copy` names
+# images: "ghcr.io/cloudnative-pg/postgresql:17" -> "<imageRegistry>/cloudnative-pg/postgresql:17".
+# The api also offers it as the default registry for managed vLLM images.
+global:
+  imageRegistry: ""
+  imagePullSecrets: []     # [{name: regcred}]
+
+# No internet access: bench never falls back to the public token-price datasheet, and AWS
+# Price List pricing is refused. Supply prices in the price book.
+offline: false
+
+namespaces:
+  # The release namespace hosts api and frontend (`helm install -n servtuner`).
+  # Where bench Jobs run; the api may manage only this namespace. Empty means the release namespace,
+  # which is required with storage.file.pvc.create (one claim cannot span namespaces).
+  runs: ""
+  createRuns: false        # true renders the runs Namespace when it differs from the release namespace
+
+serviceAccounts:
+  api:
+    name: servtuner-api
+    annotations: {}
+  bench:
+    name: servtuner-bench
+    annotations: {}
+
+# Which runner launches bench:
+#   kubernetes  a Job per run in the runs namespace
+#   subprocess  bench runs inside the api pod, as the api's ServiceAccount (dev, single node, e2e)
+runner: kubernetes
+
+# runner: subprocess only. Secrets in the release namespace that RunSpecs name (target.auth,
+# target.admin, an upstream key), each mounted read-only into the api pod at
+# /etc/servtuner/secrets/<name>, where bench reads them. The Kubernetes runner mounts a run's Secrets
+# into its Job itself and needs none of this. Names only; never put a value here.
+subprocess:
+  secrets: []              # for example [vllm-key]
+
+# Where saved targets' keys live: kubernetes keeps each in a Secret in the
+# runs namespace (the api's Role already allows it); none disables keys in saved targets.
+secretStore: kubernetes    # kubernetes | none
+
+api:
+  # The published image; the tag defaults to .Chart.AppVersion. global.imageRegistry replaces ghcr.io and keeps
+  # servtuner/servtuner-api, the path a release archive copies into a site registry.
+  image: {repository: ghcr.io/servtuner/servtuner-api, tag: "", pullPolicy: IfNotPresent}
+  replicas: 1
+  port: 8080
+  # Group that owns the data volume (pod fsGroup); must match the image's non-root group (api/Dockerfile).
+  fsGroup: 10001
+  resources: {}
+  extraEnv: []
+
+bench:
+  image: {repository: ghcr.io/servtuner/servtuner-bench, tag: "", pullPolicy: IfNotPresent}  # passed to the Kubernetes runner
+  # The Kubernetes runner's bench pod. Requests equal limits (Guaranteed QoS); size it from
+  # (loadgen: about 5k RPS comfortably on 2 CPUs).
+  resources: {cpu: "2", memory: 2Gi}
+  # Keep bench off the nodes of the workloads under test: required, or preferred where there is
+  # only one node (kind). With required, a run that cannot be placed fails after startTimeoutSeconds.
+  targetAntiAffinity: required
+  jobTtlSeconds: 3600          # finished Jobs, their spec ConfigMap and token Secret are deleted after this
+  startTimeoutSeconds: 300     # a bench pod that has not started by then (unschedulable, image pull) fails the run
+
+frontend:
+  image: {repository: ghcr.io/servtuner/servtuner-frontend, tag: "", pullPolicy: IfNotPresent}
+  replicas: 1
+  port: 8080
+  # Context path the UI is hosted under, such as /servtuner/. Becomes SERVTUNER_BASE_PATH.
+  # Needs no rebuild; an ingress that strips the prefix can send X-Forwarded-Prefix instead.
+  basePath: /
+  # The api URL the UI calls, written to config.json (absolute, or relative to the base path).
+  # Empty keeps the image's relative default "api" (under the base path); an explicit ingress.apiPath is used otherwise.
+  apiBaseUrl: ""
+  resources: {}
+
+# Optional ingress-nginx routing (annotations are ingress-nginx's). Two Ingresses: the UI goes to the
+# frontend under frontend.basePath, and ingress.apiPath (prefix stripped) goes to the api. Browser
+# TLS is terminated here, outside servtuner. With the ingress -> api hop in mtls mode the
+# api Ingress uses backend mTLS with the chart's ingress certificate Secret, which must carry ca.crt.
+ingress:
+  enabled: false
+  className: ""
+  host: ""                 # required when enabled
+  apiPath: ""              # empty = <frontend.basePath>/api; an explicit path is never "/"
+  annotations: {}          # added to both Ingresses
+
+# Gateway API routing (ingress-nginx is retired): HTTPRoutes for the UI under
+# frontend.basePath and the api under ingress.apiPath (prefix stripped), attached to a Gateway the
+# cluster provides. Use this or `ingress`, not both. In mtls mode the gateway -> api hop needs
+# Envoy Gateway's Backend API (helm --set config.envoyGateway.extensionApis.enableBackend=true):
+# a Backend carries the chart's ingress client certificate, and a BackendTLSPolicy verifies the api.
+gateway:
+  enabled: false
+  parentRefs: []           # required: the Gateway(s), e.g. [{name: eg, namespace: gateways}]
+  hostname: ""             # required: the host the routes answer for
+  # Envoy Gateway extensions.
+  envoy:
+    # forward_header through Envoy's external authorization: a SecurityPolicy on
+    # both routes asks this service, then copies headersToBackend onto the request, replacing any
+    # copy the client sent. A service in another namespace needs a ReferenceGrant there.
+    extAuth:
+      enabled: false
+      service: {name: "", namespace: "", port: 0}
+      path: ""             # prefix for the auth request's path; empty keeps the request's
+      headersToBackend: [] # empty: [auth.forwardHeader.userHeader]
+      # Client headers sent to the auth service. Empty keeps Envoy's default for HTTP services: only
+      # Host, Method, Path, Content-Length and Authorization; oauth2-proxy needs [cookie].
+      headersToExtAuth: []
+
+# Passed to the api and into RunSpec defaults. Scrape intervals are discovered, not assumed.
+prometheus:
+  url: http://prometheus.example.svc:9090
+
+postgres:
+  mode: cnpg               # cnpg | external
+  cnpg:                    # needs the CloudNativePG operator and its CRDs in the cluster
+    name: ""               # defaults to <fullname>-pg
+    instances: 1
+    database: servtuner
+    owner: servtuner          # in mtls mode the api client certificate's CN must equal this user
+    storage: {size: 10Gi, storageClass: ""}
+    imageName: ""          # empty = the operator's default image; required with global.imageRegistry
+  external:
+    host: ""
+    port: 5432
+    database: servtuner
+    user: servtuner
+    passwordSecretRef: {name: "", key: password}   # used only when the postgres hop is `platform`
+
+storage:
+  backend: file            # file (default) | s3
+  file:
+    dataDir: /var/lib/servtuner
+    pvc:
+      create: true
+      # Use instead of create. With a separate runs namespace, a same-named claim must exist in BOTH
+      # namespaces on the same ReadWriteMany storage (for example two static PVs on one NFS export).
+      existingClaim: ""
+      storageClass: ""
+      accessMode: ReadWriteMany   # with existingClaim, state the claim's real mode so the RWO rules apply
+      size: 50Gi
+  s3:
+    endpoint: ""           # omit for AWS S3
+    region: us-east-1
+    bucket: ""
+    prefix: runs/
+    forcePathStyle: true
+    checksumMode: when_required
+    partSizeMiB: 16        # multipart part size for bench's uploads; S3 needs at least 5
+    presign: false         # 307 to presigned downloads instead of proxying; only when clients reach the endpoint
+    credentials:
+      source: secret       # secret | ambient
+      secretRef: {name: "", accessKeyKey: access-key, secretKeyKey: secret-key}
+    aws:
+      ack:
+        enabled: false     # render ACK PodIdentityAssociation resources (needs the ACK eks-controller)
+        clusterName: ""
+        apiRoleArn: ""
+        benchRoleArn: ""
+
+# User auth. local checks every route; none checks nothing and is an
+# explicit opt-out for installs whose ingress does all access control.
+auth:
+  mode: local                     # local | none
+  methods: [local]                # any of local, forward_header; the order is the order they are tried
+  # The setup token creates the first admin, and only while there is none. Empty: the chart
+  # creates <fullname>-setup-token once and keeps it across upgrades (NOTES prints how to read it).
+  setupToken:
+    existingSecret: ""
+    key: token
+  session:
+    idleTimeoutSeconds: 43200     # 12 hours unused
+    absoluteLifetimeSeconds: 604800  # 7 days after sign-in, whatever the use
+  cookie:
+    secure: true                  # false only for a plain-HTTP install not on localhost
+  lockout:
+    maxFailures: 5                # failed logins per username
+    windowSeconds: 900            # the counting window and how long the lock lasts
+  # forward_header: a proxy in front of the api (oauth2-proxy, an ingress auth-url, an ingress that
+  # verifies client certificates) names the user. The api trusts the header from whatever reaches it,
+  # so the proxy must overwrite any copy the client sends, and networkPolicy keeps others out.
+  forwardHeader:
+    userHeader: X-Forwarded-User
+    displayNameHeader: ""
+    emailHeader: ""
+    provisioning: refuse          # refuse | viewer: what a subject with no servtuner user gets
+
+# NetworkPolicies: only the ingress controller and bench Jobs reach the api's port, and nothing
+# reaches a bench pod. Egress is not restricted. They need a CNI that enforces NetworkPolicy.
+networkPolicy:
+  enabled: true
+  ingressController:
+    namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ingress-nginx}}
+    podSelector: {}               # empty: any pod in those namespaces
+  # With gateway.enabled: where the gateway's proxy pods run (Envoy Gateway's default namespace).
+  gateway:
+    namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: envoy-gateway-system}}
+    podSelector: {}
+  extraFrom: []                   # more NetworkPolicyPeer entries allowed to reach the api's port
+
+rbac:
+  create: true
+  bench:
+    targetNamespaces: []   # namespaces where bench may read workloads (read-only); nodes are cluster-wide read
+  # Managed targets: namespaces where the api may create, patch and
+  # delete a vLLM Deployment and its Service, PVC, Certificate and PodMonitor. Empty: nothing is
+  # granted and no managed target can be stored. bench also gets read access there, for snapshots.
+  tuning:
+    namespaces: []
+
+# Managed targets: how Prometheus finds a managed vLLM. podmonitor needs the
+# Prometheus Operator; scrape-annotations labels the pod servtuner.dev/scrape=true for the community chart's
+# servtuner-targets job (deploy/prometheus/), which cannot verify a tls target, so tls needs podmonitor.
+tuning:
+  monitor: podmonitor
+
+# Transport security. Never inferred, never mixed on one connection.
+tls:
+  mode: mtls               # mtls (default) | platform
+  # Per-hop override; empty inherits tls.mode.
+  hops:
+    benchPrometheus: ""
+    benchApi: ""           # must equal ingressApi: the api has one listener
+    ingressApi: ""
+    postgres: ""
+    objectStore: ""
+  source: cert-manager     # cert-manager | secret
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: "", group: cert-manager.io}
+  # source: secret. kubernetes.io/tls Secrets. The bench Secret must exist in the runs namespace.
+  # `objectStore` is the server certificate of the object store and is only validated here:
+  # the chart bundles no object store, and api/bench present their own api/bench certificates to it.
+  secrets:
+    api: ""
+    bench: ""
+    ingress: ""
+    postgres: ""
+    postgresReplication: ""   # CNPG needs a streaming_replica client certificate when it is given a client CA
+    objectStore: ""
+  caSecretRef: null        # {name: <secret with ca.crt>} when the cert Secrets do not carry ca.crt
+  caBundle:
+    image: {repository: "", tag: ""}   # init container image; empty = the api image (has sh, cat and system CAs)
+    systemCaFile: /etc/ssl/certs/ca-certificates.crt

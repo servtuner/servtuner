@@ -1,0 +1,23 @@
+# Workload preset agent-prefix@1. The workload block is immutable: a change to it
+# is a new version file. slos and rps_hint are suggestions and may be corrected in place.
+name: agent-prefix
+version: 1
+description: Agent calls with long shared instructions and tool definitions, about 2048 tokens in (a 1536-token prefix shared by 8 groups) and 128 out. Measures how much the prefix cache saves.
+engines: [loadgen]
+workload:
+  api: chat
+  dataset:
+    type: synthetic
+    input_tokens: {mean: 2048, stddev: 512}
+    output_tokens: {mean: 128, stddev: 32}
+    shared_prefix: {tokens: 1536, groups: 8}
+slos:
+  ttft_p95: 500ms
+  itl_p95: 50ms
+# Hand-written starting points, not measured capacity.
+rps_hint:
+  # rtx-3070-8gb (Qwen2.5-0.5B, max-model-len 4096): about half the ceiling of ~4800 output tokens/s measured
+  # on that card.
+  - {gpu_class: rtx-3070-8gb, start_rps: 8}  # 128 output tokens, prefix mostly cached
+  - {gpu_class: a100-80gb, start_rps: 15}
+  - {gpu_class: h100-80gb, start_rps: 30}

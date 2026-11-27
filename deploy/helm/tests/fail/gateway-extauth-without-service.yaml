@@ -1,0 +1,5 @@
+# expect: needs service.name and service.port
+# api-versions: gateway.networking.k8s.io/v1
+postgres: {mode: external, external: {host: db.example.test}}
+tls: {mode: platform}
+gateway: {enabled: true, hostname: a.example.test, parentRefs: [{name: eg}], envoy: {extAuth: {enabled: true}}}

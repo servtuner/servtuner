@@ -1,0 +1,26 @@
+# servtuner (deploy/helm/servtuner): what the environment decides. TLS, hostnames, storage and auth are the
+# site's (siteValues; helmfile/site-values.example.yaml).
+offline: {{ .Values.offline }}
+prometheus:
+  url: http://kps-prometheus.monitoring.svc:9090
+postgres:
+  cnpg:
+    # Pinned rather than the operator's default, so the release carries it (deploy/release/images.lock).
+    imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+{{- if .Values.registry }}
+global:
+  imageRegistry: {{ .Values.registry }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- range . }}
+    - name: {{ . }}
+    {{- end }}
+  {{- end }}
+# The release's images carry a namespace (servtuner/...): hauler names a bare image hauler/<name>.
+api:
+  image: {repository: servtuner/servtuner-api, tag: {{ .Values.servtunerVersion | quote }}}
+bench:
+  image: {repository: servtuner/servtuner-bench, tag: {{ .Values.servtunerVersion | quote }}}
+frontend:
+  image: {repository: servtuner/servtuner-frontend, tag: {{ .Values.servtunerVersion | quote }}}
+{{- end }}

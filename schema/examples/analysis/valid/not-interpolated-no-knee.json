@@ -1,0 +1,35 @@
+{
+  "analyzer_version": "0.0.0",
+  "quality": {
+    "grade": "good",
+    "is_excluded_from_comparison": false,
+    "stages": [
+      {
+        "stage_index": 0,
+        "is_valid": true,
+        "is_client_bound": false,
+        "is_excluded": false
+      }
+    ]
+  },
+  "stages": [
+    {
+      "stage_index": 0,
+      "offered_rps": 5,
+      "achieved_rps": 5,
+      "requests": 600,
+      "errors": 0
+    }
+  ],
+  "capacity": {
+    "slo_max": {
+      "rps": 5,
+      "is_interpolated": false,
+      "valid_stage_index": 0
+    },
+    "per_replica": {
+      "ready_replicas": 2,
+      "rps_per_replica": 2.5
+    }
+  }
+}

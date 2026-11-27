@@ -1,0 +1,10 @@
+# The kind environment's values for the servtuner chart: plain connections, a ReadWriteOnce volume, and the
+# Envoy Gateway class kind uses (deploy/kind/envoy-gateway-class.yaml, applied after Envoy Gateway).
+tls:
+  mode: platform
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteOnce, size: 1Gi}
+postgres:
+  cnpg:
+    storage: {size: 1Gi}

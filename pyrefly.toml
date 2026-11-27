@@ -1,0 +1,20 @@
+# Pyrefly type-checks the Python code: the api, its tests and the e2e scripts. It runs from
+# api/ (`just lint`) in the api's uv environment, so it sees the api's dependencies.
+python-version = "3.14.0"
+# The strictest preset, as mypy ran with strict = true before the switch.
+preset = "strict"
+project-includes = ["api/src", "api/tests", "e2e"]
+# Written by `just gen`; not ours to type-check.
+project-excludes = ["api/src/servtuner_api/models/generated/"]
+# The e2e scripts import servtuner_api and tests.support with PYTHONPATH=api, and each other.
+search-path = ["api/src", "api", "e2e"]
+# jsonschema ships no type stubs and adding types-jsonschema is not worth a dependency.
+ignore-missing-imports = ["jsonschema", "jsonschema.*"]
+check-unannotated-defs = true
+infer-return-types = "never"
+# The includes and excludes above are the whole scope; git's ignore files must not narrow it.
+use-ignore-files = false
+
+[errors]
+# jsonschema has no stubs (above); don't warn about installing them either.
+untyped-import = "ignore"

@@ -1,0 +1,325 @@
+{
+  "analyzer_version": "0.0.0",
+  "hardware_profile_id": "0123456789ab",
+  "quality": {
+    "grade": "degraded",
+    "is_excluded_from_comparison": true,
+    "issues": [
+      {
+        "code": "catalog_missing",
+        "message": "dcgm was not collected"
+      },
+      {
+        "code": "knob_mismatch",
+        "message": "vllm.max_num_seqs declared 256, captured 128"
+      }
+    ],
+    "stages": [
+      {
+        "stage_index": 0,
+        "is_valid": true,
+        "is_client_bound": false,
+        "is_excluded": false
+      },
+      {
+        "stage_index": 1,
+        "is_valid": true,
+        "is_client_bound": false,
+        "is_excluded": false,
+        "issues": [
+          {
+            "code": "low_resolution",
+            "message": "stage shorter than 10 scrape intervals"
+          }
+        ]
+      },
+      {
+        "stage_index": 2,
+        "is_valid": false,
+        "is_client_bound": true,
+        "is_excluded": true,
+        "issues": [
+          {
+            "code": "client_bound",
+            "message": "send lag grew across the stage"
+          },
+          {
+            "code": "send_lag_high",
+            "message": "p99 send lag 80ms"
+          }
+        ]
+      }
+    ],
+    "knobs": [
+      {
+        "name": "vllm.max_num_seqs",
+        "declared": "256",
+        "actual": "128",
+        "status": "mismatch"
+      },
+      {
+        "name": "vllm.enable_prefix_caching",
+        "declared": "true",
+        "status": "unverified"
+      }
+    ],
+    "coverage": {
+      "catalogs": [
+        {
+          "catalog": "vllm",
+          "is_collected": true
+        },
+        {
+          "catalog": "dcgm",
+          "is_collected": false
+        }
+      ],
+      "series_with_gaps_percent": 2.5
+    }
+  },
+  "stages": [
+    {
+      "stage_index": 0,
+      "offered_rps": 5,
+      "achieved_rps": 4.99,
+      "goodput_rps": 4.99,
+      "requests": 600,
+      "errors": 0,
+      "ttft": {
+        "mean_seconds": 0.2,
+        "max_seconds": 0.8,
+        "p50_seconds": {
+          "value": 0.2,
+          "ci_low": 0.18000000000000002,
+          "ci_high": 0.22000000000000003,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 0.30000000000000004,
+          "ci_low": 0.2700000000000001,
+          "ci_high": 0.33000000000000007,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 0.4,
+          "ci_low": 0.36000000000000004,
+          "ci_high": 0.44000000000000006,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "itl": {
+        "mean_seconds": 0.03,
+        "max_seconds": 0.12,
+        "p50_seconds": {
+          "value": 0.03,
+          "ci_low": 0.027,
+          "ci_high": 0.033,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 0.045,
+          "ci_low": 0.0405,
+          "ci_high": 0.0495,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 0.06,
+          "ci_low": 0.054,
+          "ci_high": 0.066,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "tpot": {
+        "mean_seconds": 0.04,
+        "max_seconds": 0.16,
+        "p50_seconds": {
+          "value": 0.04,
+          "ci_low": 0.036000000000000004,
+          "ci_high": 0.044000000000000004,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 0.06,
+          "ci_low": 0.054,
+          "ci_high": 0.066,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 0.08,
+          "ci_low": 0.07200000000000001,
+          "ci_high": 0.08800000000000001,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "e2e": {
+        "mean_seconds": 2,
+        "max_seconds": 8,
+        "p50_seconds": {
+          "value": 2,
+          "ci_low": 1.8,
+          "ci_high": 2.2,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 3.0,
+          "ci_low": 2.7,
+          "ci_high": 3.3000000000000003,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 4,
+          "ci_low": 3.6,
+          "ci_high": 4.4,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "send_lag_p50_seconds": 0.0003,
+      "send_lag_p99_seconds": 0.002,
+      "send_lag_max_seconds": 0.01,
+      "input_tokens_per_second": 5000,
+      "output_tokens_per_second": 1200,
+      "total_tokens_per_second": 6200,
+      "slo_results": [
+        {
+          "slo": "tpot_p95",
+          "threshold": 0.5,
+          "observed": 0.4,
+          "is_met": true
+        },
+        {
+          "slo": "max_error_rate",
+          "threshold": 0.01,
+          "observed": 0,
+          "is_met": true
+        }
+      ]
+    },
+    {
+      "stage_index": 1,
+      "offered_rps": 10,
+      "achieved_rps": 9.9,
+      "goodput_rps": 7,
+      "requests": 1200,
+      "errors": 12,
+      "errors_by_class": [
+        {
+          "error_class": "timeout",
+          "count": 12
+        }
+      ],
+      "ttft": {
+        "mean_seconds": 0.6,
+        "max_seconds": 2.4,
+        "p50_seconds": {
+          "value": 0.6,
+          "ci_low": 0.54,
+          "ci_high": 0.66,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 0.8999999999999999,
+          "ci_low": 0.8099999999999999,
+          "ci_high": 0.99,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 1.2,
+          "ci_low": 1.08,
+          "ci_high": 1.32,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "e2e": {
+        "mean_seconds": 6,
+        "max_seconds": 24,
+        "p50_seconds": {
+          "value": 6,
+          "ci_low": 5.4,
+          "ci_high": 6.6000000000000005,
+          "samples": 600
+        },
+        "p90_seconds": {
+          "value": 9.0,
+          "ci_low": 8.1,
+          "ci_high": 9.9,
+          "samples": 600
+        },
+        "p95_seconds": {
+          "value": 12,
+          "ci_low": 10.8,
+          "ci_high": 13.200000000000001,
+          "samples": 600
+        },
+        "p99_seconds": {
+          "insufficient_samples_reason": "p99 needs at least 1000 requests",
+          "samples": 600
+        }
+      },
+      "slo_results": [
+        {
+          "slo": "ttft_p95",
+          "threshold": 0.5,
+          "observed": 1.2,
+          "is_met": false
+        },
+        {
+          "slo": "itl_p95",
+          "threshold": 0.05,
+          "is_met": false
+        }
+      ]
+    },
+    {
+      "stage_index": 2,
+      "offered_rps": 20,
+      "achieved_rps": 12,
+      "requests": 1500,
+      "errors": 300
+    }
+  ],
+  "capacity": {
+    "slo_max": {
+      "rps": 8.5,
+      "is_interpolated": true,
+      "valid_stage_index": 0,
+      "failed_stage_index": 1,
+      "limiting_slo": "ttft_p95"
+    },
+    "knee": {
+      "stage_index": 1,
+      "reason": "latency_slope",
+      "slope_ratio": 2.4,
+      "bottleneck": {
+        "resource": "gpu_util",
+        "utilization": 0.97,
+        "is_weak_signal": true
+      }
+    },
+    "per_replica": {
+      "ready_replicas": 1,
+      "rps_per_replica": 8.5,
+      "total_gpus": 1,
+      "rps_per_gpu": 8.5
+    }
+  }
+}

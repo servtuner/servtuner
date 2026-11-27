@@ -1,0 +1,17 @@
+{
+  "providers": [
+    {
+      "name": "mock",
+      "keys": [
+        {"name": "primary", "value": "sentinel-secret-provider-key", "models": ["test-model"], "weight": 1}
+      ],
+      "network_config": {
+        "base_url": "http://mock.example.invalid:8080",
+        "extra_headers": {"X-Api-Key": "sentinel-secret-header", "X-Team": "servtuner"}
+      },
+      "concurrency_and_buffer_size": {"concurrency": 1000, "buffer_size": 5000},
+      "proxy_config": {"url": "http://proxyuser:sentinel-secret-proxy-password@proxy.example.invalid:3128"}
+    }
+  ],
+  "total": 1
+}

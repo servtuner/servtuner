@@ -1,0 +1,69 @@
+# LiteLLM proxy series (checked
+# 2026-10-28 against main @ 26e53cb7; latest release v1.106.5). Prometheus is
+# open source from about v1.80 and needs callbacks: ["prometheus"]; /metrics
+# needs a LiteLLM key unless require_auth_for_metrics_endpoint is false. Still to
+# verify against the pinned target version's /metrics.
+#
+# The latency histograms are observed on success only, so server-side tails are
+# biased under errors; client numbers stay authoritative. litellm_overhead_latency_metric
+# is in SECONDS although its help text says milliseconds. Counters carry _total,
+# including litellm_deployment_total_requests_total. The request counters are
+# labelled requested_model, not model. Histograms are stored raw.
+name: litellm
+version: 1
+job_role: target
+description: LiteLLM proxy latency, overhead, queue, request, failure, token and deployment series.
+marker:
+  query: count(litellm_in_flight_requests{<<.Selector>>})
+queries:
+  - name: request_total_latency_seconds
+    description: Proxy E2E, arrival to end of processing.
+    query: '{__name__=~"litellm_request_total_latency_metric_(bucket|sum|count)",<<.Selector>>}'
+  - name: llm_api_latency_seconds
+    description: Upstream call, start to end.
+    query: '{__name__=~"litellm_llm_api_latency_metric_(bucket|sum|count)",<<.Selector>>}'
+  - name: llm_api_ttft_seconds
+    description: Streaming requests only.
+    query: '{__name__=~"litellm_llm_api_time_to_first_token_metric_(bucket|sum|count)",<<.Selector>>}'
+  - name: overhead_latency_seconds
+    query: '{__name__=~"litellm_overhead_latency_metric_(bucket|sum|count)",<<.Selector>>}'
+  - name: request_queue_time_seconds
+    query: '{__name__=~"litellm_request_queue_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+
+  - name: proxy_total_requests_total
+    query: litellm_proxy_total_requests_metric_total{<<.Selector>>}
+  - name: proxy_failed_requests_total
+    query: litellm_proxy_failed_requests_metric_total{<<.Selector>>}
+  - name: spend_total
+    # USD, from LiteLLM's own model cost map; the router's figure for the token
+    # cost. Present on v1.108.3.
+    may_be_empty: true
+    query: litellm_spend_metric_total{<<.Selector>>}
+  - name: input_tokens_total
+    query: litellm_input_tokens_metric_total{<<.Selector>>}
+  - name: output_tokens_total
+    query: litellm_output_tokens_metric_total{<<.Selector>>}
+  - name: total_tokens_total
+    query: litellm_total_tokens_metric_total{<<.Selector>>}
+  # Upstream attempts: each retry and fallback counts, so attempts divided by
+  # client requests is the retry pressure.
+  - name: deployment_total_requests_total
+    query: litellm_deployment_total_requests_total{<<.Selector>>}
+  - name: deployment_failure_responses_total
+    query: litellm_deployment_failure_responses_total{<<.Selector>>}
+  - name: deployment_successful_fallbacks_total
+    query: litellm_deployment_successful_fallbacks_total{<<.Selector>>}
+  - name: deployment_cooled_down_total
+    query: litellm_deployment_cooled_down_total{<<.Selector>>}
+
+  - name: in_flight_requests
+    description: Per worker, all HTTP routes.
+    query: litellm_in_flight_requests{<<.Selector>>}
+  - name: in_flight_requests_max
+    query: max_over_time(litellm_in_flight_requests{<<.Selector>>}[<<.Window>>])
+  - name: in_flight_requests_fleet_max
+    description: Peak of the sum over every worker, evaluated at the scrape interval.
+    query: max_over_time(sum(litellm_in_flight_requests{<<.Selector>>})[<<.Window>>:<<.Step>>])
+  - name: deployment_state
+    description: 0 healthy, 1 partial outage, 2 complete outage.
+    query: litellm_deployment_state{<<.Selector>>}

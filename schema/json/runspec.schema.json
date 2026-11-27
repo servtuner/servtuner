@@ -1,0 +1,1223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://servtuner.dev/schema/runspec.schema.json",
+  "title": "RunSpec",
+  "description": "One benchmark run: what to test, how to load it and what to record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "apiVersion",
+    "kind",
+    "name",
+    "target",
+    "engine",
+    "workload",
+    "load"
+  ],
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "servtuner.dev/v1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "RunSpec"
+    },
+    "name": {
+      "description": "DNS-label style run name.",
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "experiment": {
+      "description": "Optional grouping of runs that are compared.",
+      "type": "string",
+      "minLength": 1
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "knobs": {
+      "description": "The variables being compared, keyed like \"vllm.max_num_seqs\".",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/knobValue"
+      },
+      "default": {}
+    },
+    "target": {
+      "$ref": "#/definitions/target"
+    },
+    "engine": {
+      "$ref": "#/definitions/engine"
+    },
+    "workload": {
+      "$ref": "#/definitions/workload"
+    },
+    "workload_preset": {
+      "$ref": "#/definitions/presetRef"
+    },
+    "load": {
+      "$ref": "#/definitions/load"
+    },
+    "slos": {
+      "$ref": "#/definitions/slos"
+    },
+    "prometheus": {
+      "$ref": "#/definitions/prometheus"
+    },
+    "analysis": {
+      "$ref": "#/definitions/analysis"
+    },
+    "storage": {
+      "$ref": "#/definitions/storage"
+    }
+  },
+  "definitions": {
+    "knobValue": {
+      "description": "A knob is a string, number or boolean.",
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ]
+    },
+    "secretRef": {
+      "description": "Names a Kubernetes Secret. Secrets are never inlined.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "secretKeyRef": {
+      "description": "Names one key of a Kubernetes Secret.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "key"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tlsMtls": {
+      "description": "mtls: present a client certificate from the named kubernetes.io/tls Secret and verify the server.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "secretRef"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "mtls"
+        },
+        "secretRef": {
+          "$ref": "#/definitions/secretRef"
+        }
+      }
+    },
+    "tlsPlatform": {
+      "description": "platform: plain HTTP, encryption asserted by the platform. Carries no certificate settings.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "platform"
+        }
+      }
+    },
+    "tlsServer": {
+      "description": "tls: server-authenticated TLS. Verify the server against the system pool plus SSL_CERT_FILE, and the optional ca.crt of caSecretRef; present no client certificate, so there is no secretRef.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "const": "tls"
+        },
+        "caSecretRef": {
+          "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read.",
+          "$ref": "#/definitions/secretRef"
+        }
+      }
+    },
+    "tls": {
+      "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/tlsMtls"
+        },
+        {
+          "$ref": "#/definitions/tlsPlatform"
+        },
+        {
+          "$ref": "#/definitions/tlsServer"
+        }
+      ]
+    },
+    "workloadSelector": {
+      "description": "Kubernetes workload of the target, used for the config and resource snapshot.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "selector"
+      ],
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "minProperties": 1
+        }
+      }
+    },
+    "upstream": {
+      "description": "A backend behind a router target. Its tls is required: the mode of a call to an upstream endpoint is never inferred.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "tls"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "workload": {
+          "$ref": "#/definitions/workloadSelector"
+        },
+        "type": {
+          "description": "What the upstream runs, which picks its adapter. Absent means openai-compatible.",
+          "$ref": "#/definitions/targetType"
+        },
+        "tls": {
+          "$ref": "#/definitions/tls"
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "endpoint",
+        "model",
+        "tls"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/targetType"
+        },
+        "endpoint": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "secretRef"
+          ],
+          "properties": {
+            "secretRef": {
+              "$ref": "#/definitions/secretKeyRef"
+            }
+          }
+        },
+        "admin": {
+          "description": "Credential for the target's config API (for example Bifrost's /api/config behind auth_config), when it differs from auth. A reference by name; the value is never in the RunSpec.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "secretRef"
+          ],
+          "properties": {
+            "secretRef": {
+              "$ref": "#/definitions/adminSecretRef"
+            }
+          }
+        },
+        "workload": {
+          "$ref": "#/definitions/workloadSelector"
+        },
+        "hardware": {
+          "$ref": "#/definitions/declaredHardware"
+        },
+        "metrics": {
+          "$ref": "#/definitions/targetMetrics"
+        },
+        "upstreams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/upstream"
+          },
+          "default": []
+        },
+        "tls": {
+          "$ref": "#/definitions/tls"
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/engineType"
+        },
+        "version": {
+          "description": "\"pinned\" means the version pinned in the bench image.",
+          "type": "string",
+          "minLength": 1,
+          "default": "pinned"
+        },
+        "options": {
+          "description": "Engine-native passthrough (escape hatch).",
+          "type": "object",
+          "default": {}
+        },
+        "shards": {
+          "description": "loadgen only: the number of bench processes (pods under the Kubernetes runner) that share the load. Each offers rate / shards; shard 0 leads, merges the others' records and analyses. Absent means 1.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      }
+    },
+    "sharedPrefix": {
+      "description": "Every prompt starts with one of groups fixed prefixes of tokens tokens (a shared system prompt), so a prefix cache sees real reuse inside a run. input_tokens is the whole prompt, prefix included, so its mean must exceed tokens. Not with conversation or the embeddings api.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tokens",
+        "groups"
+      ],
+      "properties": {
+        "tokens": {
+          "description": "Length of each shared prefix, in tokens.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "groups": {
+          "description": "How many different prefixes; each request uses one, chosen by the seed.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "tokenDistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mean"
+      ],
+      "properties": {
+        "mean": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "stddev": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "input_tokens",
+        "output_tokens"
+      ],
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/datasetType"
+        },
+        "input_tokens": {
+          "$ref": "#/definitions/tokenDistribution"
+        },
+        "output_tokens": {
+          "$ref": "#/definitions/tokenDistribution"
+        },
+        "shared_prefix": {
+          "$ref": "#/definitions/sharedPrefix"
+        },
+        "padding_bytes": {
+          "description": "Filler text appended to every prompt, beyond input_tokens, so each request body grows by about this many bytes. For payload-size experiments against routers; the filler counts toward the reported input tokens.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "streaming"
+      ],
+      "properties": {
+        "preset": {
+          "description": "A workload preset, name@version (schema/presets). Mutually exclusive with dataset and conversation; an api must match the preset's.",
+          "$ref": "#/definitions/presetReference"
+        },
+        "api": {
+          "$ref": "#/definitions/workloadApi",
+          "default": "chat"
+        },
+        "streaming": {
+          "description": "Required, not defaulted: go-jsonschema cannot round-trip an explicit false over a default of true.",
+          "type": "boolean"
+        },
+        "dataset": {
+          "$ref": "#/definitions/dataset"
+        },
+        "seed": {
+          "type": "integer",
+          "default": 0
+        },
+        "conversation": {
+          "$ref": "#/definitions/conversation"
+        }
+      },
+      "description": "The request mix. Either a preset (\"preset\": \"name@version\"), which supplies the dataset, conversation and api, or those fields written out; never both, so a preset name always means one exact workload. bench expands a preset when it resolves the spec. streaming is required either way, and seed may accompany a preset. api has a default that the generated types write back, so the schema cannot forbid it beside a preset; bench rejects an api that differs from the preset's.",
+      "if": {
+        "required": [
+          "preset"
+        ]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "dataset"
+              ]
+            },
+            {
+              "required": [
+                "conversation"
+              ]
+            }
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "dataset"
+        ]
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rate",
+        "duration"
+      ],
+      "properties": {
+        "rate": {
+          "description": "Offered requests per second.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "duration": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "is_burst": {
+          "description": "A burst probe (Assumptions): kept out of the capacity ladder and exempt from the minimum stage length, it checks the recommended queue (C + B) against a short step above the operating load. Its in-flight peak comes from the client's records, not Prometheus. Absent means an ordinary stage.",
+          "type": "boolean"
+        }
+      }
+    },
+    "load": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stages"
+      ],
+      "properties": {
+        "profile": {
+          "$ref": "#/definitions/loadProfile",
+          "default": "stages"
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/stage"
+          }
+        },
+        "warmup": {
+          "description": "Excluded from summaries, kept in raw data.",
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "30s"
+        },
+        "pacing": {
+          "description": "How requests are spaced inside a stage. profile says how stages are generated; pacing says how arrivals are scheduled. constant: evenly spaced at the stage rate. poisson: exponential gaps with the stage rate as mean. linear: the rate ramps from the previous stage's rate to this stage's rate across the stage; stage 0 has no previous stage and holds its rate. sine: the rate oscillates around the stage rate; requires sine.",
+          "$ref": "#/definitions/pacing",
+          "default": "constant"
+        },
+        "sine": {
+          "description": "Parameters of sine pacing; required when pacing is sine.",
+          "$ref": "#/definitions/sinePacing"
+        }
+      },
+      "if": {
+        "properties": {
+          "pacing": {
+            "const": "sine"
+          }
+        },
+        "required": [
+          "pacing"
+        ]
+      },
+      "then": {
+        "required": [
+          "sine"
+        ]
+      }
+    },
+    "slos": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ttft_p95": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "e2e_p95": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "itl_p95": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "max_error_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "extraQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "query"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/definitions/metricName"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "prometheus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "tls"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "tls": {
+          "$ref": "#/definitions/tls"
+        },
+        "catalogs": {
+          "description": "Added to the defaults chosen from target.type.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "optional_catalogs": {
+          "description": "Collected only if detected.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "extra_queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/extraQuery"
+          },
+          "default": []
+        },
+        "step": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "5s"
+        }
+      }
+    },
+    "stageValidity": {
+      "description": "Thresholds that make a stage valid.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_achieved_rps_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.97
+        },
+        "max_send_lag_p99": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "50ms"
+        }
+      }
+    },
+    "limitsPolicy": {
+      "type": "string",
+      "enum": [
+        "follow",
+        "set",
+        "omit"
+      ]
+    },
+    "analysisLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "$ref": "#/definitions/limitsPolicy",
+          "default": "follow"
+        },
+        "memory": {
+          "$ref": "#/definitions/limitsPolicy",
+          "default": "set"
+        },
+        "qos": {
+          "type": "string",
+          "enum": [
+            "burstable",
+            "guaranteed"
+          ],
+          "default": "burstable"
+        }
+      },
+      "description": "Which limits the sizing recommends (\"Limits policy\"). cpu follow recommends a CPU limit only when the captured pod spec has one; memory defaults to set, because a memory limit is the OOM boundary; qos guaranteed sets limits equal to requests for every resource."
+    },
+    "analysis": {
+      "description": "Inputs to the resource and config recommendations.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_rps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "baseline_rps": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "stage_validity": {
+          "$ref": "#/definitions/stageValidity"
+        },
+        "limits": {
+          "$ref": "#/definitions/analysisLimits"
+        },
+        "headroom": {
+          "$ref": "#/definitions/analysisHeadroom"
+        },
+        "expected_pod_lifetime": {
+          "description": "How long a pod runs between restarts; with a significant memory slope the memory limit allows for this much growth.",
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "24h"
+        },
+        "burst_factor": {
+          "description": "Multiplies the burst the queue must absorb (B_min), for traffic burstier than the run's (Assumptions).",
+          "type": "number",
+          "minimum": 1,
+          "default": 1
+        },
+        "capacity_ladder_rps": {
+          "description": "Traffic levels of the capacity table; default 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, trimmed to the measured range.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "infra_pricing": {
+          "$ref": "#/definitions/infraPricingPolicy"
+        },
+        "token_pricing": {
+          "$ref": "#/definitions/tokenPricingPolicy"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store": {
+          "description": "Name of the configured bundle store.",
+          "type": "string",
+          "minLength": 1,
+          "default": "default"
+        }
+      }
+    },
+    "targetType": {
+      "type": "string",
+      "enum": [
+        "vllm",
+        "litellm",
+        "bifrost",
+        "openai-compatible"
+      ]
+    },
+    "engineType": {
+      "type": "string",
+      "enum": [
+        "loadgen",
+        "inference-perf",
+        "guidellm"
+      ]
+    },
+    "datasetType": {
+      "type": "string",
+      "enum": [
+        "synthetic"
+      ]
+    },
+    "workloadApi": {
+      "type": "string",
+      "enum": [
+        "chat",
+        "completion",
+        "embeddings"
+      ]
+    },
+    "loadProfile": {
+      "description": "v0 supports explicit stages only; sweep and concurrent are additive later.",
+      "type": "string",
+      "enum": [
+        "stages"
+      ]
+    },
+    "pacing": {
+      "type": "string",
+      "enum": [
+        "constant",
+        "poisson",
+        "linear",
+        "sine"
+      ]
+    },
+    "sinePacing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "period",
+        "amplitude_ratio"
+      ],
+      "properties": {
+        "period": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "amplitude_ratio": {
+          "description": "Peak deviation from the stage rate as a fraction of it; at most 1 so the rate never goes negative.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "adminSecretRef": {
+      "description": "Names the keys of a Kubernetes Secret that hold an admin credential: either one bearer token (tokenKey) or a username and password (usernameKey and passwordKey). Names only, never values.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usernameKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "passwordKey": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "tokenKey"
+            ]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "usernameKey"
+                  ]
+                },
+                {
+                  "required": [
+                    "passwordKey"
+                  ]
+                }
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "usernameKey",
+              "passwordKey"
+            ]
+          }
+        }
+      ]
+    },
+    "analysisHeadroom": {
+      "description": "Headroom fractions of the sizing: request over p95 usage, limit over the peak, replicas under the SLO-max, and GPU memory.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.2
+        },
+        "limit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.3
+        },
+        "replicas": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "default": 0.2
+        },
+        "gpu": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.1
+        }
+      }
+    },
+    "targetMetrics": {
+      "description": "Where Prometheus finds the series of a target that is not a Kubernetes workload (a bare process or a host outside the cluster). The scrape job attaches these namespace and pod labels to the target (deploy/prometheus/servtuner-external.values.yaml), so bench selects its series as it selects a pod's. Not used with workload: a Kubernetes target is found through its snapshot.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "namespace",
+        "pod"
+      ],
+      "properties": {
+        "job": {
+          "description": "The scrape job.",
+          "type": "string",
+          "minLength": 1,
+          "default": "servtuner-external"
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pod": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node": {
+          "description": "The host label its GPU exporter's series carry, which that scrape job sets to a stable name (deploy/prometheus/servtuner-external.values.yaml): the dcgm catalog selects an off-cluster GPU by it, as it selects a Kubernetes node by name.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "infraPricingPolicy": {
+      "description": "Where infrastructure prices come from. bench snapshots the resolved prices into pricing/infra.json, and servtuner analyze prices from that copy.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "none disables the infrastructure cost objectives; static reads the table below; aws queries the AWS Price List API for the snapshot's node instance type.",
+          "type": "string",
+          "enum": [
+            "none",
+            "static",
+            "aws"
+          ],
+          "default": "none"
+        },
+        "discount": {
+          "description": "A multiplier on every resolved price, for Spot, reserved instances or Savings Plans, which are not modelled.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 1
+        },
+        "static": {
+          "$ref": "#/definitions/staticPriceTable"
+        },
+        "aws": {
+          "$ref": "#/definitions/awsPricing"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "static"
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "static"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source": {
+                "const": "aws"
+              }
+            },
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "required": [
+              "aws"
+            ]
+          }
+        }
+      ]
+    },
+    "staticPriceTable": {
+      "description": "Prices for local and on-prem hardware. A node type is priced per hour with its allocatable resources, so a pod's share can be computed; a GPU model is priced per GPU-hour, directly or from the owned-hardware helper.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "nodes": {
+          "description": "Keyed by node.kubernetes.io/instance-type, or local.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/staticNodePrice"
+          }
+        },
+        "gpus": {
+          "description": "Keyed by the GPU model the snapshot records (hardware_profile.accelerator).",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/staticGpuPrice"
+          }
+        }
+      }
+    },
+    "declaredHardware": {
+      "description": "The machine a target outside Kubernetes runs on, as its host record says: there are no nodes to read it from. The analysis scopes and prices the run by it when the snapshot has no hardware profile for the target; a captured profile always wins.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "accelerator", "gpu_count"],
+      "properties": {
+        "host": {"description": "The host's name: the run's node_instance_type.", "type": "string", "minLength": 1},
+        "accelerator": {"description": "The GPU model, or none.", "type": "string", "minLength": 1},
+        "gpu_count": {"description": "The GPUs the target uses: one replica's.", "type": "integer", "minimum": 0},
+        "gpu_memory_bytes": {"type": "integer", "minimum": 0},
+        "driver_version": {"type": "string", "minLength": 1},
+        "cpu_model": {"type": "string", "minLength": 1},
+        "cpu_cores": {"type": "integer", "minimum": 0}
+      }
+    },
+    "staticNodePrice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usd_per_hour",
+        "cores",
+        "memory_gib"
+      ],
+      "properties": {
+        "usd_per_hour": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cores": {
+          "description": "Allocatable cores.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "memory_gib": {
+          "description": "Allocatable memory, GiB.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "gpus": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    },
+    "staticGpuPrice": {
+      "description": "Either usd_per_hour, or owned hardware: purchase_usd ÷ amortization_hours + watts ÷ 1000 × usd_per_kwh.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usd_per_hour": {
+          "type": "number",
+          "minimum": 0
+        },
+        "purchase_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "amortization_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "watts": {
+          "description": "Board power: the GPU's TDP, since measured power needs DCGM.",
+          "type": "number",
+          "minimum": 0
+        },
+        "usd_per_kwh": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "usd_per_hour"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "purchase_usd"
+                ]
+              },
+              {
+                "required": [
+                  "amortization_hours"
+                ]
+              },
+              {
+                "required": [
+                  "watts"
+                ]
+              },
+              {
+                "required": [
+                  "usd_per_kwh"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "required": [
+            "purchase_usd",
+            "amortization_hours",
+            "watts",
+            "usd_per_kwh"
+          ],
+          "not": {
+            "required": [
+              "usd_per_hour"
+            ]
+          }
+        }
+      ]
+    },
+    "awsPricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region"
+      ],
+      "properties": {
+        "region": {
+          "description": "The region the nodes run in (the Price List API's regionCode filter), for example us-east-1.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tokenPricingPolicy": {
+      "description": "Token cost for routers in front of priced providers. With datasheet, servtuner run fetches the pricing datasheet once and stores it in the bundle; the analysis prices only from that copy. With manual, the prices are given here (a private API no datasheet lists).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "none",
+            "datasheet",
+            "manual"
+          ],
+          "default": "none"
+        },
+        "from_price_book": {
+          "description": "Fetch the datasheet the operator supplied in the install's price book, from the api (GET /runs/{id}/datasheet) with the run's token. Needs servtuner run --api-url. Not with url.",
+          "type": "boolean",
+          "default": false
+        },
+        "url": {
+          "description": "The datasheet to fetch. Default: the price book's (from_price_book), else the Bifrost target's own framework_config.pricing_url, else https://getbifrost.ai/datasheet, which servtuner run --offline never fetches. The format is LiteLLM's model-price JSON.",
+          "type": "string",
+          "format": "uri"
+        },
+        "manual": {
+          "$ref": "#/definitions/manualTokenPrices"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "source": { "const": "manual" } }, "required": ["source"] },
+          "then": { "required": ["manual"] }
+        },
+        {
+          "if": { "properties": { "from_price_book": { "const": true } }, "required": ["from_price_book"] },
+          "then": { "not": { "required": ["url"] } }
+        }
+      ]
+    },
+    "manualTokenPrices": {
+      "description": "Token prices as given, per million tokens, for every model the requests name.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usd_per_1m_input_tokens",
+        "usd_per_1m_output_tokens"
+      ],
+      "properties": {
+        "usd_per_1m_input_tokens": { "type": "number", "minimum": 0 },
+        "usd_per_1m_output_tokens": { "type": "number", "minimum": 0 }
+      }
+    },
+    "conversation": {
+      "description": "Multi-turn chat. Request i is turn (i / concurrent) mod turns of the conversation in slot i mod concurrent, so this many conversations interleave and each restarts after its last turn. A turn sends the whole history: the earlier user messages (input_tokens each) and synthetic assistant replies (output_tokens each), the same text every turn, so the server sees a growing, repeated prefix. The replies are stand-ins, not the server's own, so a turn does not wait for the previous one: pacing stays RPS-driven. Chat only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turns"
+      ],
+      "properties": {
+        "turns": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100
+        },
+        "concurrent": {
+          "description": "Conversations in progress at once.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 64
+        }
+      }
+    },
+    "presetReference": {
+      "description": "A preset name and version joined by @, for example chat-short@1.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*@[1-9][0-9]*$"
+    },
+    "presetRef": {
+      "description": "The preset a workload was expanded from. Written by bench into spec.resolved.json, never by users; it records the name that is deliberately kept out of the workload hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

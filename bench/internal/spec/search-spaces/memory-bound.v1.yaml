@@ -1,0 +1,21 @@
+# A starting search space (search-space-template.schema.json): edit it in New session as needed.
+name: memory-bound
+version: 1
+title: One GPU near its memory limit
+description: >-
+  For a model that leaves little room for the KV cache (a large model on its GPU, or a small
+  card such as an 8 GiB one). First the GPU-side memory levers, boot by boot: an fp8 KV cache
+  and eager mode (no CUDA graph memory); then smaller scheduler bounds than single-gpu. Every
+  lever stays on the GPU: nothing is offloaded to the CPU.
+fits:
+  placements: [kubernetes, host]
+  min_gpus: 1
+  max_gpus: 1
+space:
+  min_concurrency: 8
+  knobs:
+    - {name: vllm.kv_cache_dtype, tier: feasibility, values: [auto, fp8]}
+    - {name: vllm.enforce_eager, tier: feasibility, values: [false, true]}
+    - {name: vllm.max_num_seqs, tier: scheduler, min: 8, max: 128, default: 32}
+    - {name: vllm.max_num_batched_tokens, tier: scheduler, min: 1024, max: 8192, default: 2048}
+  confirm: {top: 2, repeats: 3}

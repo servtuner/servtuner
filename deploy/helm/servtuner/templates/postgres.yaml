@@ -1,0 +1,40 @@
+{{- /* CloudNativePG Cluster. The operator is a cluster prerequisite and is not bundled. */ -}}
+{{- if eq .Values.postgres.mode "cnpg" }}
+{{- $cnpg := .Values.postgres.cnpg }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "servtuner.postgresName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "servtuner.labels" . | nindent 4 }}
+spec:
+  instances: {{ $cnpg.instances }}
+  {{- with $cnpg.imageName }}
+  imageName: {{ include "servtuner.withRegistry" (dict "root" $ "ref" .) | quote }}
+  {{- end }}
+  storage:
+    size: {{ $cnpg.storage.size }}
+    {{- with $cnpg.storage.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ $cnpg.database }}
+      owner: {{ $cnpg.owner }}
+  {{- if include "servtuner.roleNeeded" (dict "root" . "role" "postgres") }}
+  {{- /* mtls: the server requires a client certificate whose CN is the database user. */}}
+  {{- $serverSecret := include "servtuner.tlsSecretName" (dict "root" . "role" "postgres") }}
+  {{- $caSecret := $serverSecret }}
+  {{- if .Values.tls.caSecretRef }}{{- $caSecret = .Values.tls.caSecretRef.name }}{{- end }}
+  certificates:
+    serverTLSSecret: {{ $serverSecret }}
+    serverCASecret: {{ $caSecret }}
+    clientCASecret: {{ $caSecret }}
+    replicationTLSSecret: {{ include "servtuner.tlsSecretName" (dict "root" . "role" "postgresReplication") }}
+  postgresql:
+    pg_hba:
+      - hostssl all all all cert
+      - host all all all reject
+  {{- end }}
+{{- end }}

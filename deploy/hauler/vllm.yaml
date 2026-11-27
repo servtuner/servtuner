@@ -1,0 +1,10 @@
+# The optional vLLM archive: the managed vLLM images.
+# Generated from deploy/release/images.lock by `just images-lock`; never edit by hand.
+apiVersion: content.hauler.cattle.io/v1
+kind: Images
+metadata:
+  name: servtuner-vllm
+spec:
+  images:
+    - name: docker.io/vllm/vllm-openai-cpu:v0.34.0-x86_64@sha256:b14c3a46a4b08852b32528643e070d57f3731cccb0fa33ef86d4f3b3f8ac36c4
+    - name: docker.io/vllm/vllm-openai:v0.34.0@sha256:cf5b2fdd087eb4f6d261736967cc5cde974bd22ff4df50365f8fa419b6b4c484

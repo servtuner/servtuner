@@ -1,0 +1,29 @@
+# Values for `just e2e-mtls` / `just e2e-platform` (e2e/cluster.py). The script adds what depends on
+# the mode or the run: tls.mode, the issuer, ingress.host, frontend.basePath and the image tags.
+# The api runs bench itself; `--runner kubernetes` layers e2e-jobs-values.yaml to run Jobs instead.
+runner: subprocess
+
+# These runs test runs, not users, so they drive the api without signing in. User auth is covered
+# by e2e-local-* (local accounts) and `just e2e-forward-header` (forward header behind ingress-nginx).
+auth:
+  mode: none
+
+api:
+  extraEnv:
+    # The null engine needs no load target, so the plain e2e checks the platform in seconds.
+    # Dev and e2e only (helm/servtuner/README.md). e2e-load-values.yaml drops it.
+    - {name: SERVTUNER_ENGINE_OVERRIDE, value: "null"}
+
+ingress:
+  enabled: true
+  className: nginx
+
+# kind's default StorageClass is ReadWriteOnce only (rancher.io/local-path), so the chart pins
+# bench Jobs to the api's node and warns (deploy/CLAUDE.md "Storage").
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteOnce, size: 1Gi}
+
+postgres:
+  cnpg:
+    storage: {size: 1Gi}
