@@ -44,6 +44,9 @@ updates:
       # The project runs Node 24 (.tool-versions): its types stay on 24 until the runtime moves.
       - dependency-name: "@types/node"
         versions: [">=25"]
+      # TypeScript 7 is the native compiler; the tooling here (astro check, the frontend build) stays on 5 for now.
+      - dependency-name: typescript
+        versions: [">=6"]
 
   - package-ecosystem: docker
     directories: [/api, /bench, /frontend, /deploy/mocks/openai-mock]
