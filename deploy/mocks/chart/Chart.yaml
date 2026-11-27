@@ -1,6 +1,6 @@
 apiVersion: v2
-name: openai-mock
+name: servtuner-mock
 description: The servtuner OpenAI-compatible mock target, with or without TLS and client certificates.
 type: application
 version: 0.1.0
-appVersion: "dev"
+appVersion: "0.1.0"

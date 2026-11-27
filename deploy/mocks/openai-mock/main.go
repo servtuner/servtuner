@@ -18,9 +18,16 @@ import (
 	"time"
 )
 
+// version is the release that built this binary; GoReleaser and the image build set it with -ldflags.
+var version = "0.0.0-dev"
+
 func main() {
 	if filepath.Base(os.Args[0]) == vllmCommand {
 		os.Exit(runVLLM(os.Args[1:], osEnvironment, os.Stdout, os.Stderr, time.Sleep))
+	}
+	if versionRequested(os.Args[1:]) {
+		fmt.Println(version)
+		return
 	}
 	cfg, err := loadConfig(os.Args[1:], osEnvironment, os.Stderr)
 	if err != nil {
@@ -30,6 +37,11 @@ func main() {
 	if err := runUntilSignal(cfg); err != nil {
 		log.Fatalf("openai-mock: %v", err)
 	}
+}
+
+// versionRequested is true for exactly --version (or -version), as servtuner --version.
+func versionRequested(args []string) bool {
+	return len(args) == 1 && (args[0] == "--version" || args[0] == "-version")
 }
 
 // runUntilSignal serves until SIGINT or SIGTERM.

@@ -88,6 +88,7 @@ jobs:
       bench: ${{ steps.digests.outputs.bench }}
       api: ${{ steps.digests.outputs.api }}
       frontend: ${{ steps.digests.outputs.frontend }}
+      mock: ${{ steps.digests.outputs.mock }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -140,6 +141,19 @@ jobs:
           labels: |
             org.opencontainers.image.title=servtuner-frontend
             org.opencontainers.image.description=servtuner's web UI
+      - id: meta-mock
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/servtuner-mock
+          bake-target: meta-mock
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }},enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.latest == 'true' }}
+          labels: |
+            org.opencontainers.image.title=servtuner-mock
+            org.opencontainers.image.description=An OpenAI-compatible mock target with configurable latency, for trying servtuner without GPUs
       - id: bake
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
@@ -152,6 +166,8 @@ jobs:
             cwd://${{ steps.meta-api.outputs.bake-file-labels }}
             cwd://${{ steps.meta-frontend.outputs.bake-file-tags }}
             cwd://${{ steps.meta-frontend.outputs.bake-file-labels }}
+            cwd://${{ steps.meta-mock.outputs.bake-file-tags }}
+            cwd://${{ steps.meta-mock.outputs.bake-file-labels }}
           targets: release
           push: ${{ env.PUBLISH == 'true' }}
           provenance: mode=max
@@ -163,7 +179,7 @@ jobs:
       - id: digests
         if: env.PUBLISH == 'true'
         run: |
-          for name in bench api frontend; do
+          for name in bench api frontend mock; do
             digest="$(docker buildx imagetools inspect "$REGISTRY/servtuner-$name:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)"
             [[ "$digest" == sha256:* ]] || { echo "::error::no digest for $name"; exit 1; }
             echo "$name=$digest" >> "$GITHUB_OUTPUT"
@@ -181,10 +197,12 @@ jobs:
           BENCH: ${{ steps.digests.outputs.bench }}
           API: ${{ steps.digests.outputs.api }}
           FRONTEND: ${{ steps.digests.outputs.frontend }}
+          MOCK: ${{ steps.digests.outputs.mock }}
         run: |
           cosign sign --yes "$REGISTRY/servtuner-bench@$BENCH"
           cosign sign --yes "$REGISTRY/servtuner-api@$API"
           cosign sign --yes "$REGISTRY/servtuner-frontend@$FRONTEND"
+          cosign sign --yes "$REGISTRY/servtuner-mock@$MOCK"
 
   chart:
     needs: [prepare, images]
@@ -201,7 +219,10 @@ jobs:
       - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
       - run: |
           helm lint deploy/helm/servtuner
-          helm package deploy/helm/servtuner --version "$VERSION" --app-version "$VERSION" --destination dist/chart
+          helm lint deploy/mocks/chart
+          for chart in deploy/helm/servtuner deploy/mocks/chart; do
+            helm package "$chart" --version "$VERSION" --app-version "$VERSION" --destination dist/chart
+          done
       - if: env.PUBLISH == 'true'
         id: cosign-version
         run: echo "version=v$(awk '$1 == "cosign" {print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
@@ -221,12 +242,14 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin <<<"$TOKEN"
-          pushed="$(helm push "dist/chart/servtuner-$VERSION.tgz" "oci://$REGISTRY/charts" 2>&1)"
-          echo "$pushed"
-          digest="$(grep -oE 'sha256:[0-9a-f]{64}' <<<"$pushed" | head -1)"
-          [ -n "$digest" ] || { echo "::error::helm push printed no digest"; exit 1; }
-          cosign sign --yes "$REGISTRY/charts/servtuner@$digest"
-          echo "oci://$REGISTRY/charts/servtuner:$VERSION ($digest)" >> "$GITHUB_STEP_SUMMARY"
+          for name in servtuner servtuner-mock; do
+            pushed="$(helm push "dist/chart/$name-$VERSION.tgz" "oci://$REGISTRY/charts" 2>&1)"
+            echo "$pushed"
+            digest="$(grep -oE 'sha256:[0-9a-f]{64}' <<<"$pushed" | head -1)"
+            [ -n "$digest" ] || { echo "::error::helm push printed no digest for $name"; exit 1; }
+            cosign sign --yes "$REGISTRY/charts/$name@$digest"
+            echo "oci://$REGISTRY/charts/$name:$VERSION ($digest)" >> "$GITHUB_STEP_SUMMARY"
+          done
 
   archive:
     needs: [prepare, images]

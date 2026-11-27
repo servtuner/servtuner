@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# The servtuner CLI and the GitHub Release, run by .github/workflows/release.yml on a vX.Y.Z tag.
-# GoReleaser builds the CLI for every platform, signs the checksums with cosign (keyless, the workflow's OIDC
+# The servtuner CLI, the mock target and the GitHub Release, run by .github/workflows/release.yml on a vX.Y.Z tag.
+# GoReleaser builds the CLI and the mock for every platform, signs the checksums with cosign (keyless, the workflow's OIDC
 # identity), and creates the release with the CLI archives plus the files the workflow built before it
 # (SERVTUNER_RELEASE_DIR: the air-gapped archive, the deploy bundle, SHA256SUMS, THIRD_PARTY_NOTICES, INSTALL.md).
 #
@@ -22,6 +22,18 @@ builds:
     goos: [linux, darwin]
     goarch: [amd64, arm64]
     mod_timestamp: "{{ .CommitTimestamp }}" # reproducible: the same commit gives the same binaries
+  # The OpenAI-compatible mock (its own module), so the quickstart needs no Go toolchain.
+  - id: servtuner-mock
+    dir: deploy/mocks/openai-mock
+    main: .
+    binary: servtuner-mock
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: servtuner
@@ -29,6 +41,11 @@ archives:
     formats: [tar.gz]
     name_template: "servtuner_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files: [LICENSE, NOTICE, README.md]
+  - id: servtuner-mock
+    ids: [servtuner-mock]
+    formats: [tar.gz]
+    name_template: "servtuner-mock_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, NOTICE]
 
 checksum:
   name_template: checksums.txt

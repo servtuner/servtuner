@@ -63,4 +63,11 @@ expect_failure 'tls.enabled must be true or false' --set-string tls.enabled=yes
 expect_failure 'tls.enabled needs tls.certManager.issuerRef.name' --set tls.certManager.issuerRef.name=
 expect_failure 'was replaced in servtuner 0.2' --set tls.mode=mtls
 
+# The published image by default, at the chart's appVersion (a release packages the chart with its version).
+app_version="$(sed -n 's/^appVersion: "\(.*\)"$/\1/p' "$chart/Chart.yaml")"
+rendered="$(render -f "$chart/ci/tls-off.yaml")"
+check "the published image at the chart's appVersion by default" "$(grep -qF "image: \"ghcr.io/servtuner/servtuner-mock:$app_version\"" <<<"$rendered" && echo 0 || echo 1)"
+rendered="$(render -f "$chart/ci/tls-off.yaml" --set image.repository=servtuner-mock --set image.tag=e2e)"
+check "a local build: repository and tag as given" "$(grep -qF 'image: "servtuner-mock:e2e"' <<<"$rendered" && echo 0 || echo 1)"
+
 [ "$failures" -eq 0 ] && echo "all mock chart tests passed" || { echo "$failures mock chart test(s) failed"; exit 1; }

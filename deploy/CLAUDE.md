@@ -127,6 +127,10 @@ mocks/
   CI runs both.
 - `mocks/openai-mock` supports both modes: TLS requiring a client certificate,
   or plain HTTP.
+- The mock ships with every release, so trying servtuner needs no Go and no image builds: a
+  `servtuner-mock` binary (GoReleaser), the image `ghcr.io/servtuner/servtuner-mock` and the chart
+  `charts/servtuner-mock` (both signed), and its image in the air-gapped archive. It ships what exists;
+  new mock features are not a release goal.
 
 ## Constraints
 
