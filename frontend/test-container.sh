@@ -67,6 +67,8 @@ run_scenario() {
 
   check "$name: config.json missing at depth is 404, not index.html" \
     "$([ "$(curl -s -o /dev/null -w '%{http_code}' "$origin$mount/runs/x/config.json")" = 404 ] && echo 0 || echo 1)"
+  check "$name: an api path that reaches the UI is a JSON 404, not index.html" \
+    "$(curl -s -o /dev/null -D - "${headers[@]}" "$origin$mount/api/auth/status" | tr -d '\r' | awk 'NR==1 && $2!="404" {bad=1} tolower($0) ~ /^content-type: application\/json/ {ok=1} END {exit !(ok && !bad)}' && echo 0 || echo 1)"
   check "$name: forged If-None-Match and If-Modified-Since do not 304 index.html" \
     "$([ "$(curl -s -o /dev/null -w '%{http_code}' "${headers[@]}" -H 'If-None-Match: *' -H 'If-Modified-Since: Fri, 01 Jan 2100 00:00:00 GMT' "$origin$mount/runs/abc")" = 200 ] && echo 0 || echo 1)"
   check "$name: duplicate X-Forwarded-Prefix falls back to the env path" \

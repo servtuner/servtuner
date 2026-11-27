@@ -3,6 +3,18 @@
 offline: {{ .Values.offline }}
 prometheus:
   url: http://kps-prometheus.monitoring.svc:9090
+{{- if .Values.install.issuer }}
+# The helmfile's servtuner-issuer release.
+tls:
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}
+{{- end }}
+{{- if .Values.install.gateway }}
+# The helmfile's servtuner-gateway release; the site names the hostname.
+gateway:
+  enabled: true
+  parentRefs: [{name: servtuner}]
+{{- end }}
 postgres:
   cnpg:
     # Pinned rather than the operator's default, so the release carries it (deploy/release/images.lock).

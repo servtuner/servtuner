@@ -21,7 +21,7 @@ Pods carry the label `servtuner.dev/scrape=true`.
 
 ## 1. Install the mock
 
-Prerequisite: the `servtuner-ca` ClusterIssuer is Ready (with TLS; `deploy/kind/cluster-issuer.yaml`).
+Prerequisite: the `servtuner-ca` ClusterIssuer is Ready (with TLS; `deploy/helmfile/manifests/issuer/cluster-issuer.yaml`).
 
 Each release publishes the chart and its image (`ghcr.io/servtuner/servtuner-mock:<version>`, signed like servtuner's
 own images), and its Release carries a `servtuner-mock` binary for one machine:

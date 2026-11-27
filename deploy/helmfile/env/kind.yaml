@@ -1,2 +1,5 @@
-# A local kind cluster with internet access: the e2e's prerequisites, from the chart repositories.
+# A local kind cluster with internet access: every prerequisite from the chart repositories.
 siteValues: [helmfile/kind-values.yaml]
+# kind has no load balancer: the Gateway's proxy gets a ClusterIP Service, reached with kubectl port-forward.
+gateway:
+  serviceType: ClusterIP

@@ -120,6 +120,13 @@ mocks/
   HTTPRoutes with the same layout as the Ingresses, attached to a Gateway the cluster provides. With
   TLS an Envoy `Backend` carries the ingress client certificate and a `BackendTLSPolicy` checks the
   api's name. `ingress` and `gateway` are exclusive. kind runs Envoy Gateway beside ingress-nginx.
+- **The helmfile** (`helmfile.yaml.gotmpl`) installs each component as its own release, never a subchart or
+  an umbrella chart: cert-manager, CloudNativePG, Envoy Gateway, kube-prometheus-stack, servtuner's private CA
+  (`servtuner-issuer`) and a Gateway (`servtuner-gateway`), then servtuner. The last two are plain manifests in
+  `helmfile/manifests/` (helmfile renders them; no chart). What the helmfile installs must work end to end
+  (`-e kind` is a working, reachable install with TLS on); each can be turned off (`install.*`), and then the
+  site's own issuer, Gateway or Ingress is the site's to run. The site's `site-values.yaml` comes last in
+  every environment.
 - **`kind` runs both kinds of environment:**
   - `just e2e-mutual-tls` uses cert-manager with a self-signed ClusterIssuer.
   - `just e2e-tls-off` uses plain connections.

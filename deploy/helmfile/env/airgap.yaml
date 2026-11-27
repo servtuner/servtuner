@@ -3,4 +3,3 @@
 #   --state-values-set registry=registry.corp:5000
 offline: true
 chartsDir: charts
-siteValues: [site-values.yaml]

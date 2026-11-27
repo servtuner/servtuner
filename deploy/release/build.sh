@@ -82,10 +82,10 @@ cp -r "$deploy/helm/servtuner" "$bundle/deploy/helm/"
 # The mock target's chart, so an air-gapped site can try servtuner without GPUs (its image is in the core archive).
 mkdir -p "$bundle/deploy/mocks"
 cp -r "$deploy/mocks/chart" "$bundle/deploy/mocks/"
-sed -i "s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/mocks/chart/Chart.yaml"
-cp "$deploy/kind/envoy-gateway-class.yaml" "$bundle/deploy/helmfile/"
+sed -i "s/^version: .*/version: $version/; s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/mocks/chart/Chart.yaml"
 sed -i "s/^servtunerVersion: .*/servtunerVersion: $version/" "$bundle/deploy/helmfile/env/common.yaml"
-sed -i "s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/helm/servtuner/Chart.yaml"
+# The chart's version is the release's too, so helm list shows servtuner-<version>.
+sed -i "s/^version: .*/version: $version/; s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/helm/servtuner/Chart.yaml"
 helm pull cert-manager --version "$(value certManager)" -d "$bundle/deploy/charts" --repo https://charts.jetstack.io
 helm pull cloudnative-pg --version "$(value cnpg)" -d "$bundle/deploy/charts" --repo https://cloudnative-pg.github.io/charts
 helm pull kube-prometheus-stack --version "$(value prometheus)" -d "$bundle/deploy/charts" --repo https://prometheus-community.github.io/helm-charts

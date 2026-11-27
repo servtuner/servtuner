@@ -21,6 +21,13 @@ install:
   cnpg: true
   envoyGateway: true
   prometheus: true
+  issuer: true        # servtuner's private CA, the servtuner-ca ClusterIssuer (needs cert-manager)
+  gateway: true       # a GatewayClass and the Gateway servtuner's routes attach to (needs Envoy Gateway)
+
+# The Gateway's proxy Service: LoadBalancer where the cluster has one, ClusterIP (reached with kubectl
+# port-forward) where it has not.
+gateway:
+  serviceType: LoadBalancer
 
 # The registry every image comes from. Empty means each image's public registry.
 registry: ""
@@ -30,5 +37,6 @@ imagePullSecrets: []
 offline: false
 # Where the chart files are, relative to this helmfile. Empty means the chart repositories.
 chartsDir: ""
-# The site's own values for the servtuner chart (TLS, hostnames, storage), relative to this helmfile.
+# Values for the servtuner chart the environment adds, relative to this helmfile. The site's own,
+# site-values.yaml, always comes last.
 siteValues: []

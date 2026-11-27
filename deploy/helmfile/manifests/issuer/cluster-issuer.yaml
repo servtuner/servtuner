@@ -1,5 +1,5 @@
-# Self-signed CA chain for servtuner's TLS on a dev cluster. Requires cert-manager.
-# NOT applied automatically: review it, then `kubectl apply -f` it yourself.
+# servtuner's private CA: the helmfile's servtuner-issuer release (install.issuer), and kind-up.sh on the dev
+# cluster. Requires cert-manager. servtuner's certificates (tls.certManager.issuerRef) come from servtuner-ca.
 # A bare self-signed issuer does not put ca.crt in issued Secrets, so the standard pattern is used:
 # self-signed issuer -> CA certificate -> CA issuer, and servtuner's tls.certManager.issuerRef points at the CA issuer.
 apiVersion: cert-manager.io/v1

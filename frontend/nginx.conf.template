@@ -55,6 +55,13 @@ server {
         add_header Vary "X-Forwarded-Prefix, Accept-Encoding";
     }
 
+    # The api is routed by the Gateway or Ingress, never by this server. An api path that reaches it is a
+    # routing problem and says so, instead of returning index.html for the UI to choke on.
+    location ~ ^/api(/|$) {
+        default_type application/json;
+        return 404 '{"detail":"the servtuner api is not routed here: check the Gateway or Ingress (gateway.enabled or ingress.enabled)"}';
+    }
+
     location / {
         try_files $uri /index.html;
     }

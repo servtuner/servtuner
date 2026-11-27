@@ -81,6 +81,26 @@ releases:
     {{- end }}
     values: [helmfile/values/kube-prometheus-stack.yaml.gotmpl]
 
+  # servtuner's private CA (a self-signed root and the servtuner-ca ClusterIssuer): plain manifests, no chart.
+  - name: servtuner-issuer
+    inherit: [{template: prerequisite}]
+    namespace: cert-manager
+    installed: {{ $v.install.issuer }}
+    chart: ./helmfile/manifests/issuer
+    {{- if $v.install.certManager }}
+    needs: [cert-manager/cert-manager]
+    {{- end }}
+
+  # The GatewayClass and the Gateway servtuner's routes attach to: plain manifests, no chart.
+  - name: servtuner-gateway
+    inherit: [{template: prerequisite}]
+    namespace: {{ $v.servtunerNamespace }}
+    installed: {{ $v.install.gateway }}
+    chart: ./helmfile/manifests/gateway
+    {{- if $v.install.envoyGateway }}
+    needs: [envoy-gateway-system/envoy-gateway]
+    {{- end }}
+
   - name: servtuner
     namespace: {{ $v.servtunerNamespace }}
     chart: ./helm/servtuner
@@ -95,8 +115,17 @@ releases:
       {{- if $v.install.envoyGateway }}
       - envoy-gateway-system/envoy-gateway
       {{- end }}
+      {{- if $v.install.issuer }}
+      - cert-manager/servtuner-issuer
+      {{- end }}
+      {{- if $v.install.gateway }}
+      - {{ $v.servtunerNamespace }}/servtuner-gateway
+      {{- end }}
+    # The site's values last, so they override the environment's. site-values.yaml is optional on kind.
+    missingFileHandler: Warn
     values:
       - helmfile/values/servtuner.yaml.gotmpl
       {{- range $v.siteValues }}
       - {{ . }}
       {{- end }}
+      - site-values.yaml
