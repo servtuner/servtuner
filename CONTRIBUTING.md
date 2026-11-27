@@ -3,6 +3,9 @@
 Thanks for helping. Before a large change, open an issue to agree on the
 approach; small fixes can go straight to a pull request.
 
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Report
+violations privately to conduct@servtuner.dev.
+
 ## Set up
 
 Toolchain versions are pinned in `.tool-versions`. With them installed:
