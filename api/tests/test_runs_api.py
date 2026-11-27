@@ -186,7 +186,7 @@ def test_a_restarted_api_watches_runs_left_running(
 
 def test_run_defaults_name_the_installs_prometheus(engine: Engine, data_dir: Path) -> None:
     """New run fills these in, so its runs collect what tuning sessions' runs do."""
-    prometheus = {"url": "http://prometheus.example:9090", "tls": {"mode": "platform"}}
+    prometheus = {"url": "http://prometheus.example:9090", "tls": {"enabled": False}}
     service = build_service(engine, FakeRunner(), data_dir)
     service.default_prometheus = prometheus
     with TestClient(create_app(lambda: service)) as client:

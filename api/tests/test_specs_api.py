@@ -21,6 +21,8 @@ from servtuner_api.specs import SpecValidator
 from tests.support.fake_runner import FakeRunner
 from tests.support.specs import example_bytes
 
+REPOSITORY = Path(__file__).resolve().parents[2]
+
 
 def service(engine: Engine, runner: FakeRunner, data_dir: Path, bench: Path | None) -> RunService:
     return RunService(
@@ -60,7 +62,7 @@ def test_a_valid_spec_in_json_or_yaml(validate_client: TestClient) -> None:
 
 def test_problems_and_warnings_are_listed(validate_client: TestClient) -> None:
     missing = validate_client.post(
-        "/specs/validate", content='{"apiVersion":"servtuner.dev/v1","kind":"RunSpec","name":"x"}'
+        "/specs/validate", content='{"apiVersion":"servtuner.dev/v2","kind":"RunSpec","name":"x"}'
     )
     report = missing.json()
     assert missing.status_code == 200 and report["valid"] is False
@@ -151,3 +153,15 @@ def test_the_knob_catalog_comes_from_bench(validate_client: TestClient) -> None:
     assert seqs["built_in"] is True and seqs["limits"] == {"ge": 1}
     assert seqs["help"].startswith("Maximum number of sequences")
     assert knobs["vllm.max_num_scheduled_tokens"]["built_in"] is False
+
+
+def test_a_servtuner_0_1_run_spec_is_refused_with_its_replacement(
+    validate_client: TestClient,
+) -> None:
+    legacy = REPOSITORY / "bench" / "internal" / "spec" / "testdata" / "legacy"
+    document = (legacy / "runspec-v1-full-vllm-client-cert.json").read_bytes()
+    report = validate_client.post("/specs/validate", content=document).json()
+    assert report["valid"] is False
+    message = " ".join(report["errors"])
+    assert "servtuner.dev/v1" in message and "apiVersion: servtuner.dev/v2" in message
+    assert '"enabled"' in message

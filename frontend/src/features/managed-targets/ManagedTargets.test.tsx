@@ -159,7 +159,7 @@ describe("managed target page", () => {
     server.use(
       http.get(`${API}/run-defaults`, () =>
         HttpResponse.json({
-          prometheus: { url: "http://kps-prometheus.monitoring.svc:9090", tls: { mode: "platform" } },
+          prometheus: { url: "http://kps-prometheus.monitoring.svc:9090", tls: { enabled: false } },
         }),
       ),
       http.get(`${API}/runs`, () =>
@@ -437,7 +437,7 @@ describe("managed vLLM list", () => {
         model: "meta-llama/Llama-3.1-8B-Instruct",
         base_flags: ["--max-model-len=8192"],
         transport: {
-          mode: "tls",
+          enabled: true,
           issuer: { kind: "ClusterIssuer", name: "servtuner-ca" },
         },
       },

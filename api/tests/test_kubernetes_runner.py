@@ -33,9 +33,9 @@ from servtuner_api.settings.models import (
     AntiAffinity,
     ChecksumMode,
     CredentialsSource,
+    HopTls,
     KubernetesRunnerSettings,
     S3Settings,
-    TransportMode,
 )
 
 RUN_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
@@ -51,10 +51,10 @@ SPEC = {
                 "name": "vllm",
                 "endpoint": "http://vllm.example.invalid/v1",
                 "workload": {"namespace": "gpu", "selector": {"app": "vllm"}},
-                "tls": {"mode": "platform"},
+                "tls": {"enabled": False},
             }
         ],
-        "tls": {"mode": "mtls", "secretRef": {"name": "bifrost-client"}},
+        "tls": {"enabled": True, "clientCert": {"secretRef": {"name": "bifrost-client"}}},
         "admin": {"secretRef": {"name": "bifrost-admin", "tokenKey": "token"}},
     },
 }
@@ -78,14 +78,19 @@ CLUSTER = KubernetesRunnerSettings(
 )
 
 
+PLAIN = HopTls(enabled=False, client_cert=False)
+TLS_ONLY = HopTls(enabled=True, client_cert=False)
+MUTUAL = HopTls(enabled=True, client_cert=True)
+
+
 def config(
-    mode: TransportMode = TransportMode.MTLS, cluster: KubernetesRunnerSettings = CLUSTER
+    hop: HopTls = MUTUAL, cluster: KubernetesRunnerSettings = CLUSTER
 ) -> KubernetesRunnerConfig:
     return KubernetesRunnerConfig(
         cluster=cluster,
         data_dir=PurePosixPath("/var/lib/servtuner"),
         api_url="https://servtuner-api.servtuner.svc:8080",
-        api_tls_mode=mode,
+        api_hop=hop,
     )
 
 
@@ -189,21 +194,22 @@ def test_names_and_spec_walkers() -> None:
     assert workloads_in({"target": {"type": "vllm"}}) == []
 
 
-@pytest.mark.parametrize("mode", list(TransportMode))
-def test_command_follows_the_bench_contract(mode: TransportMode) -> None:
-    args = JobBuilder(config(mode)).command(RUN_ID)
+@pytest.mark.parametrize("hop", [PLAIN, TLS_ONLY, MUTUAL])
+def test_command_follows_the_bench_contract(hop: HopTls) -> None:
+    args = JobBuilder(config(hop)).command(RUN_ID)
     expected = [
         "run", "--spec", "/etc/servtuner/spec/spec.json",
         "--out", f"/var/lib/servtuner/runs/{RUN_ID}", "--run-id", RUN_ID,
         "--api-url", "https://servtuner-api.servtuner.svc:8080",
         "--run-token-file", "/etc/servtuner/run-token/token",
-        "--api-tls-mode", mode.value,
+        "--api-tls", "true" if hop.enabled else "false",
     ]  # fmt: skip
-    if mode is TransportMode.MTLS:
+    if hop.enabled:
+        expected += ["--tls-ca-file", "/etc/servtuner/tls/ca/ca.crt"]
+    if hop.client_cert:
         expected += [
             "--tls-cert-file", "/etc/servtuner/tls/bench/tls.crt",
             "--tls-key-file", "/etc/servtuner/tls/bench/tls.key",
-            "--tls-ca-file", "/etc/servtuner/tls/ca/ca.crt",
         ]  # fmt: skip
     assert args == expected
 
@@ -249,10 +255,8 @@ def test_every_secret_the_spec_names_is_mounted_where_bench_reads_it() -> None:
     assert token is not None and token.secretName == NAME
 
 
-def test_platform_mode_mounts_no_certificates() -> None:
-    builder = JobBuilder(
-        config(TransportMode.PLATFORM, replace(CLUSTER, bench_tls_secret=None, ca_secret=None))
-    )
+def test_no_tls_mounts_no_certificates() -> None:
+    builder = JobBuilder(config(PLAIN, replace(CLUSTER, bench_tls_secret=None, ca_secret=None)))
     job = builder.job(RUN_ID, SPEC)
     assert job.spec is not None and job.spec.template.spec is not None
     paths = {mount.mountPath for mount in job.spec.template.spec.containers[0].volumeMounts or []}
@@ -434,15 +438,15 @@ def test_an_s3_store_reaches_the_job_by_reference() -> None:
     cluster = replace(
         CLUSTER, data_claim=None, s3_credentials=("servtuner-s3", "access-key", "secret-key")
     )
-    runner_config = replace(config(cluster=cluster), s3=s3, object_store_mode=TransportMode.MTLS)
+    runner_config = replace(config(cluster=cluster), s3=s3, object_store_hop=MUTUAL)
     builder = JobBuilder(runner_config)
     args = builder.command(RUN_ID)
     position = args.index("--out")
     assert args[position : position + 4] == [
         "--out",
         "s3://servtuner-runs/runs/",
-        "--object-store-tls-mode",
-        "mtls",
+        "--object-store-tls",
+        "true",
     ]
     assert "--object-store-ca-file" in args and RUN_ID not in args[position + 1]
     job = builder.job(RUN_ID, SPEC)

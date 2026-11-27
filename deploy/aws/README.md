@@ -18,11 +18,11 @@ storage:
     credentials: {source: ambient}
 tls:
   hops:
-    objectStore: mtls            # AWS S3 is HTTPS; no client certificate is sent to AWS
+    objectStore: {enabled: true, clientCert: false}   # AWS S3 is HTTPS, with no client certificate
 ```
 
 Leave `storage.s3.endpoint` empty for AWS. With an endpoint (RustFS, Ceph RGW, SeaweedFS, Garage), the
-`objectStore` hop is `mtls` (HTTPS, client certificate) or `platform` (plain HTTP), as for every hop.
+`objectStore` hop has TLS on (HTTPS, with or without a client certificate) or off (plain HTTP), as for every hop.
 
 ## What the cluster needs
 

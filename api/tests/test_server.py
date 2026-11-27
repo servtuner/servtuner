@@ -10,7 +10,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from servtuner_api.server import build_app
 from servtuner_api.settings.models import Settings
-from tests.support.environment import platform_env
+from tests.support.environment import plain_env
 from tests.support.specs import run_spec_bytes
 from tests.support.waiting import wait_until
 
@@ -23,7 +23,7 @@ def settings_for(tmp_path: Path, postgres: PostgresContainer) -> Settings:
     bench.write_text(FAKE_BENCH)
     bench.chmod(bench.stat().st_mode | stat.S_IXUSR)
     return Settings.from_env(
-        platform_env(
+        plain_env(
             tmp_path,
             SERVTUNER_BENCH_BINARY=str(bench),
             SERVTUNER_DATABASE_HOST=postgres.get_container_host_ip(),

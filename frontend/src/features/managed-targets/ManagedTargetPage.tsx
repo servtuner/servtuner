@@ -280,7 +280,7 @@ function Details({ target }: { target: ManagedTarget }) {
                   ? `From ${spec.model_source.endpoint}, cached in ${spec.model_cache?.size ?? "?"}`
                   : `From Hugging Face, cached in ${spec.model_cache?.size ?? "?"}`,
           ],
-          ["Transport", spec.transport?.mode === "tls" ? "TLS (its own certificate)" : "Plain HTTP"],
+          ["Transport", spec.transport?.enabled ? "TLS (its own certificate)" : "Plain HTTP"],
         ];
   rows.push(["Base flags", spec.base_flags?.length ? spec.base_flags.join(" ") : "–"]);
   return (

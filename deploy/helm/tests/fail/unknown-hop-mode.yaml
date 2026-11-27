@@ -1,3 +1,0 @@
-# expect: tls.hops.postgres "none" is unknown
-tls: {mode: platform, hops: {postgres: none}}
-storage: {file: {pvc: {create: true}}}

@@ -1,0 +1,3 @@
+# expect: tls.hops.postgres.mode is unknown
+tls: {enabled: false, hops: {postgres: {mode: mtls}}}
+storage: {file: {pvc: {create: true}}}

@@ -1,0 +1,12 @@
+# TLS without client certificates: the api asks for none, and Postgres takes a password over TLS.
+tls:
+  enabled: true
+  clientAuth: none
+  hops:
+    postgres: {clientCert: false}
+  source: cert-manager
+  certManager:
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteMany}

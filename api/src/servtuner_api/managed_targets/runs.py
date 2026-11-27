@@ -94,7 +94,7 @@ def run_target(
             "endpoint": spec.endpoint,
             "model": spec.served_model_name or spec.model,
             "metrics": metrics,
-            "tls": {"mode": "platform"},  # endpoint is http:// (plain by default)
+            "tls": {"enabled": False},  # endpoint is http:// (plain by default)
         }
         if spec.auth:
             target["auth"] = {"secretRef": {"name": spec.auth.name, "key": spec.auth.key}}
@@ -104,9 +104,9 @@ def run_target(
     is_tls = isinstance(spec.transport, TlsTransport)
     scheme = "https" if is_tls else "http"
     tls: dict[str, Any] = (
-        {"mode": "tls", "caSecretRef": {"name": ca_secret_name(name)}}
+        {"enabled": True, "caSecretRef": {"name": ca_secret_name(name)}}
         if is_tls
-        else {"mode": "platform"}
+        else {"enabled": False}
     )
     return {
         "type": "vllm",

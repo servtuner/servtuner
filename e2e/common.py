@@ -11,12 +11,12 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 import httpx2
 
-from servtuner_api.settings.models import TransportMode
 from tests.support.specs import example_bytes
 
 REPOSITORY = Path(__file__).resolve().parents[1]
@@ -30,10 +30,28 @@ TERMINAL_STATES = {"succeeded", "failed", "cancelled"}
 # The seven steps of bench's run pipeline, read from the schema so they are defined once.
 EVENTS_SCHEMA = REPOSITORY / "schema" / "json" / "events.schema.json"
 PIPELINE_STEPS = json.loads(EVENTS_SCHEMA.read_text())["definitions"]["pipelineStep"]["enum"]
-# An example whose target TLS mode matches the hop under test; the null engine never connects.
+
+
+class Security(StrEnum):
+    """The two end-to-end setups: TLS with client certificates on every hop, or TLS on none."""
+
+    MUTUAL_TLS = "mutual-tls"
+    TLS_OFF = "tls-off"
+
+    @property
+    def tls(self) -> bool:
+        return self is Security.MUTUAL_TLS
+
+    @property
+    def tls_flag(self) -> str:
+        """SERVTUNER_TLS_ENABLED and the chart's tls.enabled: true or false."""
+        return "true" if self.tls else "false"
+
+
+# An example whose target TLS matches the hop under test; the null engine never connects.
 EXAMPLE_FOR_MODE = {
-    TransportMode.MTLS: "minimal-vllm-client-cert",
-    TransportMode.PLATFORM: "router-bifrost-tls-off",
+    Security.MUTUAL_TLS: "minimal-vllm-client-cert",
+    Security.TLS_OFF: "router-bifrost-tls-off",
 }
 
 
@@ -134,9 +152,9 @@ def refuse_without_client_certificate(base_url: str, authority_certificate: Path
         ) as client:
             client.get("/healthz")
     except httpx2.TransportError:
-        check(True, "mtls: a request without a client certificate is refused")
+        check(True, "mutual-tls: a request without a client certificate is refused")
     else:
-        raise AssertionError("mtls: a request without a client certificate was served")
+        raise AssertionError("mutual-tls: a request without a client certificate was served")
 
 
 def check_manifest_succeeded(manifest: dict[str, Any]) -> None:
@@ -145,7 +163,7 @@ def check_manifest_succeeded(manifest: dict[str, Any]) -> None:
 
 def exercise_run(
     client: httpx2.Client,
-    mode: TransportMode,
+    mode: Security,
     check_bundle: Callable[[str], None],
     document: bytes | None = None,
     timeout_seconds: float = TIMEOUT_SECONDS,
@@ -185,7 +203,7 @@ def exercise_run(
 
 def exercise_schedule(
     client: httpx2.Client,
-    mode: TransportMode,
+    mode: Security,
     timeout_seconds: float = SCHEDULE_TIMEOUT_SECONDS,
 ) -> str:
     """Create a schedule due now and wait for the api's scheduler to launch and finish its run.

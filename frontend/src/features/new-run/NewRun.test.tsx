@@ -69,17 +69,17 @@ describe("new run", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Validate" }));
     expect(await screen.findByText("Valid, with warnings")).toBeInTheDocument();
     expect(screen.getByText(/Warning: load.stages\[0\]/)).toBeInTheDocument();
-    expect(validated).toContain("apiVersion: servtuner.dev/v1");
+    expect(validated).toContain("apiVersion: servtuner.dev/v2");
     await userEvent.click(screen.getByRole("button", { name: "Create run" }));
     await screen.findByRole("heading", { name: succeededRun.name });
-    expect(created).toMatchObject({ apiVersion: "servtuner.dev/v1", kind: "RunSpec", load: { pacing: "poisson" } });
+    expect(created).toMatchObject({ apiVersion: "servtuner.dev/v2", kind: "RunSpec", load: { pacing: "poisson" } });
     expect(router.state.location.pathname).toBe(`/runs/${succeededRun.id}`);
   });
 
   it("clones a run from its submitted spec and blocks a YAML that does not parse", async () => {
     server.use(
       http.get(`${TEST_API_BASE_URL}/runs/:runId/files/spec.yaml`, () =>
-        HttpResponse.text("apiVersion: servtuner.dev/v1\nkind: RunSpec\nname: cloned-run\n"),
+        HttpResponse.text("apiVersion: servtuner.dev/v2\nkind: RunSpec\nname: cloned-run\n"),
       ),
     );
     renderApp(`/runs/new?from=${succeededRun.id}`);

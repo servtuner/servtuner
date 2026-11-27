@@ -84,8 +84,8 @@ frontend:
 
 # Optional ingress-nginx routing (annotations are ingress-nginx's). Two Ingresses: the UI goes to the
 # frontend under frontend.basePath, and ingress.apiPath (prefix stripped) goes to the api. Browser
-# TLS is terminated here, outside servtuner. With the ingress -> api hop in mtls mode the
-# api Ingress uses backend mTLS with the chart's ingress certificate Secret, which must carry ca.crt.
+# TLS is terminated here, outside servtuner. With TLS on the ingress -> api hop the api Ingress
+# uses backend TLS with the chart's ingress certificate Secret, which must carry ca.crt.
 ingress:
   enabled: false
   className: ""
@@ -95,7 +95,7 @@ ingress:
 
 # Gateway API routing (ingress-nginx is retired): HTTPRoutes for the UI under
 # frontend.basePath and the api under ingress.apiPath (prefix stripped), attached to a Gateway the
-# cluster provides. Use this or `ingress`, not both. In mtls mode the gateway -> api hop needs
+# cluster provides. Use this or `ingress`, not both. With TLS the gateway -> api hop needs
 # Envoy Gateway's Backend API (helm --set config.envoyGateway.extensionApis.enableBackend=true):
 # a Backend carries the chart's ingress client certificate, and a BackendTLSPolicy verifies the api.
 gateway:
@@ -126,7 +126,7 @@ postgres:
     name: ""               # defaults to <fullname>-pg
     instances: 1
     database: servtuner
-    owner: servtuner          # in mtls mode the api client certificate's CN must equal this user
+    owner: servtuner          # with a Postgres client certificate, its CN must equal this user
     storage: {size: 10Gi, storageClass: ""}
     imageName: ""          # empty = the operator's default image; required with global.imageRegistry
   external:
@@ -134,7 +134,7 @@ postgres:
     port: 5432
     database: servtuner
     user: servtuner
-    passwordSecretRef: {name: "", key: password}   # used only when the postgres hop is `platform`
+    passwordSecretRef: {name: "", key: password}   # used only when the postgres hop presents no client certificate
 
 storage:
   backend: file            # file (default) | s3
@@ -223,16 +223,22 @@ rbac:
 tuning:
   monitor: podmonitor
 
-# Transport security. Never inferred, never mixed on one connection.
+# Transport security: each hop answers TLS's two questions. Never inferred, never mixed on one connection.
 tls:
-  mode: mtls               # mtls (default) | platform
-  # Per-hop override; empty inherits tls.mode.
+  # Whether hops use TLS; each hop can override it. false is plain HTTP or TCP: for a service mesh or an
+  # encrypted CNI that encrypts the hop, or for testing.
+  enabled: true
+  # The api listener's client certificates (ingressApi, benchApi): required, optional (a certificate that
+  # is sent is verified, and tokens authenticate clients without one) or none.
+  clientAuth: required
+  # Per-hop overrides: {enabled}, and for a hop to a server servtuner does not run also {clientCert}
+  # (servtuner presents its certificate; true by default with TLS). Empty inherits the defaults above.
   hops:
-    benchPrometheus: ""
-    benchApi: ""           # must equal ingressApi: the api has one listener
-    ingressApi: ""
-    postgres: ""
-    objectStore: ""
+    benchPrometheus: {}
+    benchApi: {}           # its enabled must equal ingressApi's: the api has one listener
+    ingressApi: {}
+    postgres: {}           # clientCert false: password auth over TLS
+    objectStore: {}
   source: cert-manager     # cert-manager | secret
   certManager:
     issuerRef: {kind: ClusterIssuer, name: "", group: cert-manager.io}

@@ -66,7 +66,7 @@ function ManagedTargetsTable({ targets }: { targets: ManagedTarget[] }) {
             <Table.Td ff="monospace">{target.spec.model}</Table.Td>
             <Table.Td>{target.spec.placement === "host" ? "–" : target.spec.gpus}</Table.Td>
             <Table.Td>
-              {target.spec.placement !== "host" && target.spec.transport?.mode === "tls" ? "TLS" : "Plain HTTP"}
+              {target.spec.placement !== "host" && target.spec.transport?.enabled ? "TLS" : "Plain HTTP"}
             </Table.Td>
             <Table.Td>
               <DeploymentStateCell target={target} />

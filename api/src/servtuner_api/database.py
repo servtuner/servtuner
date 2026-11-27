@@ -33,7 +33,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from servtuner_api.auth.attribution import acting_user_id
-from servtuner_api.settings.models import DatabaseSettings, DatabaseSslMode, TlsSettings
+from servtuner_api.settings.models import DatabaseSettings, DatabaseSslMode, Hop, TlsSettings
 
 DRIVER = "postgresql+psycopg"
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
@@ -366,15 +366,15 @@ class RunMetricRow(Base):
 
 
 def build_database_url(database: DatabaseSettings, tls: TlsSettings) -> URL:
-    """The Postgres hop: ``verify-full`` with the api's client certificate, or ``disable``."""
+    """The Postgres hop: ``verify-full``, with the api's client certificate when the hop presents
+    one, or ``disable``."""
     query: dict[str, str] = {"sslmode": database.ssl_mode.value}
     if database.ssl_mode is DatabaseSslMode.VERIFY_FULL:
-        assert tls.cert_file and tls.key_file and tls.ca_bundle_file  # settings guarantee these
-        query |= {
-            "sslcert": str(tls.cert_file),
-            "sslkey": str(tls.key_file),
-            "sslrootcert": str(tls.ca_bundle_file),
-        }
+        assert tls.ca_bundle_file  # settings guarantee it
+        query["sslrootcert"] = str(tls.ca_bundle_file)
+        if tls.presents_cert(Hop.POSTGRES):
+            assert tls.cert_file and tls.key_file  # settings guarantee these
+            query |= {"sslcert": str(tls.cert_file), "sslkey": str(tls.key_file)}
     return URL.create(
         DRIVER,
         username=database.user,

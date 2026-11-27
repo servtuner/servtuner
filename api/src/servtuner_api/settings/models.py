@@ -34,9 +34,14 @@ class ConfigError(ValueError):
         super().__init__("invalid configuration: " + "; ".join(problems))
 
 
-class TransportMode(StrEnum):
-    MTLS = "mtls"
-    PLATFORM = "platform"
+class ClientAuth(StrEnum):
+    """The api listener's client-certificate policy."""
+
+    REQUIRED = "required"  # refuse a client without a valid certificate
+    OPTIONAL = (
+        "optional"  # verify a certificate that is sent; accept a client with none (tokens then)
+    )
+    NONE = "none"  # ask for no client certificate
 
 
 class Hop(StrEnum):
@@ -114,11 +119,16 @@ class DatabaseSslMode(StrEnum):
     DISABLE = "disable"
 
 
-# Which sslmode each Postgres hop mode requires: they may not disagree.
-SSLMODE_FOR_MODE = {
-    TransportMode.MTLS: DatabaseSslMode.VERIFY_FULL,
-    TransportMode.PLATFORM: DatabaseSslMode.DISABLE,
+# Which sslmode the Postgres hop requires, by whether it uses TLS: they may not disagree.
+SSLMODE_FOR_TLS = {
+    True: DatabaseSslMode.VERIFY_FULL,
+    False: DatabaseSslMode.DISABLE,
 }
+
+
+# The hops that reach the api's own listener: their client certificate follows the
+# listener's policy. The others reach a server servtuner does not run.
+API_LISTENER_HOPS = frozenset({Hop.INGRESS_API, Hop.BENCH_API})
 
 
 DEFAULT_S3_PART_SIZE_MIB = 16
@@ -175,15 +185,31 @@ class DatabaseSettings:
 
 
 @dataclass(frozen=True)
+class HopTls:
+    """One hop: whether it uses TLS, and whether servtuner presents its client certificate."""
+
+    enabled: bool
+    client_cert: bool
+
+
+@dataclass(frozen=True)
 class TlsSettings:
-    hops: Mapping[Hop, TransportMode]
+    hops: Mapping[Hop, HopTls]
+    # The api listener's policy (ingress_api, bench_api), meaningful when they use TLS.
+    client_auth: ClientAuth
     cert_file: Path | None
     key_file: Path | None
     ca_bundle_file: Path | None  # SSL_CERT_FILE: trust for OUTBOUND connections only
     client_ca_file: Path | None  # private CA only: what the listener accepts client certs from
 
-    def mode_of(self, hop: Hop) -> TransportMode:
+    def hop(self, hop: Hop) -> HopTls:
         return self.hops[hop]
+
+    def uses_tls(self, hop: Hop) -> bool:
+        return self.hops[hop].enabled
+
+    def presents_cert(self, hop: Hop) -> bool:
+        return self.hops[hop].client_cert
 
 
 @dataclass(frozen=True)
@@ -206,8 +232,8 @@ class KubernetesRunnerSettings:
     node_pinned: bool
     api_component_label: tuple[str, str] | None
     api_namespace: str
-    # Secrets in the runs namespace: bench's client certificate for the api hop,
-    # and the private CA that verifies the api (mtls only).
+    # Secrets in the runs namespace: bench's client certificate, when a hop it opens
+    # presents one, and the private CA that verifies the api (with TLS).
     bench_tls_secret: str | None
     ca_secret: str | None
     # s3 with credentials source secret: the Secret and its two keys.

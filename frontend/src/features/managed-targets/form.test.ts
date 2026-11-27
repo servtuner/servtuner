@@ -68,7 +68,7 @@ describe("managed target form body", () => {
         cpu: "8",
         memory: "64Gi",
         model_cache: { size: "200Gi" },
-        transport: { mode: "platform" },
+        transport: { enabled: false },
         base_flags: ["--max-model-len=32768"],
       },
     });
@@ -93,7 +93,11 @@ describe("managed target form body", () => {
         hf_token: { name: "hf", key: "hf_token" },
         model_cache: { size: "200Gi", storage_class: "fast" },
         node_selector: { "nvidia.com/gpu.product": "NVIDIA-H200" },
-        transport: { mode: "tls", issuer: { kind: "Issuer", name: "local-ca", group: "cert-manager.io" } },
+        transport: {
+          enabled: true,
+          client_auth: "none",
+          issuer: { kind: "Issuer", name: "local-ca", group: "cert-manager.io" },
+        },
       } as ManagedTarget["spec"],
     };
     const state = initialState(tls);
@@ -104,7 +108,7 @@ describe("managed target form body", () => {
     expect(spec.model_cache).toEqual({ size: "300Gi", storage_class: "fast" });
     expect(spec.node_selector).toEqual({ "nvidia.com/gpu.product": "NVIDIA-H200" });
     expect(spec.transport).toEqual({
-      mode: "tls",
+      enabled: true,
       issuer: { kind: "Issuer", name: "local-ca", group: "cert-manager.io" },
     });
   });

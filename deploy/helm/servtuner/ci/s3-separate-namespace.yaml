@@ -1,8 +1,8 @@
-# s3 backend: bench Jobs may run in their own namespace; mtls via cert-manager.
+# s3 backend: bench Jobs may run in their own namespace; TLS with client certificates via cert-manager.
 namespaces:
   runs: servtuner-runs
 tls:
-  mode: mtls
+  enabled: true
   source: cert-manager
   certManager:
     issuerRef: {kind: ClusterIssuer, name: servtuner-ca}

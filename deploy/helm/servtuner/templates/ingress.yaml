@@ -7,7 +7,7 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullname := include "servtuner.fullname" . }}
 {{- $ingress := .Values.ingress }}
-{{- $apiMtls := eq (include "servtuner.hopMode" (dict "root" . "hop" "ingressApi")) "mtls" }}
+{{- $apiTls := include "servtuner.hopTls" (dict "root" . "hop" "ingressApi") }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -46,8 +46,9 @@ metadata:
     {{- end }}
     {{- /* The api serves at its root, so the path prefix is stripped before proxying. */}}
     nginx.ingress.kubernetes.io/rewrite-target: /$2
-    {{- if $apiMtls }}
-    {{- /* Backend mTLS: the ingress presents its certificate and verifies the api's against the private CA. */}}
+    {{- if $apiTls }}
+    {{- /* Backend TLS: the ingress verifies the api's certificate against the private CA, and presents its
+           own when the api asks for one (tls.clientAuth). */}}
     nginx.ingress.kubernetes.io/backend-protocol: HTTPS
     nginx.ingress.kubernetes.io/proxy-ssl-secret: {{ printf "%s/%s" .Release.Namespace (include "servtuner.tlsSecretName" (dict "root" . "role" "ingress")) | quote }}
     nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"

@@ -42,6 +42,7 @@ from servtuner_api.experiments import ExperimentService
 from servtuner_api.followups import followup_document, target_patch
 from servtuner_api.hosts import HostService
 from servtuner_api.ids import new_ulid
+from servtuner_api.legacy import upgrade_bundle_document, upgrade_legacy_run_spec_raw
 from servtuner_api.managed_targets.service import ManagedTargetService
 from servtuner_api.models import (
     Event,
@@ -208,6 +209,8 @@ class RunService:
         document = read_bundle_json(self._store, bundle_key(self._store, run), path)
         if document is None:
             return None
+        # A bundle servtuner 0.1 wrote is read in today's shape (legacy.py).
+        document = upgrade_bundle_document(schema_name, document)
         try:
             validate(schema_name, document)
         except SchemaValidationError as error:
@@ -361,7 +364,8 @@ class RunService:
         run = self._repository.get(run_id)
         if not released or run is None:
             raise NotAwaitingError(f"run {run_id} is not waiting for a config change")
-        self._launch(run.id, run.spec_raw)
+        # A run created by servtuner 0.1 kept its v1 RunSpec; bench reads only v2.
+        self._launch(run.id, upgrade_legacy_run_spec_raw(run.spec_raw))
         return self._repository.get(run_id) or run
 
     def _build_row(self, spec: RunSpec, document: object, spec_raw: bytes) -> RunRow:

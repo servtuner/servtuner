@@ -1,3 +1,0 @@
-# expect: tls.mode "strict" is unknown
-tls: {mode: strict}
-storage: {file: {pvc: {create: true}}}

@@ -105,36 +105,39 @@ function Knobs({ checks }: { checks: KnobCheck[] }) {
   );
 }
 
-type TransportMode = NonNullable<Environment["transport"]["target"]>;
+type HopTransport = NonNullable<Environment["transport"]["target"]>;
 
-/** How each recorded mode is shown. A Record, so a new mode cannot fall through to another's badge. */
-const MODE_BADGE: Record<TransportMode, { label: string; color: string; tooltip?: string }> = {
-  mtls: { label: "mTLS", color: "teal" },
-  tls: {
-    label: "TLS",
-    color: "teal",
-    tooltip: "The server's certificate was verified; no client certificate was sent",
-  },
-  platform: {
-    label: "Platform",
+/** How a hop was secured, as a badge: TLS with or without a client certificate, or plain. */
+function hopBadge({ tls, client_cert }: HopTransport): { label: string; color: string; tooltip: string } {
+  if (tls && client_cert) {
+    return {
+      label: "TLS + client certificate",
+      color: "teal",
+      tooltip: "The server's certificate was verified, and servtuner presented its own",
+    };
+  }
+  if (tls) {
+    return {
+      label: "TLS",
+      color: "teal",
+      tooltip: "The server's certificate was verified; no client certificate was sent",
+    };
+  }
+  return {
+    label: "No TLS",
     color: "yellow",
-    tooltip: "Plain on the wire: the network platform (CNI or mesh) is trusted to encrypt it",
-  },
-};
+    tooltip: "Plain HTTP from servtuner: a service mesh or an encrypted network must encrypt it",
+  };
+}
 
-function ModeBadge({ mode }: { mode: TransportMode }) {
-  const { label, color, tooltip } = MODE_BADGE[mode];
-  const badge = (
-    <Badge color={color} variant="light" size="sm">
-      {label}
-    </Badge>
-  );
-  return tooltip ? (
+function TransportBadge({ transport }: { transport: HopTransport }) {
+  const { label, color, tooltip } = hopBadge(transport);
+  return (
     <Tooltip label={tooltip} multiline w={260}>
-      {badge}
+      <Badge color={color} variant="light" size="sm">
+        {label}
+      </Badge>
     </Tooltip>
-  ) : (
-    badge
   );
 }
 
@@ -157,7 +160,7 @@ function Ran({ environment }: { environment: Environment }) {
               <Table.Tr key={hop}>
                 <Table.Td>{label}</Table.Td>
                 <Table.Td>
-                  <ModeBadge mode={transport[hop]!} />
+                  <TransportBadge transport={transport[hop]!} />
                 </Table.Td>
               </Table.Tr>
             ))}

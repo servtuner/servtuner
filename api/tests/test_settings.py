@@ -4,17 +4,19 @@ from pathlib import Path
 
 import pytest
 
+from servtuner_api.database import build_database_url
 from servtuner_api.datadir import resolve_data_dir
 from servtuner_api.settings.models import (
     AntiAffinity,
     ChecksumMode,
+    ClientAuth,
     ConfigError,
     DatabaseSslMode,
     Hop,
+    HopTls,
     Settings,
-    TransportMode,
 )
-from tests.support.environment import platform_env
+from tests.support.environment import plain_env
 
 
 def mtls_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
@@ -23,9 +25,9 @@ def mtls_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
         (tmp_path / name).touch()
     (tmp_path / "ca.crt").write_text("-----BEGIN CERTIFICATE-----\n")  # the default client CA
     return (
-        platform_env(
+        plain_env(
             tmp_path,
-            SERVTUNER_TLS_MODE="mtls",
+            SERVTUNER_TLS_ENABLED="true",
             SERVTUNER_TLS_CERT_FILE=str(tmp_path / files["cert"]),
             SERVTUNER_TLS_KEY_FILE=str(tmp_path / files["key"]),
             SSL_CERT_FILE=str(tmp_path / files["ca"]),
@@ -42,27 +44,29 @@ def problems_of(env: dict[str, str]) -> str:
     return "; ".join(caught.value.problems)
 
 
-def test_platform_configuration(tmp_path: Path) -> None:
-    settings = Settings.from_env(platform_env(tmp_path, SERVTUNER_API_PORT="9090"))
+def test_plain_configuration(tmp_path: Path) -> None:
+    settings = Settings.from_env(plain_env(tmp_path, SERVTUNER_API_PORT="9090"))
     assert settings.port == 9090
-    assert settings.tls.mode_of(Hop.INGRESS_API) is TransportMode.PLATFORM
+    assert all(
+        hop == HopTls(enabled=False, client_cert=False) for hop in settings.tls.hops.values()
+    )
     assert settings.database.ssl_mode is DatabaseSslMode.DISABLE
     assert settings.api_url == "http://localhost:9090"
     assert settings.data_dir == tmp_path / "data"
 
 
 def test_tuning_namespaces_come_from_the_chart(tmp_path: Path) -> None:
-    assert Settings.from_env(platform_env(tmp_path)).tuning_namespaces == ()
-    env = platform_env(tmp_path, SERVTUNER_TUNING_NAMESPACES="servtuner-tune-a, servtuner-tune-b,")
+    assert Settings.from_env(plain_env(tmp_path)).tuning_namespaces == ()
+    env = plain_env(tmp_path, SERVTUNER_TUNING_NAMESPACES="servtuner-tune-a, servtuner-tune-b,")
     assert Settings.from_env(env).tuning_namespaces == ("servtuner-tune-a", "servtuner-tune-b")
 
 
 def test_the_tuning_monitor_is_one_of_two(tmp_path: Path) -> None:
-    assert Settings.from_env(platform_env(tmp_path)).tuning_monitor == "podmonitor"
-    env = platform_env(tmp_path, SERVTUNER_TUNING_MONITOR="scrape-annotations")
+    assert Settings.from_env(plain_env(tmp_path)).tuning_monitor == "podmonitor"
+    env = plain_env(tmp_path, SERVTUNER_TUNING_MONITOR="scrape-annotations")
     assert Settings.from_env(env).tuning_monitor == "scrape-annotations"
     assert "SERVTUNER_TUNING_MONITOR" in problems_of(
-        platform_env(tmp_path, SERVTUNER_TUNING_MONITOR="servicemonitor")
+        plain_env(tmp_path, SERVTUNER_TUNING_MONITOR="servicemonitor")
     )
 
 
@@ -70,39 +74,96 @@ def test_mtls_configuration(tmp_path: Path) -> None:
     settings = Settings.from_env(
         mtls_env(tmp_path, SERVTUNER_API_URL="https://api.example.invalid/")
     )
-    assert settings.tls.mode_of(Hop.POSTGRES) is TransportMode.MTLS
+    # TLS everywhere, client certificates required by the listener and presented on every hop.
+    assert all(hop == HopTls(enabled=True, client_cert=True) for hop in settings.tls.hops.values())
+    assert settings.tls.client_auth is ClientAuth.REQUIRED
     assert settings.api_url == "https://api.example.invalid"
 
 
-def test_hop_overrides_the_default_mode(tmp_path: Path) -> None:
-    env = platform_env(tmp_path, SERVTUNER_TLS_HOP_BENCH_PROMETHEUS="mtls")
+def test_hop_overrides_the_default(tmp_path: Path) -> None:
+    env = plain_env(tmp_path, SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_ENABLED="true")
     settings = Settings.from_env(env)
-    assert settings.tls.mode_of(Hop.BENCH_PROMETHEUS) is TransportMode.MTLS
-    assert settings.tls.mode_of(Hop.POSTGRES) is TransportMode.PLATFORM
+    assert settings.tls.hop(Hop.BENCH_PROMETHEUS) == HopTls(enabled=True, client_cert=True)
+    assert settings.tls.hop(Hop.POSTGRES) == HopTls(enabled=False, client_cert=False)
+    env |= {"SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_CLIENT_CERT": "false"}
+    assert Settings.from_env(env).tls.hop(Hop.BENCH_PROMETHEUS) == HopTls(
+        enabled=True, client_cert=False
+    )
 
 
-def test_mode_defaults_to_mtls_and_then_demands_certificates(tmp_path: Path) -> None:
-    env = platform_env(tmp_path)
-    del env["SERVTUNER_TLS_MODE"]
+def test_tls_defaults_to_on_and_then_demands_certificates(tmp_path: Path) -> None:
+    env = plain_env(tmp_path)
+    del env["SERVTUNER_TLS_ENABLED"]
     assert "SERVTUNER_TLS_CERT_FILE is required" in problems_of(env)
 
 
-def test_certificates_without_an_mtls_hop_are_rejected(tmp_path: Path) -> None:
-    env = platform_env(
+def test_certificates_no_hop_uses_are_rejected(tmp_path: Path) -> None:
+    env = plain_env(
         tmp_path, SERVTUNER_TLS_CERT_FILE=str(tmp_path / "x"), SERVTUNER_TLS_KEY_FILE="y"
     )
-    assert "no api hop is mtls" in problems_of(env)
+    assert "no hop uses the api's certificate" in problems_of(env)
+
+
+@pytest.mark.parametrize("policy", list(ClientAuth))
+def test_the_listener_client_auth_policy(tmp_path: Path, policy: ClientAuth) -> None:
+    settings = Settings.from_env(mtls_env(tmp_path, SERVTUNER_TLS_CLIENT_AUTH=policy.value))
+    assert settings.tls.client_auth is policy
+    # bench presents its certificate to the api exactly when the policy asks for one.
+    presents = policy is not ClientAuth.NONE
+    assert settings.tls.hop(Hop.BENCH_API) == HopTls(enabled=True, client_cert=presents)
+
+
+def test_client_auth_none_needs_no_client_ca(tmp_path: Path) -> None:
+    required, none = mtls_env(tmp_path), mtls_env(tmp_path, SERVTUNER_TLS_CLIENT_AUTH="none")
+    (tmp_path / "ca.crt").unlink()
+    assert "SERVTUNER_TLS_CLIENT_CA_FILE" in problems_of(required)
+    Settings.from_env(none)
+
+
+def test_the_listener_hops_take_no_client_cert_override(tmp_path: Path) -> None:
+    env = mtls_env(tmp_path, SERVTUNER_TLS_HOP_BENCH_API_CLIENT_CERT="false")
+    assert "SERVTUNER_TLS_CLIENT_AUTH" in problems_of(env)
+
+
+def test_a_client_cert_needs_tls(tmp_path: Path) -> None:
+    env = plain_env(tmp_path, SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT="true")
+    assert "SERVTUNER_TLS_HOP_POSTGRES_ENABLED=true" in problems_of(env)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [("SERVTUNER_TLS_MODE", "mtls"), ("SERVTUNER_TLS_HOP_POSTGRES", "platform")],
+)
+def test_servtuner_0_1_names_are_refused_with_their_replacement(
+    tmp_path: Path, name: str, value: str
+) -> None:
+    problems = problems_of(plain_env(tmp_path, **{name: value}))
+    assert f"{name}={value!r} was replaced in servtuner 0.2" in problems
+    assert "SERVTUNER_TLS_ENABLED" in problems
+
+
+def test_postgres_tls_without_a_client_certificate_takes_a_password(tmp_path: Path) -> None:
+    env = mtls_env(
+        tmp_path,
+        SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT="false",
+        SERVTUNER_DATABASE_PASSWORD="not-a-real-password",
+    )
+    settings = Settings.from_env(env)
+    assert settings.tls.hop(Hop.POSTGRES) == HopTls(enabled=True, client_cert=False)
+    url = build_database_url(settings.database, settings.tls)
+    assert url.query["sslmode"] == "verify-full" and "sslrootcert" in url.query
+    assert "sslcert" not in url.query and "sslkey" not in url.query
 
 
 def test_postgres_sslmode_must_agree_with_the_hop(tmp_path: Path) -> None:
     assert "contradicts" in problems_of(
-        platform_env(tmp_path, SERVTUNER_DATABASE_SSLMODE="verify-full")
+        plain_env(tmp_path, SERVTUNER_DATABASE_SSLMODE="verify-full")
     )
     assert "contradicts" in problems_of(mtls_env(tmp_path, SERVTUNER_DATABASE_SSLMODE="disable"))
 
 
 def test_sslmode_is_never_inferred(tmp_path: Path) -> None:
-    env = platform_env(tmp_path)
+    env = plain_env(tmp_path)
     del env["SERVTUNER_DATABASE_SSLMODE"]
     assert "SERVTUNER_DATABASE_SSLMODE is required" in problems_of(env)
 
@@ -114,7 +175,7 @@ def test_password_with_a_client_certificate_is_rejected(tmp_path: Path) -> None:
 
 
 def test_one_listener_cannot_serve_two_modes(tmp_path: Path) -> None:
-    env = mtls_env(tmp_path, SERVTUNER_TLS_HOP_INGRESS_API="platform")
+    env = mtls_env(tmp_path, SERVTUNER_TLS_HOP_INGRESS_API_ENABLED="false")
     assert "one listener" in problems_of(env)
 
 
@@ -124,7 +185,7 @@ def test_missing_certificate_files_are_reported(tmp_path: Path) -> None:
 
 
 def test_every_problem_is_listed_at_once(tmp_path: Path) -> None:
-    env = platform_env(tmp_path, SERVTUNER_API_PORT="x", SERVTUNER_RUNNER="nomad")
+    env = plain_env(tmp_path, SERVTUNER_API_PORT="x", SERVTUNER_RUNNER="nomad")
     del env["SERVTUNER_DATABASE_HOST"]
     problems = problems_of(env)
     assert "SERVTUNER_API_PORT" in problems and "SERVTUNER_RUNNER" in problems
@@ -132,7 +193,7 @@ def test_every_problem_is_listed_at_once(tmp_path: Path) -> None:
 
 
 def kubernetes_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
-    return platform_env(
+    return plain_env(
         tmp_path,
         SERVTUNER_RUNNER="kubernetes",
         SERVTUNER_API_URL="http://servtuner-api.servtuner.svc:8080",
@@ -191,7 +252,7 @@ def test_kubernetes_runner_needs_its_contract(tmp_path: Path) -> None:
 def test_kubernetes_runner_in_mtls_needs_the_bench_and_ca_secrets(tmp_path: Path) -> None:
     env = (
         mtls_env(tmp_path)
-        | kubernetes_env(tmp_path, SERVTUNER_TLS_MODE="mtls")
+        | kubernetes_env(tmp_path, SERVTUNER_TLS_ENABLED="true")
         | {
             "SERVTUNER_API_URL": "https://servtuner-api.servtuner.svc:8080",
             "SERVTUNER_DATABASE_SSLMODE": "verify-full",
@@ -236,13 +297,13 @@ def test_kubernetes_runner_rejects_malformed_values(tmp_path: Path) -> None:
 
 
 def test_subprocess_runner_needs_a_bench_binary(tmp_path: Path) -> None:
-    env = platform_env(tmp_path)
+    env = plain_env(tmp_path)
     del env["SERVTUNER_BENCH_BINARY"]
     assert "SERVTUNER_BENCH_BINARY is required" in problems_of(env)
 
 
 def test_database_password_is_not_in_repr(tmp_path: Path) -> None:
-    assert "not-a-real-password" not in repr(Settings.from_env(platform_env(tmp_path)))
+    assert "not-a-real-password" not in repr(Settings.from_env(plain_env(tmp_path)))
 
 
 def test_data_dir_resolution_order(tmp_path: Path) -> None:
@@ -265,30 +326,28 @@ def test_client_ca_defaults_beside_the_certificate_and_must_hold_certificates(
 
 
 def test_engine_override_defaults_off_and_accepts_only_null(tmp_path: Path) -> None:
-    assert Settings.from_env(platform_env(tmp_path)).engine_override is None
+    assert Settings.from_env(plain_env(tmp_path)).engine_override is None
     assert (
-        Settings.from_env(platform_env(tmp_path, SERVTUNER_ENGINE_OVERRIDE="null")).engine_override
+        Settings.from_env(plain_env(tmp_path, SERVTUNER_ENGINE_OVERRIDE="null")).engine_override
         == "null"
     )
     assert "only allowed value is 'null'" in problems_of(
-        platform_env(tmp_path, SERVTUNER_ENGINE_OVERRIDE="loadgen")
+        plain_env(tmp_path, SERVTUNER_ENGINE_OVERRIDE="loadgen")
     )
 
 
 def test_air_gapped_settings(tmp_path: Path) -> None:
-    default = Settings.from_env(platform_env(tmp_path))
+    default = Settings.from_env(plain_env(tmp_path))
     assert (default.offline, default.image_registry) == (False, None)
     set_ = Settings.from_env(
-        platform_env(
-            tmp_path, SERVTUNER_OFFLINE="true", SERVTUNER_IMAGE_REGISTRY="reg.example:5000/"
-        )
+        plain_env(tmp_path, SERVTUNER_OFFLINE="true", SERVTUNER_IMAGE_REGISTRY="reg.example:5000/")
     )
     assert (set_.offline, set_.image_registry) == (True, "reg.example:5000")
-    assert "expected true or false" in problems_of(platform_env(tmp_path, SERVTUNER_OFFLINE="yes"))
+    assert "expected true or false" in problems_of(plain_env(tmp_path, SERVTUNER_OFFLINE="yes"))
 
 
 def s3_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
-    base = platform_env(
+    base = plain_env(
         tmp_path,
         SERVTUNER_STORAGE_BACKEND="s3",
         SERVTUNER_S3_ENDPOINT="http://rustfs.example.invalid:9000",

@@ -22,5 +22,6 @@ endpoints its users name, so these matter most:
 - a credential reaching a run bundle, a log, an API response or the UI;
 - a way around authentication or a role's limits in the api;
 - a connection made in a weaker transport mode than the one configured
-  (`mtls`, `tls` or `platform`), or certificate verification skipped;
+  (TLS off where it was on, or no client certificate where one is required),
+  or certificate verification skipped;
 - a run or a managed target reaching namespaces or hosts it was not given.

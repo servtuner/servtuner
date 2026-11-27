@@ -70,8 +70,9 @@ mocks/
   - The CNPG operator is a cluster prerequisite and is not bundled. The chart
     fails rendering in `cnpg` mode when the `postgresql.cnpg.io` CRDs are
     missing.
-  - In `mtls` mode the CNPG `Cluster` is configured for client-certificate
-    auth, with certs from the same cert-manager or user-Secret source.
+  - With TLS on the postgres hop the CNPG `Cluster` serves TLS with certs from the same cert-manager or
+    user-Secret source, and authenticates by client certificate (or, with `clientCert: false`, by password
+    over TLS only).
   - **No Bitnami charts or images anywhere.**
 - The dev object store is optional: `storage.dev.deploy` is `rustfs` or `none`
   (the default), using the official RustFS chart at a pinned version. MinIO
@@ -91,7 +92,9 @@ mocks/
 - **Transport security**. Values:
   ```yaml
   tls:
-    mode: mtls                 # mtls (default) | platform; per-hop overrides under tls.hops.*
+    enabled: true              # TLS on every hop by default; false is plain HTTP
+    clientAuth: required       # the api listener: required | optional | none
+    hops: {}                   # per hop: {enabled}, and {clientCert} for hops to servers servtuner does not run
     source: cert-manager       # cert-manager | secret
     certManager: {issuerRef: {kind: ClusterIssuer, name: <issuer>}}
     secrets: {api: <name>, bench: <name>, ingress: <name>, postgres: <name>, objectStore: <name>}  # when source: secret
@@ -100,23 +103,23 @@ mocks/
   - With `source: cert-manager`, the chart renders `Certificate` resources.
     With `source: secret`, it only mounts the named `kubernetes.io/tls`
     Secrets. Templates mount Secrets the same way in both cases.
-  - In `mtls` mode, an init container (a shared template) concatenates the
+  - When any hop uses TLS, an init container (a shared template) concatenates the
     system CAs and `ca.crt` into an `emptyDir` and sets `SSL_CERT_FILE`.
-  - In `mtls` mode, Postgres and the dev object store are configured to require
-    client certificates. In `platform` mode they listen plain.
+  - With TLS and client certificates, Postgres and the dev object store are configured to require
+    them. Without TLS they listen plain.
   - The chart **fails rendering** on contradictory values, for example
-    `platform` mode with cert Secrets set.
+    cert Secrets set for hops without TLS.
 - **Ingress** (optional, ingress-nginx): two Ingresses for one host. The UI goes to the frontend under
   `frontend.basePath`; the api is served under the same base path (`<basePath>/api`, prefix stripped), so the
-  image's relative `config.json` works under any context path. In `mtls` the api Ingress uses backend mTLS with
+  image's relative `config.json` works under any context path. With TLS the api Ingress uses backend TLS with
   the chart's ingress certificate (`proxy-ssl-verify: "on"`); user annotations cannot override those.
 - **Gateway API** (optional, Envoy Gateway): two
-  HTTPRoutes with the same layout as the Ingresses, attached to a Gateway the cluster provides. In
-  `mtls` an Envoy `Backend` carries the ingress client certificate and a `BackendTLSPolicy` checks the
+  HTTPRoutes with the same layout as the Ingresses, attached to a Gateway the cluster provides. With
+  TLS an Envoy `Backend` carries the ingress client certificate and a `BackendTLSPolicy` checks the
   api's name. `ingress` and `gateway` are exclusive. kind runs Envoy Gateway beside ingress-nginx.
 - **`kind` runs both kinds of environment:**
-  - `just e2e-mtls` uses cert-manager with a self-signed ClusterIssuer.
-  - `just e2e-platform` uses plain connections.
+  - `just e2e-mutual-tls` uses cert-manager with a self-signed ClusterIssuer.
+  - `just e2e-tls-off` uses plain connections.
 
   CI runs both.
 - `mocks/openai-mock` supports both modes: TLS requiring a client certificate,

@@ -54,7 +54,7 @@ from servtuner_api.models import (
     parse_run_spec,
     validate,
 )
-from servtuner_api.models.generated.runspec_schema import TlsMtls, TlsPlatform
+from servtuner_api.models.generated.runspec_schema import TlsDisabled, TlsEnabled
 from servtuner_api.models.validation import schema_dir, schema_names
 
 SCHEMA_ROOT = Path(__file__).resolve().parents[2] / "schema"
@@ -227,14 +227,15 @@ def test_defaults_are_applied() -> None:
 
 
 def test_tls_variants_are_typed() -> None:
-    mtls = parse_run_spec(
+    with_cert = parse_run_spec(
         _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-client-cert.json")
     )
-    platform = parse_run_spec(
+    plain = parse_run_spec(
         _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "router-bifrost-tls-off.json")
     )
-    assert isinstance(mtls.target.tls.root, TlsMtls)
-    assert isinstance(platform.target.tls.root, TlsPlatform)
+    assert isinstance(with_cert.target.tls.root, TlsEnabled)
+    assert with_cert.target.tls.root.clientCert is not None
+    assert isinstance(plain.target.tls.root, TlsDisabled)
 
 
 @pytest.mark.parametrize(("name", "validity", "path"), INVALID_RUNSPEC_EXAMPLES)

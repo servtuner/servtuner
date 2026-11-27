@@ -45,8 +45,8 @@ vllm-catalog vllm_src venv version:
     VLLM_TARGET_DEVICE=cpu {{venv}}/bin/python -I tools/vllm-catalog/dump.py {{vllm_src}} {{version}} > bench/internal/target/vllm_catalog.json
 
 # Local end to end, no cluster: Postgres container + api + the real bench binary (needs docker, go, openssl).
-e2e-local-mtls: (_e2e-local "mtls")
-e2e-local-platform: (_e2e-local "platform")
+e2e-local-mutual-tls: (_e2e-local "mutual-tls")
+e2e-local-tls-off: (_e2e-local "tls-off")
 
 # The frontend's Playwright smoke test against the real api and bench (needs docker, go, node, Chrome).
 e2e-smoke:
@@ -64,21 +64,21 @@ image-test:
     e2e/test-images.sh {{image_tag}} {{image_version}}
 
 # Cluster end to end on the kube context SERVTUNER_KUBE_CONTEXT (default kind-kind); see e2e/cluster.py.
-e2e-mtls: (_e2e-cluster "mtls")
-e2e-platform: (_e2e-cluster "platform")
+e2e-mutual-tls: (_e2e-cluster "mutual-tls")
+e2e-tls-off: (_e2e-cluster "tls-off")
 
 # Forward-header auth on kind: ingress-nginx auth-url with a stub auth service,
 # setup through the proxy, a forged header, a linked viewer, a run, and a NetworkPolicy probe.
 e2e-forward-header:
-    PYTHONPATH=api uv run --project api python e2e/cluster.py platform --forward-header --image-tag {{image_tag}}
+    PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --forward-header --image-tag {{image_tag}}
 
 # Through Envoy Gateway instead of ingress-nginx: HTTPRoutes, Envoy's external auth for
-# forward-header auth, and in mtls the gateway's client certificate and a BackendTLSPolicy name check.
+# forward-header auth, and with mutual TLS the gateway's client certificate and a BackendTLSPolicy name check.
 e2e-gateway-forward-header:
-    PYTHONPATH=api uv run --project api python e2e/cluster.py platform --gateway --forward-header --image-tag {{image_tag}}
+    PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --gateway --forward-header --image-tag {{image_tag}}
 
-e2e-gateway-mtls:
-    PYTHONPATH=api uv run --project api python e2e/cluster.py mtls --gateway --image-tag {{image_tag}}
+e2e-gateway-mutual-tls:
+    PYTHONPATH=api uv run --project api python e2e/cluster.py mutual-tls --gateway --image-tag {{image_tag}}
 
 # servtuner with no internet access: its own kind cluster (servtuner-airgap) and registry, egress
 # blocked and proven, `helmfile -e airgap sync` from the release, priced runs, a compare and a plan.
@@ -89,14 +89,14 @@ e2e-airgap version *flags:
 # The managed vLLM from the UI on kind (Playwright, needs node and Chrome): add the mock as a
 # managed vLLM, deploy, read its log, redeploy, benchmark, tune and delete it. About 30 minutes.
 e2e-managed-ui:
-    PYTHONPATH=api uv run --project api python e2e/cluster.py platform --runner kubernetes --tuning --ui --image-tag {{image_tag}}
+    PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --runner kubernetes --tuning --ui --image-tag {{image_tag}}
 
-# Install servtuner on the kind cluster for manual testing and leave it running (platform mode, real load
+# Install servtuner on the kind cluster for manual testing and leave it running (without TLS, real load
 # engine, the mock and servtuner's Bifrost as targets). Reachable from the LAN at http://<host>/servtuner/ through
 # kind's host port 80: on the other machine, map <host> to this machine's IP in /etc/hosts. Prints the
 # cleanup command at the end.
 deploy-local host="servtuner.localtest.me":
-    SERVTUNER_E2E_HOST={{host}} PYTHONPATH=api uv run --project api python e2e/cluster.py platform --image-tag {{image_tag}} --load --keep
+    SERVTUNER_E2E_HOST={{host}} PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --image-tag {{image_tag}} --load --keep
     @echo "servtuner: http://{{host}}/servtuner/"
 
 # The image lock: render every release in deploy/helmfile.yaml.gotmpl, pin each image by digest

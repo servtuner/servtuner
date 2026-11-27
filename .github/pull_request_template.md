@@ -19,9 +19,9 @@ See [CONTRIBUTING.md](https://github.com/servtuner/servtuner/blob/main/CONTRIBUT
 
 - [ ] `just gen-check`, `just lint` and `just test` pass.
 - [ ] UI or api run flow changed: `just e2e-smoke` passes.
-- [ ] Chart changed: `just e2e-platform` or `just e2e-mtls` passes on kind.
+- [ ] Chart changed: `just e2e-tls-off` or `just e2e-mutual-tls` passes on kind.
 - [ ] Schema changed in `schema/json/` (or the api's models), regenerated with `just gen`, and no generated file edited by hand.
-- [ ] New or changed connections are tested in every transport mode they support (`mtls`, `tls`, `platform`), with no skip-verify option.
+- [ ] New or changed connections are tested with and without TLS and client certificates, as they support, with no skip-verify option.
 - [ ] No secrets, addresses or hostnames in code, tests, RunSpecs or values; placeholders and `*.localtest.me` only.
 - [ ] New dependencies are pinned exactly, with the reason below.
 - [ ] Changes the requests the workload generator sends: the workload hash changes for the affected workloads.

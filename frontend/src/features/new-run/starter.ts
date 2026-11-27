@@ -3,7 +3,7 @@ import type { ManagedTarget, RunDefaults } from "../../api/types";
 
 // The template a new run starts from: the mock target on kind, which is valid
 // as it is (a test checks bench accepts it), so Validate passes before any edit.
-export const STARTER_SPEC = `apiVersion: servtuner.dev/v1
+export const STARTER_SPEC = `apiVersion: servtuner.dev/v2
 kind: RunSpec
 name: my-run
 # experiment: my-experiment   # group runs to compare them
@@ -12,7 +12,7 @@ target:
   endpoint: http://openai-mock.servtuner-mock.svc:8000/v1
   model: mock-model
   tls:
-    mode: platform
+    enabled: false
 engine:
   type: loadgen
 workload:

@@ -184,17 +184,25 @@ describe("run detail tabs", () => {
     expect(screen.queryByText(/HF_TOKEN=/)).toBeNull();
   });
 
-  it("shows a tls hop as TLS, never as plain on the wire", async () => {
+  it("shows how each hop was secured", async () => {
     serveAnalysed();
     server.use(
       http.get(`${RUN}/environment`, () =>
-        HttpResponse.json({ ...environment, transport: { ...environment.transport, target: "tls" } }),
+        HttpResponse.json({
+          ...environment,
+          transport: {
+            target: { tls: true, client_cert: false },
+            prometheus: { tls: false, client_cert: false },
+            api: { tls: true, client_cert: true },
+          },
+        }),
       ),
     );
     renderApp(`/runs/${succeededRun.id}?tab=config`);
     const target = await screen.findByRole("row", { name: /^Target/ });
     expect(within(target).getByText("TLS")).toBeInTheDocument();
-    expect(within(target).queryByText("Platform")).toBeNull();
+    expect(within(screen.getByRole("row", { name: /^Prometheus/ })).getByText("No TLS")).toBeInTheDocument();
+    expect(within(screen.getByRole("row", { name: /^API/ })).getByText("TLS + client certificate")).toBeInTheDocument();
   });
 
   it("puts the model tested first, checked against what the server listed", async () => {

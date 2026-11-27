@@ -1,0 +1,6 @@
+# No TLS: plain HTTP on every hop, no certificate Secrets; ReadWriteOnce storage (node pinning).
+tls:
+  enabled: false
+storage:
+  file:
+    pvc: {create: true, accessMode: ReadWriteOnce}

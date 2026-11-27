@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "litellm-scale-out-2-replicas",
   "experiment": "litellm-scale-out",
@@ -20,7 +20,7 @@
       }
     },
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -64,7 +64,7 @@
   "prometheus": {
     "url": "http://127.0.0.1:19090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "slos": {

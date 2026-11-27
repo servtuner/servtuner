@@ -210,21 +210,24 @@ class IssuerRef(BaseModel):
     group: str = "cert-manager.io"
 
 
-class PlatformTransport(BaseModel):
-    """Plain HTTP (the default): the platform is trusted with the hop."""
+class PlainTransport(BaseModel):
+    """Plain HTTP (the default): no TLS from vLLM. Use it where a mesh or an encrypted network
+    encrypts the hop, or for local testing."""
 
     model_config = ConfigDict(extra="forbid")
 
-    mode: Literal["platform"] = "platform"
+    enabled: Literal[False] = False
 
 
 class TlsTransport(BaseModel):
-    """Server-authenticated TLS with the target's own certificate: from a
-    cert-manager issuer, or a kubernetes.io/tls Secret only this target uses."""
+    """vLLM serves TLS with the target's own certificate: from a cert-manager issuer, or a
+    kubernetes.io/tls Secret only this target uses. Client certificates are not offered yet
+    (client_auth is none), so the shape can take them later without changing."""
 
     model_config = ConfigDict(extra="forbid")
 
-    mode: Literal["tls"]
+    enabled: Literal[True]
+    client_auth: Literal["none"] = "none"
     issuer: IssuerRef | None = None
     secret: str | None = Field(default=None, pattern=DNS_LABEL)
 
@@ -235,7 +238,10 @@ class TlsTransport(BaseModel):
         return self
 
 
-Transport = Annotated[PlatformTransport | TlsTransport, Field(discriminator="mode")]
+# A plain union, not a discriminated one: OpenAPI discriminators are strings, so a boolean one
+# would reach the frontend's types as "true" and "false". The Literal enabled fields and
+# extra="forbid" already make the two unambiguous.
+Transport = PlainTransport | TlsTransport
 
 
 def checked_env(env: dict[str, str]) -> dict[str, str]:
@@ -283,7 +289,7 @@ class ManagedTargetSpec(BaseModel):
     # Where the weights live: the cache servtuner creates (hub, mirror), or a seeded claim (pvc).
     model_cache: ModelCache | None = None
     model_source: ModelSource = Field(default_factory=HubModel)
-    transport: Transport = Field(default_factory=PlatformTransport)
+    transport: Transport = Field(default_factory=PlainTransport)
     # /dev/shm, a memory-backed volume: tensor parallel workers (NCCL) and large models exchange
     # data through it. Unset, it is unbounded (up to the memory limit, which it counts against).
     shm_size: str | None = Field(default=None, pattern=QUANTITY)

@@ -6,10 +6,10 @@ from pathlib import PurePosixPath
 
 from servtuner_api.settings.models import (
     Hop,
+    HopTls,
     KubernetesRunnerSettings,
     S3Settings,
     Settings,
-    TransportMode,
 )
 
 FIELD_MANAGER = "servtuner-api"
@@ -114,10 +114,10 @@ class KubernetesRunnerConfig:
     cluster: KubernetesRunnerSettings
     data_dir: PurePosixPath
     api_url: str
-    api_tls_mode: TransportMode
+    api_hop: HopTls
     engine_override: str | None = None  # dev and e2e only (SERVTUNER_ENGINE_OVERRIDE)
     s3: S3Settings | None = None
-    object_store_mode: TransportMode = TransportMode.PLATFORM
+    object_store_hop: HopTls = HopTls(enabled=False, client_cert=False)
     offline: bool = False  # servtuner run --offline
 
     @classmethod
@@ -127,9 +127,9 @@ class KubernetesRunnerConfig:
             cluster=settings.kubernetes,
             data_dir=PurePosixPath(settings.data_dir),
             api_url=settings.api_url,
-            api_tls_mode=settings.tls.mode_of(Hop.BENCH_API),
+            api_hop=settings.tls.hop(Hop.BENCH_API),
             engine_override=settings.engine_override,
             offline=settings.offline,
             s3=settings.s3,
-            object_store_mode=settings.tls.mode_of(Hop.OBJECT_STORE),
+            object_store_hop=settings.tls.hop(Hop.OBJECT_STORE),
         )

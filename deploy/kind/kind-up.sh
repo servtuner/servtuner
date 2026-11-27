@@ -52,7 +52,7 @@ kube apply -f "https://raw.githubusercontent.com/kubernetes/ingress-nginx/contro
 kube -n ingress-nginx rollout status deployment ingress-nginx-controller --timeout "$READY_TIMEOUT"
 
 # Gateway API through Envoy Gateway (ingress-nginx is retired). The Backend API carries
-# the client certificate of the gateway -> api hop in mtls mode.
+# the client certificate of the gateway -> api hop with TLS.
 step "installing Envoy Gateway $ENVOY_GATEWAY_VERSION"
 helm --kube-context "$context" install eg oci://docker.io/envoyproxy/gateway-helm \
   --version "$ENVOY_GATEWAY_VERSION" -n envoy-gateway-system --create-namespace \

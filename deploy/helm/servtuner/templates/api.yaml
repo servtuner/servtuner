@@ -1,7 +1,8 @@
 {{- $fullname := include "servtuner.fullname" . }}
-{{- $apiMtls := eq (include "servtuner.hopMode" (dict "root" . "hop" "ingressApi")) "mtls" }}
+{{- $apiTls := include "servtuner.hopTls" (dict "root" . "hop" "ingressApi") }}
+{{- $checksClientCerts := and $apiTls (ne .Values.tls.clientAuth "none") }}
 {{- $needsApiCert := include "servtuner.roleNeeded" (dict "root" . "role" "api") }}
-{{- $postgresPlain := eq (include "servtuner.hopMode" (dict "root" . "hop" "postgres")) "platform" }}
+{{- $postgresPassword := not (include "servtuner.hopClientCert" (dict "root" . "hop" "postgres")) }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -40,7 +41,7 @@ spec:
         runAsNonRoot: true
         fsGroup: {{ .Values.api.fsGroup }}
         seccompProfile: {type: RuntimeDefault}
-      {{- if include "servtuner.anyMtls" . }}
+      {{- if include "servtuner.anyTls" . }}
       initContainers:
         - {{- include "servtuner.caBundleInitContainer" . | nindent 10 }}
       {{- end }}
@@ -61,7 +62,7 @@ spec:
               valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
             - name: NODE_NAME
               valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
-            {{- if include "servtuner.anyMtls" . }}
+            {{- if include "servtuner.anyTls" . }}
             {{- include "servtuner.caBundleEnv" . | nindent 12 }}
             {{- end }}
             {{- if eq .Values.storage.backend "s3" }}
@@ -74,8 +75,8 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
-            {{- /* Without client certificates the database user authenticates with a password. */}}
-            {{- if $postgresPlain }}
+            {{- /* Without a client certificate the database user authenticates with a password. */}}
+            {{- if $postgresPassword }}
             - name: SERVTUNER_DATABASE_PASSWORD
               {{- if eq .Values.postgres.mode "cnpg" }}
               valueFrom: {secretKeyRef: {name: {{ include "servtuner.postgresName" . }}-app, key: password}}
@@ -86,8 +87,8 @@ spec:
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- /* An mtls listener refuses the kubelet's client-certificate-less HTTP probe, so probe the port. */}}
-          {{- if $apiMtls }}
+          {{- /* The kubelet's HTTP probe speaks neither TLS nor client certificates, so with TLS probe the port. */}}
+          {{- if $apiTls }}
           readinessProbe:
             tcpSocket: {port: api}
           livenessProbe:
@@ -120,10 +121,10 @@ spec:
             {{- if $needsApiCert }}
             - {name: tls-api, mountPath: /etc/servtuner/tls/api, readOnly: true}
             {{- end }}
-            {{- if include "servtuner.anyMtls" . }}
+            {{- if include "servtuner.anyTls" . }}
             {{- include "servtuner.caBundleVolumeMounts" . | nindent 12 }}
             {{- end }}
-            {{- if $apiMtls }}
+            {{- if $checksClientCerts }}
             - {name: ca-source, mountPath: /etc/servtuner/tls/client-ca, readOnly: true}
             {{- end }}
             {{- if eq .Values.auth.mode "local" }}
@@ -146,7 +147,7 @@ spec:
         {{- if $needsApiCert }}
         {{- include "servtuner.keySecretVolume" (dict "name" "tls-api" "secretName" (include "servtuner.tlsSecretName" (dict "root" . "role" "api"))) | nindent 8 }}
         {{- end }}
-        {{- if include "servtuner.anyMtls" . }}
+        {{- if include "servtuner.anyTls" . }}
         {{- include "servtuner.caBundleVolumes" . | nindent 8 }}
         {{- end }}
         {{- if eq .Values.auth.mode "local" }}

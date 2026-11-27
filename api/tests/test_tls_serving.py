@@ -12,7 +12,7 @@ import pytest
 
 from servtuner_api.settings.models import Settings
 from tests.support.certs import CertificateAuthority, IssuedCertificate, create_authority
-from tests.support.environment import platform_env
+from tests.support.environment import plain_env
 from tests.support.server import running_server
 from tests.support.waiting import wait_until
 
@@ -36,12 +36,16 @@ def served_certificate(tmp_path: Path, authority: CertificateAuthority) -> Issue
 
 
 def mtls_settings(
-    tmp_path: Path, authority: CertificateAuthority, served: IssuedCertificate
+    tmp_path: Path,
+    authority: CertificateAuthority,
+    served: IssuedCertificate,
+    client_auth: str = "required",
 ) -> Settings:
-    env = platform_env(
+    env = plain_env(
         tmp_path,
-        SERVTUNER_TLS_HOP_BENCH_API="mtls",
-        SERVTUNER_TLS_HOP_INGRESS_API="mtls",
+        SERVTUNER_TLS_HOP_BENCH_API_ENABLED="true",
+        SERVTUNER_TLS_HOP_INGRESS_API_ENABLED="true",
+        SERVTUNER_TLS_CLIENT_AUTH=client_auth,
         SERVTUNER_TLS_CERT_FILE=str(served.cert_file),
         SERVTUNER_TLS_KEY_FILE=str(served.key_file),
         SSL_CERT_FILE=str(authority.cert_file),
@@ -115,8 +119,34 @@ def test_mtls_server_refuses_plain_http(
         httpx2.get(server.url("http"))
 
 
-def test_platform_mode_serves_plain_http(tmp_path: Path) -> None:
-    with running_server(Settings.from_env(platform_env(tmp_path))) as server:
+def test_optional_client_auth_verifies_what_is_sent(
+    tmp_path: Path, authority: CertificateAuthority, served_certificate: IssuedCertificate
+) -> None:
+    stranger = create_authority(tmp_path / "other-pki", "other-ca").issue("stranger")
+    settings = mtls_settings(tmp_path, authority, served_certificate, client_auth="optional")
+    with running_server(settings) as server:
+        # No certificate: accepted, so a token alone authenticates.
+        without = httpx2.get(server.url("https"), verify=client_context(authority, None))
+        good = authority.issue("bench-client")
+        with_good = httpx2.get(server.url("https"), verify=client_context(authority, good))
+        # A certificate that is sent is verified: one from an untrusted CA is refused.
+        with pytest.raises(httpx2.TransportError):
+            httpx2.get(server.url("https"), verify=client_context(authority, stranger))
+    assert without.status_code == 200 and with_good.status_code == 200
+
+
+def test_client_auth_none_serves_tls_without_a_client_ca(
+    tmp_path: Path, authority: CertificateAuthority, served_certificate: IssuedCertificate
+) -> None:
+    (tmp_path / "ca.crt").unlink()  # no client CA at all
+    settings = mtls_settings(tmp_path, authority, served_certificate, client_auth="none")
+    with running_server(settings) as server:
+        response = httpx2.get(server.url("https"), verify=client_context(authority, None))
+    assert response.json() == {"status": "ok"}
+
+
+def test_tls_off_serves_plain_http(tmp_path: Path) -> None:
+    with running_server(Settings.from_env(plain_env(tmp_path))) as server:
         assert httpx2.get(server.url("http")).json() == {"status": "ok"}
         with pytest.raises(httpx2.TransportError):
             httpx2.get(server.url("https"))

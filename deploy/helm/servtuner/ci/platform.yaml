@@ -1,6 +1,0 @@
-# tls.mode platform: plain on the wire, no certificate Secrets; ReadWriteOnce storage (node pinning).
-tls:
-  mode: platform
-storage:
-  file:
-    pvc: {create: true, accessMode: ReadWriteOnce}

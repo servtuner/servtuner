@@ -2,7 +2,7 @@ import { parseDocument, stringify } from "yaml";
 import type { HostCredentialSlot, ManagedTarget, ManagedTargetCreate } from "../../api/types";
 
 export type Placement = "kubernetes" | "host";
-export type CertificateSource = "platform" | "issuer" | "secret";
+export type CertificateSource = "plain" | "issuer" | "secret";
 
 /** Every text field of the managed target form, for both placements. */
 export type FormFields = {
@@ -132,7 +132,7 @@ export function initialState(
       fields: { ...BLANK, image: withRegistry(VLLM_GPU_IMAGE, registry) },
       placement,
       gpus: DEFAULT_GPUS,
-      transport: "platform",
+      transport: "plain",
     };
   const common = {
     ...BLANK,
@@ -149,7 +149,7 @@ export function initialState(
     return {
       placement: "host",
       gpus: DEFAULT_GPUS,
-      transport: "platform",
+      transport: "plain",
       fields: {
         ...common,
         hostId: spec.host_id ?? "",
@@ -163,11 +163,12 @@ export function initialState(
         metricsNode: spec.metrics.node ?? "",
       },
     };
-  const transport = spec.transport;
+  // TLS, when the target serves it (client certificates are not offered yet).
+  const tls = spec.transport?.enabled ? spec.transport : undefined;
   return {
     placement: "kubernetes",
     gpus: spec.gpus,
-    transport: transport?.mode === "tls" ? (transport.issuer ? "issuer" : "secret") : "platform",
+    transport: tls ? (tls.issuer ? "issuer" : "secret") : "plain",
     fields: {
       ...common,
       image: spec.image,
@@ -184,8 +185,8 @@ export function initialState(
       hfSecret: spec.hf_token?.name ?? "",
       nodeSelector: pairLines(spec.node_selector),
       tolerations: spec.tolerations?.length ? stringify(spec.tolerations) : "",
-      issuerName: transport?.mode === "tls" ? (transport.issuer?.name ?? "") : "",
-      tlsSecret: transport?.mode === "tls" ? (transport.secret ?? "") : "",
+      issuerName: tls?.issuer?.name ?? "",
+      tlsSecret: tls?.secret ?? "",
     },
   };
 }
@@ -267,10 +268,10 @@ function kubernetesSpec(state: FormState, kept: Record<string, unknown>): Record
     tolerations: tolerationsOrNone(fields.tolerations, kept.tolerations),
     transport:
       state.transport === "issuer"
-        ? { mode: "tls", issuer: { kind: "ClusterIssuer", ...keptIssuer, name: trimmed(fields.issuerName) } }
+        ? { enabled: true, issuer: { kind: "ClusterIssuer", ...keptIssuer, name: trimmed(fields.issuerName) } }
         : state.transport === "secret"
-          ? { mode: "tls", secret: trimmed(fields.tlsSecret) }
-          : { mode: "platform" },
+          ? { enabled: true, secret: trimmed(fields.tlsSecret) }
+          : { enabled: false },
   };
 }
 

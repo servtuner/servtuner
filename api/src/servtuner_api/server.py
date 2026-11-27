@@ -1,4 +1,4 @@
-"""Process entry point: migrate, build the app, serve over mTLS or plain HTTP."""
+"""Process entry point: migrate, build the app, serve over TLS or plain HTTP."""
 
 import logging
 import os
@@ -39,7 +39,6 @@ from servtuner_api.settings.models import (
     RunnerKind,
     SecretStoreKind,
     Settings,
-    TransportMode,
 )
 from servtuner_api.specs import SpecValidator
 from servtuner_api.targets.checker import TargetChecker
@@ -73,17 +72,22 @@ def build_secret_store(settings: Settings) -> SecretStore | None:
 def default_prometheus(settings: Settings) -> dict[str, Any] | None:
     """The Prometheus a saved target's check asks, as a RunSpec prometheus block.
 
-    mtls needs bench's client certificate Secret, which only the Kubernetes
-    runner names; without it the check skips the metrics checks and says so.
+    A client certificate needs bench's Secret, which only the Kubernetes runner
+    names; without it the check skips the metrics checks and says so.
     """
     if settings.prometheus_url is None:
         return None
-    if settings.tls.mode_of(Hop.BENCH_PROMETHEUS) is TransportMode.PLATFORM:
-        return {"url": settings.prometheus_url, "tls": {"mode": "platform"}}
+    if not settings.tls.uses_tls(Hop.BENCH_PROMETHEUS):
+        return {"url": settings.prometheus_url, "tls": {"enabled": False}}
+    if not settings.tls.presents_cert(Hop.BENCH_PROMETHEUS):
+        return {"url": settings.prometheus_url, "tls": {"enabled": True}}
     secret = settings.kubernetes.bench_tls_secret if settings.kubernetes else None
     if secret is None:
         return None
-    return {"url": settings.prometheus_url, "tls": {"mode": "mtls", "secretRef": {"name": secret}}}
+    return {
+        "url": settings.prometheus_url,
+        "tls": {"enabled": True, "clientCert": {"secretRef": {"name": secret}}},
+    }
 
 
 def checked_from(settings: Settings, env: Mapping[str, str]) -> str:
@@ -98,7 +102,7 @@ def checked_from(settings: Settings, env: Mapping[str, str]) -> str:
 def build_store(settings: Settings) -> BundleStore:
     """The bundle store bench writes to: the data directory, or S3."""
     if settings.s3 is not None:
-        return S3BundleStore(settings.s3, settings.tls.mode_of(Hop.OBJECT_STORE), settings.tls)
+        return S3BundleStore(settings.s3, settings.tls)
     return FileBundleStore(settings.data_dir)
 
 

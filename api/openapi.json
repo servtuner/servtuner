@@ -3625,13 +3625,34 @@
         "title": "HistogramCounts",
         "type": "array"
       },
+      "HopTransport": {
+        "additionalProperties": false,
+        "properties": {
+          "client_cert": {
+            "description": "servtuner presented a client certificate on it. Always false without TLS.",
+            "title": "Client Cert",
+            "type": "boolean"
+          },
+          "tls": {
+            "description": "The connection used TLS. False is plain HTTP or TCP.",
+            "title": "Tls",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tls",
+          "client_cert"
+        ],
+        "title": "HopTransport",
+        "type": "object"
+      },
       "HopTransports": {
         "additionalProperties": false,
         "properties": {
           "api": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TransportMode"
+                "$ref": "#/components/schemas/HopTransport"
               },
               {
                 "type": "null"
@@ -3641,7 +3662,7 @@
           "object_store": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TransportMode"
+                "$ref": "#/components/schemas/HopTransport"
               },
               {
                 "type": "null"
@@ -3651,7 +3672,7 @@
           "prometheus": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TransportMode"
+                "$ref": "#/components/schemas/HopTransport"
               },
               {
                 "type": "null"
@@ -3659,7 +3680,7 @@
             ]
           },
           "target": {
-            "$ref": "#/components/schemas/TransportMode"
+            "$ref": "#/components/schemas/HopTransport"
           }
         },
         "required": [
@@ -5676,16 +5697,9 @@
             "type": "array"
           },
           "transport": {
-            "discriminator": {
-              "mapping": {
-                "platform": "#/components/schemas/PlatformTransport",
-                "tls": "#/components/schemas/ManagedTargetCreate_TlsTransport"
-              },
-              "propertyName": "mode"
-            },
-            "oneOf": [
+            "anyOf": [
               {
-                "$ref": "#/components/schemas/PlatformTransport"
+                "$ref": "#/components/schemas/PlainTransport"
               },
               {
                 "$ref": "#/components/schemas/ManagedTargetCreate_TlsTransport"
@@ -5843,8 +5857,19 @@
       },
       "ManagedTargetCreate_TlsTransport": {
         "additionalProperties": false,
-        "description": "Server-authenticated TLS with the target's own certificate: from a\ncert-manager issuer, or a kubernetes.io/tls Secret only this target uses.",
+        "description": "vLLM serves TLS with the target's own certificate: from a cert-manager issuer, or a\nkubernetes.io/tls Secret only this target uses. Client certificates are not offered yet\n(client_auth is none), so the shape can take them later without changing.",
         "properties": {
+          "client_auth": {
+            "const": "none",
+            "default": "none",
+            "title": "Client Auth",
+            "type": "string"
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "issuer": {
             "anyOf": [
               {
@@ -5855,11 +5880,6 @@
               }
             ],
             "default": null
-          },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
           },
           "secret": {
             "anyOf": [
@@ -5876,7 +5896,7 @@
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
         "title": "TlsTransport",
         "type": "object"
@@ -6185,16 +6205,9 @@
             "type": "array"
           },
           "transport": {
-            "discriminator": {
-              "mapping": {
-                "platform": "#/components/schemas/PlatformTransport",
-                "tls": "#/components/schemas/TlsTransport"
-              },
-              "propertyName": "mode"
-            },
-            "oneOf": [
+            "anyOf": [
               {
-                "$ref": "#/components/schemas/PlatformTransport"
+                "$ref": "#/components/schemas/PlainTransport"
               },
               {
                 "$ref": "#/components/schemas/TlsTransport"
@@ -7156,6 +7169,20 @@
         "title": "Placement",
         "type": "string"
       },
+      "PlainTransport": {
+        "additionalProperties": false,
+        "description": "Plain HTTP (the default): no TLS from vLLM. Use it where a mesh or an encrypted network\nencrypts the hop, or for local testing.",
+        "properties": {
+          "enabled": {
+            "const": false,
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "PlainTransport",
+        "type": "object"
+      },
       "Plan": {
         "additionalProperties": false,
         "properties": {
@@ -7783,20 +7810,6 @@
           "working_set_bytes"
         ],
         "title": "PlanTierMemory",
-        "type": "object"
-      },
-      "PlatformTransport": {
-        "additionalProperties": false,
-        "description": "Plain HTTP (the default): the platform is trusted with the hop.",
-        "properties": {
-          "mode": {
-            "const": "platform",
-            "default": "platform",
-            "title": "Mode",
-            "type": "string"
-          }
-        },
-        "title": "PlatformTransport",
         "type": "object"
       },
       "Pod": {
@@ -9296,7 +9309,7 @@
             "default": null
           },
           "apiVersion": {
-            "const": "servtuner.dev/v1",
+            "const": "servtuner.dev/v2",
             "title": "Apiversion",
             "type": "string"
           },
@@ -9751,19 +9764,16 @@
       "RunSpec_Tls": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/TlsMtls"
+            "$ref": "#/components/schemas/TlsDisabled"
           },
           {
-            "$ref": "#/components/schemas/TlsPlatform"
-          },
-          {
-            "$ref": "#/components/schemas/RunSpec_TlsServer"
+            "$ref": "#/components/schemas/RunSpec_TlsEnabled"
           }
         ],
-        "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+        "description": "Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.",
         "title": "Tls"
       },
-      "RunSpec_TlsServer": {
+      "RunSpec_TlsEnabled": {
         "additionalProperties": false,
         "properties": {
           "caSecretRef": {
@@ -9778,16 +9788,27 @@
             "default": null,
             "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read."
           },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
+          "clientCert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TlsClientCert"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
-        "title": "TlsServer",
+        "title": "TlsEnabled",
         "type": "object"
       },
       "RunSpec_Upstream": {
@@ -12917,19 +12938,16 @@
       "TargetCreate_Tls": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/TlsMtls"
+            "$ref": "#/components/schemas/TlsDisabled"
           },
           {
-            "$ref": "#/components/schemas/TlsPlatform"
-          },
-          {
-            "$ref": "#/components/schemas/TargetCreate_TlsServer"
+            "$ref": "#/components/schemas/TargetCreate_TlsEnabled"
           }
         ],
-        "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+        "description": "Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.",
         "title": "Tls"
       },
-      "TargetCreate_TlsServer": {
+      "TargetCreate_TlsEnabled": {
         "additionalProperties": false,
         "properties": {
           "caSecretRef": {
@@ -12944,16 +12962,27 @@
             "default": null,
             "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read."
           },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
+          "clientCert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TlsClientCert"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
-        "title": "TlsServer",
+        "title": "TlsEnabled",
         "type": "object"
       },
       "TargetCreate_Upstream": {
@@ -13451,53 +13480,44 @@
       "Tls": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/TlsMtls"
+            "$ref": "#/components/schemas/TlsDisabled"
           },
           {
-            "$ref": "#/components/schemas/TlsPlatform"
-          },
-          {
-            "$ref": "#/components/schemas/TlsServer"
+            "$ref": "#/components/schemas/TlsEnabled"
           }
         ],
-        "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+        "description": "Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.",
         "title": "Tls"
       },
-      "TlsMtls": {
+      "TlsClientCert": {
         "additionalProperties": false,
         "properties": {
-          "mode": {
-            "const": "mtls",
-            "title": "Mode",
-            "type": "string"
-          },
           "secretRef": {
             "$ref": "#/components/schemas/SecretRef"
           }
         },
         "required": [
-          "mode",
           "secretRef"
         ],
-        "title": "TlsMtls",
+        "title": "TlsClientCert",
         "type": "object"
       },
-      "TlsPlatform": {
+      "TlsDisabled": {
         "additionalProperties": false,
         "properties": {
-          "mode": {
-            "const": "platform",
-            "title": "Mode",
-            "type": "string"
+          "enabled": {
+            "const": false,
+            "title": "Enabled",
+            "type": "boolean"
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
-        "title": "TlsPlatform",
+        "title": "TlsDisabled",
         "type": "object"
       },
-      "TlsServer": {
+      "TlsEnabled": {
         "additionalProperties": false,
         "properties": {
           "caSecretRef": {
@@ -13511,22 +13531,43 @@
             ],
             "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read."
           },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
+          "clientCert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TlsClientCert"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
-        "title": "TlsServer",
+        "title": "TlsEnabled",
         "type": "object"
       },
       "TlsTransport": {
         "additionalProperties": false,
-        "description": "Server-authenticated TLS with the target's own certificate: from a\ncert-manager issuer, or a kubernetes.io/tls Secret only this target uses.",
+        "description": "vLLM serves TLS with the target's own certificate: from a cert-manager issuer, or a\nkubernetes.io/tls Secret only this target uses. Client certificates are not offered yet\n(client_auth is none), so the shape can take them later without changing.",
         "properties": {
+          "client_auth": {
+            "const": "none",
+            "default": "none",
+            "title": "Client Auth",
+            "type": "string"
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
           "issuer": {
             "anyOf": [
               {
@@ -13536,11 +13577,6 @@
                 "type": "null"
               }
             ]
-          },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
           },
           "secret": {
             "anyOf": [
@@ -13556,7 +13592,7 @@
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
         "title": "TlsTransport",
         "type": "object"
@@ -13880,15 +13916,6 @@
         ],
         "title": "Totals",
         "type": "object"
-      },
-      "TransportMode": {
-        "enum": [
-          "mtls",
-          "platform",
-          "tls"
-        ],
-        "title": "TransportMode",
-        "type": "string"
       },
       "TuningBootOutcome": {
         "enum": [
@@ -14582,19 +14609,16 @@
       "UnsavedTargetCheck_Tls": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/TlsMtls"
+            "$ref": "#/components/schemas/TlsDisabled"
           },
           {
-            "$ref": "#/components/schemas/TlsPlatform"
-          },
-          {
-            "$ref": "#/components/schemas/UnsavedTargetCheck_TlsServer"
+            "$ref": "#/components/schemas/UnsavedTargetCheck_TlsEnabled"
           }
         ],
-        "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+        "description": "Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.",
         "title": "Tls"
       },
-      "UnsavedTargetCheck_TlsServer": {
+      "UnsavedTargetCheck_TlsEnabled": {
         "additionalProperties": false,
         "properties": {
           "caSecretRef": {
@@ -14609,16 +14633,27 @@
             "default": null,
             "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read."
           },
-          "mode": {
-            "const": "tls",
-            "title": "Mode",
-            "type": "string"
+          "clientCert": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TlsClientCert"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "enabled": {
+            "const": true,
+            "title": "Enabled",
+            "type": "boolean"
           }
         },
         "required": [
-          "mode"
+          "enabled"
         ],
-        "title": "TlsServer",
+        "title": "TlsEnabled",
         "type": "object"
       },
       "UnsavedTargetCheck_Upstream": {

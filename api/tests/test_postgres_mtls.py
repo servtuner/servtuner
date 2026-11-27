@@ -16,7 +16,7 @@ from testcontainers.core.container import DockerContainer
 from servtuner_api.database import build_database_url, create_database_engine, upgrade_database
 from servtuner_api.settings.models import DatabaseSslMode, Settings
 from tests.support.certs import LOOPBACK, CertificateAuthority, create_authority
-from tests.support.environment import platform_env
+from tests.support.environment import plain_env
 from tests.support.postgres_tls import (
     DATABASE_NAME,
     DATABASE_USER,
@@ -43,9 +43,9 @@ def api_settings(
 ) -> Settings:
     client = authority.issue(DATABASE_USER)
     return Settings.from_env(
-        platform_env(
+        plain_env(
             tmp_path,
-            SERVTUNER_TLS_MODE="mtls",
+            SERVTUNER_TLS_ENABLED="true",
             SERVTUNER_TLS_CERT_FILE=str(client.cert_file),
             SERVTUNER_TLS_KEY_FILE=str(client.key_file),
             SSL_CERT_FILE=str(authority.cert_file),

@@ -45,11 +45,11 @@ describe("New run for a managed vLLM", () => {
   });
 
   it("names the install's Prometheus when the spec names none", () => {
-    const prometheus = { url: "http://kps-prometheus.monitoring.svc:9090", tls: { mode: "platform" as const } };
+    const prometheus = { url: "http://kps-prometheus.monitoring.svc:9090", tls: { enabled: false as const } };
     expect(parse(withRunDefaults(STARTER_SPEC, { prometheus })).prometheus).toEqual(prometheus);
     expect(withRunDefaults(STARTER_SPEC, {})).toBe(STARTER_SPEC);
     expect(withRunDefaults(STARTER_SPEC, undefined)).toBe(STARTER_SPEC);
-    const own = `${STARTER_SPEC}prometheus:\n  url: http://mine:9090\n  tls: {mode: platform}\n`;
+    const own = `${STARTER_SPEC}prometheus:\n  url: http://mine:9090\n  tls: {enabled: false}\n`;
     expect(parse(withRunDefaults(own, { prometheus })).prometheus.url).toBe("http://mine:9090");
   });
 

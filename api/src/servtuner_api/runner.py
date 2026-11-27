@@ -4,8 +4,8 @@ The contract with bench is a CLI plus files, never Kubernetes (root
 CLAUDE.md rule 1):
 
     servtuner run --spec <path> --out <bundle dir> --run-id <ULID> [--engine-override null]
-              [--api-url <url> --run-token-file <path> --api-tls-mode mtls|platform
-               --tls-cert-file <path> --tls-key-file <path>]
+              [--api-url <url> --run-token-file <path> --api-tls true|false
+               [--tls-cert-file <path> --tls-key-file <path>]]
 
 A runner owns everything its environment needs to hand bench a spec and a
 token (files for the subprocess runner; a ConfigMap and Secret later for
@@ -38,9 +38,9 @@ from servtuner_api.secret_store import (
 from servtuner_api.settings.models import (
     MOUNTED_SECRETS_DIR,
     Hop,
+    HopTls,
     S3Settings,
     Settings,
-    TransportMode,
 )
 
 PRIVATE_FILE_MODE = 0o600
@@ -111,7 +111,7 @@ class Runner(Protocol):
 class ObjectStoreClient:
     """How bench reaches the object store (the object-store hop)."""
 
-    mode: TransportMode
+    hop: HopTls
     cert_file: str | None = None
     key_file: str | None = None
     ca_file: str | None = None
@@ -124,18 +124,26 @@ def output_arguments(local_dir: str, s3: S3Settings | None, client: ObjectStoreC
     arguments = [
         "--out",
         f"s3://{s3.bucket}/{s3.prefix}",
-        "--object-store-tls-mode",
-        client.mode.value,
+        "--object-store-tls",
+        tls_flag(client.hop.enabled),
     ]
-    if client.mode is TransportMode.MTLS and s3.endpoint is not None:
-        for flag, value in (
-            ("--object-store-cert-file", client.cert_file),
-            ("--object-store-key-file", client.key_file),
-            ("--object-store-ca-file", client.ca_file),
-        ):
+    if client.hop.enabled and s3.endpoint is not None:
+        flags = [("--object-store-ca-file", client.ca_file)]
+        if client.hop.client_cert:
+            flags = [
+                ("--object-store-cert-file", client.cert_file),
+                ("--object-store-key-file", client.key_file),
+                *flags,
+            ]
+        for flag, value in flags:
             if value is not None:
                 arguments += [flag, value]
     return arguments
+
+
+def tls_flag(enabled: bool) -> str:
+    """bench's --api-tls and --object-store-tls take true or false."""
+    return "true" if enabled else "false"
 
 
 @dataclass(frozen=True)
@@ -143,12 +151,12 @@ class SubprocessRunnerConfig:
     bench_binary: Path
     data_dir: Path
     api_url: str
-    api_tls_mode: TransportMode
+    api_hop: HopTls
     tls_cert_file: Path | None
     tls_key_file: Path | None
     engine_override: str | None = None  # dev and e2e only (SERVTUNER_ENGINE_OVERRIDE)
     s3: S3Settings | None = None
-    object_store_mode: TransportMode = TransportMode.PLATFORM
+    object_store_hop: HopTls = HopTls(enabled=False, client_cert=False)
     # Where each run's Secrets are written for bench --secrets-dir.
     run_secrets_dir: Path | None = None
     mounted_secrets_dir: Path = MOUNTED_SECRETS_DIR
@@ -161,13 +169,13 @@ class SubprocessRunnerConfig:
             bench_binary=settings.bench_binary,
             data_dir=settings.data_dir,
             api_url=settings.api_url,
-            api_tls_mode=settings.tls.mode_of(Hop.BENCH_API),
+            api_hop=settings.tls.hop(Hop.BENCH_API),
             tls_cert_file=settings.tls.cert_file,
             tls_key_file=settings.tls.key_file,
             engine_override=settings.engine_override,
             offline=settings.offline,
             s3=settings.s3,
-            object_store_mode=settings.tls.mode_of(Hop.OBJECT_STORE),
+            object_store_hop=settings.tls.hop(Hop.OBJECT_STORE),
             run_secrets_dir=settings.secret_store.run_secrets_dir,
             mounted_secrets_dir=settings.secret_store.mounted_dir,
         )
@@ -255,7 +263,7 @@ class SubprocessRunner:
                 # The api's own certificate, as for the api hop; the CA comes from
                 # SSL_CERT_FILE, which bench inherits.
                 ObjectStoreClient(
-                    config.object_store_mode,
+                    config.object_store_hop,
                     str(config.tls_cert_file) if config.tls_cert_file else None,
                     str(config.tls_key_file) if config.tls_key_file else None,
                 ),
@@ -266,8 +274,8 @@ class SubprocessRunner:
             config.api_url,
             "--run-token-file",
             str(token_path),
-            "--api-tls-mode",
-            config.api_tls_mode.value,
+            "--api-tls",
+            tls_flag(config.api_hop.enabled),
         ]
         if secrets_dir is not None:
             command += ["--secrets-dir", str(secrets_dir)]
@@ -275,7 +283,7 @@ class SubprocessRunner:
             command += ["--engine-override", config.engine_override]
         if config.offline:
             command.append("--offline")
-        if config.api_tls_mode is TransportMode.MTLS:
+        if config.api_hop.client_cert:
             # Subprocess runner only (dev, single node): bench reuses the api's own
             # certificate as its client certificate. The Kubernetes runner will use
             # SERVTUNER_TLS_BENCH_SECRET instead.

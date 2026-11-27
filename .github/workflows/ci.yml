@@ -35,14 +35,14 @@ jobs:
       - run: just test
 
       # Local end to end, no cluster: a Postgres container, the api and the real bench binary.
-      - run: just e2e-local-mtls
-      - run: just e2e-local-platform
+      - run: just e2e-local-mutual-tls
+      - run: just e2e-local-tls-off
 
       # The images build and work offline: schemas load, bench runs in both.
       - run: just images
       - run: just image-test
 
-  # The chart on a fresh kind cluster, one job per transport mode. Each job has its own
+  # The chart on a fresh kind cluster: one job with TLS and client certificates, one without TLS. Each job has its own
   # runner, so `just kind-up` always starts from no cluster. kind, kubectl, helm and docker are
   # preinstalled on the runner image.
   e2e-kind:
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [mtls, platform]
+        mode: [mutual-tls, tls-off]
     steps:
       - uses: actions/checkout@v4
 

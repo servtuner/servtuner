@@ -1,6 +1,6 @@
-# tls.mode mtls, certificates issued by cert-manager (the default path).
+# TLS with client certificates on every hop, issued by cert-manager (the default path).
 tls:
-  mode: mtls
+  enabled: true
   source: cert-manager
   certManager:
     issuerRef: {kind: ClusterIssuer, name: servtuner-ca}

@@ -35,8 +35,8 @@ Each folder has its own `CLAUDE.md` that covers its purpose and design.
   (target configuration options or load parameters) so the runs can be compared.
 - **Engine**: the load generator that `bench` drives: loadgen (built in) for
   routers and high RPS, inference-perf for model servers. Other engines plug in
-  through an adapter. In `mtls` mode, an engine without client-cert support
-  goes through bench's loopback **TLS relay**.
+  through an adapter. When the target needs a client certificate, an engine
+  without client-cert support goes through bench's loopback **TLS relay**.
 
 ## Architectural rules
 
@@ -56,19 +56,23 @@ Each folder has its own `CLAUDE.md` that covers its purpose and design.
 5. **All timestamps are UTC** and recorded with the clock source used.
    Prometheus queries use the run's recorded window, not wall-clock guesses.
 6. **Never assume the network is encrypted.**
-   - Every connection is `mtls` (the default: the app presents and verifies
-     certificates), `platform` (plain on the wire; the CNI or mesh encrypts),
-     or, for RunSpec hops only, `tls` (the client verifies the server and
-     presents no certificate).
-   - `platform` and `tls` are explicit, per-hop opt-ins. The mode is recorded
-     in every run and never mixed with other modes' settings on one connection.
+   - Every connection answers TLS's two questions: is it encrypted
+     (`tls.enabled`), and client certificates. A client presents one when it
+     is given one (`clientCert`); a server servtuner runs requires one,
+     verifies one if sent, or asks for none (`clientAuth`: `required`,
+     `optional`, `none`). servtuner's own hops default to TLS with client
+     certificates required.
+   - TLS off (plain on the wire, for a CNI or mesh that encrypts, or testing)
+     is an explicit, per-hop opt-in. What each hop did is recorded in every
+     run, and TLS settings never appear on a hop without TLS.
    - Every service has its own certificate. A managed vLLM is plain HTTP by
-     default, with `tls` as its opt-in.
+     default, with TLS (no client certificates yet) as its opt-in.
    - Certificates come from `kubernetes.io/tls` Secrets, issued by cert-manager
      or named by the user. Components read files only.
    - CA trust uses a combined system-plus-private bundle in `SSL_CERT_FILE`.
      There is no `insecure-skip-verify`.
-   - Every client is tested in every mode it supports.
+   - Every client is tested with and without TLS and with and without a client
+     certificate; every server policy against no, good and untrusted certificates.
 7. **RPS numbers must be trustworthy.**
    - A stage counts only if achieved RPS matched offered RPS, send lag stayed
      low, and the client wasn't the bottleneck (`client_bound`).
@@ -85,8 +89,8 @@ Root recipes run the same-named recipe of every component, in the order
   `just gen-check` fails when that changes the tree (CI runs it).
 - `just lint`, `just test`: every component, plus a jscpd duplication check.
 - `just e2e-smoke`: the UI's Playwright smoke test against the real api and bench.
-- `just e2e-local-platform` / `e2e-local-mtls`: api plus the real bench binary, no cluster.
-- `just e2e-platform` / `e2e-mtls`: the chart on a kind cluster.
+- `just e2e-local-tls-off` / `e2e-local-mutual-tls`: api plus the real bench binary, no cluster.
+- `just e2e-tls-off` / `e2e-mutual-tls`: the chart on a kind cluster.
 - `just images`, `just release <version>`, `just e2e-airgap <version>`: images,
   the air-gapped release archive, and its proof on a kind cluster with no egress.
 - Releases are published by `.github/workflows/release.yml` from a `vX.Y.Z` tag;
@@ -102,8 +106,8 @@ Root recipes run the same-named recipe of every component, in the order
 - **Literal constants carry a comment** that says what the number is and where
   it comes from: `maxLogTail = 200 // lines the boot classifier reads`, never
   a bare `1 << 20`.
-- **Every transport mode is tested.** A new client or server gets tests in each
-  mode it supports (`mtls`, `platform`, and `tls` where allowed).
+- **Every TLS setting is tested.** A new client gets tests with and without TLS
+  and a client certificate; a new server, each `clientAuth` it supports.
 - **No secrets, addresses or hostnames in committed files.** Values files name
   Kubernetes Secrets that the operator creates first; examples use placeholders
   and `*.localtest.me`.

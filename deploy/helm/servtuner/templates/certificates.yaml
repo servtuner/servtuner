@@ -1,5 +1,5 @@
 {{- /* Transport security with tls.source: cert-manager. With source: secret nothing is rendered here; pods mount the
-       named Secrets the same way. Only roles that an mtls hop needs get a Certificate. */ -}}
+       named Secrets the same way. Only roles that some hop needs get a Certificate. */ -}}
 {{- if eq .Values.tls.source "cert-manager" }}
 {{- $ns := .Release.Namespace }}
 {{- $fullname := include "servtuner.fullname" . }}

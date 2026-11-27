@@ -129,7 +129,7 @@ def test_a_datasheet_target_without_a_url_uses_the_books(client: TestClient) -> 
             "type": "openai-compatible",
             "endpoint": "http://router.example.internal:8080/v1",
             "model": "gpt-4o-mini",
-            "tls": {"mode": "platform"},
+            "tls": {"enabled": False},
         },
         "pricing": {"token": {"source": "datasheet"}},
     }

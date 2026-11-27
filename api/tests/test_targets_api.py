@@ -71,7 +71,7 @@ def make_client(
             service._repository,  # noqa: SLF001 - the test assembles the service by hand
             store,
             checker,
-            {"url": "http://prometheus.example:9090", "tls": {"mode": "platform"}},
+            {"url": "http://prometheus.example:9090", "tls": {"enabled": False}},
         )
         return service
 
@@ -99,7 +99,7 @@ VLLM: dict[str, Any] = {
         "endpoint": "http://vllm.example:8080/v1",
         "model": "tiny",
         "metrics": {"namespace": "servtuner-external", "pod": "vllm-lan", "node": "vllm-lan-gpu"},
-        "tls": {"mode": "platform"},
+        "tls": {"enabled": False},
     },
 }
 
@@ -225,7 +225,7 @@ BIFROST: dict[str, Any] = {
         "type": "bifrost",
         "endpoint": "http://bifrost.example:8080/v1",
         "model": "mock",
-        "tls": {"mode": "platform"},
+        "tls": {"enabled": False},
     },
 }
 

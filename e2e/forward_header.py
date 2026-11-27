@@ -15,9 +15,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import httpx2
-from common import check, exercise_run, wait_for
-
-from servtuner_api.settings.models import TransportMode
+from common import Security, check, exercise_run, wait_for
 
 LOGIN_HEADER = "X-E2E-Login"  # what the stub reads: who is "signing in"
 USER_HEADER = "X-Auth-Request-User"  # what the stub answers and the api trusts
@@ -158,7 +156,7 @@ def as_subject(subject: str) -> dict[str, str]:
 def exercise_forward_header(
     api: httpx2.Client,
     setup_token: str,
-    mode: TransportMode,
+    mode: Security,
     check_bundle: Callable[[str], None],
 ) -> str:
     """Setup, refusals, the overwritten header, a linked viewer and one run; returns the run."""

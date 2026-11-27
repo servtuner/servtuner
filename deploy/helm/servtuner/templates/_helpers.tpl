@@ -115,42 +115,69 @@ when set explicitly: frontend.apiBaseUrl, or an explicit ingress.apiPath (which 
 {{- end -}}
 
 {{/*
-Transport security. Single source of truth for which hops each certificate
-role serves, so templates and validation can never disagree.
+Transport security. Each hop answers TLS's two questions: does it use TLS (tls.enabled, or
+tls.hops.<hop>.enabled), and does servtuner present a client certificate on it. The api's own
+listener (ingressApi, benchApi) follows tls.clientAuth; a hop to a server servtuner does not run
+sets tls.hops.<hop>.clientCert, true by default with TLS.
+
+roleHops is the single source of truth for which hops need each certificate role, and how: "tls"
+when the hop uses TLS (a server certificate, or the Secret that carries the CA a client verifies
+with), "cert" when the hop presents a client certificate. Templates and validation never disagree.
 */}}
 {{- define "servtuner.roleHops" -}}
 {{- dict
-  "api" (list "benchApi" "ingressApi" "postgres" "objectStore")
-  "bench" (list "benchApi" "benchPrometheus" "objectStore")
-  "ingress" (list "ingressApi")
-  "postgres" (list "postgres")
-  "postgresReplication" (list "postgres")
-  "objectStore" (list "objectStore")
+  "api" (list (list "ingressApi" "tls") (list "benchApi" "tls") (list "postgres" "cert") (list "objectStore" "cert"))
+  "bench" (list (list "benchApi" "tls") (list "benchPrometheus" "cert") (list "objectStore" "cert"))
+  "ingress" (list (list "ingressApi" "tls"))
+  "postgres" (list (list "postgres" "tls"))
+  "postgresReplication" (list (list "postgres" "tls"))
+  "objectStore" (list (list "objectStore" "tls"))
   | toJson -}}
 {{- end -}}
 
-{{/* Pass (dict "root" . "hop" "postgres"); yields the effective mode of the hop. */}}
-{{- define "servtuner.hopMode" -}}
-{{- default .root.Values.tls.mode (get .root.Values.tls.hops .hop) -}}
+{{/* The hops of the api's own listener: their client certificate follows tls.clientAuth. */}}
+{{- define "servtuner.apiListenerHops" -}}{{ list "ingressApi" "benchApi" | toJson }}{{- end -}}
+
+{{/* Pass (dict "root" . "hop" "postgres"); "true" when the hop uses TLS. */}}
+{{- define "servtuner.hopTls" -}}
+{{- $hop := get .root.Values.tls.hops .hop -}}
+{{- $enabled := .root.Values.tls.enabled -}}
+{{- if and (kindIs "map" $hop) (hasKey $hop "enabled") -}}{{- $enabled = $hop.enabled -}}{{- end -}}
+{{- if eq (toString $enabled) "true" -}}true{{- end -}}
 {{- end -}}
 
-{{/* Pass (dict "root" . "role" "api"); yields "true" when some mtls hop needs that role's certificate. */}}
+{{/* Pass (dict "root" . "hop" "postgres"); "true" when servtuner presents its client certificate on the hop. */}}
+{{- define "servtuner.hopClientCert" -}}
+{{- if include "servtuner.hopTls" . -}}
+  {{- if has .hop (include "servtuner.apiListenerHops" . | fromJsonArray) -}}
+    {{- if ne .root.Values.tls.clientAuth "none" -}}true{{- end -}}
+  {{- else -}}
+    {{- $hop := get .root.Values.tls.hops .hop -}}
+    {{- if not (and (kindIs "map" $hop) (hasKey $hop "clientCert") (eq (toString $hop.clientCert) "false")) -}}true{{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/* Pass (dict "root" . "role" "api"); "true" when some hop needs that role's certificate. */}}
 {{- define "servtuner.roleNeeded" -}}
 {{- $root := .root -}}
 {{- $needed := false -}}
-{{- range $hop := get (include "servtuner.roleHops" $root | fromJson) .role -}}
-  {{- if eq (include "servtuner.hopMode" (dict "root" $root "hop" $hop)) "mtls" -}}{{- $needed = true -}}{{- end -}}
+{{- range $use := get (include "servtuner.roleHops" $root | fromJson) .role -}}
+  {{- $args := dict "root" $root "hop" (index $use 0) -}}
+  {{- if eq (index $use 1) "tls" -}}
+    {{- if include "servtuner.hopTls" $args -}}{{- $needed = true -}}{{- end -}}
+  {{- else if include "servtuner.hopClientCert" $args -}}{{- $needed = true -}}{{- end -}}
 {{- end -}}
 {{- if and $needed (hasPrefix "postgres" .role) (ne $root.Values.postgres.mode "cnpg") -}}{{- $needed = false -}}{{- end -}}
 {{- if $needed -}}true{{- end -}}
 {{- end -}}
 
-{{/* "true" when any hop of servtuner's own is mtls, which is when pods need the CA bundle. */}}
-{{- define "servtuner.anyMtls" -}}
+{{/* "true" when any hop uses TLS, which is when pods need the CA bundle. */}}
+{{- define "servtuner.anyTls" -}}
 {{- $root := . -}}
 {{- $found := false -}}
-{{- range $hop, $_ := $root.Values.tls.hops -}}
-  {{- if eq (include "servtuner.hopMode" (dict "root" $root "hop" $hop)) "mtls" -}}{{- $found = true -}}{{- end -}}
+{{- range $hop := list "ingressApi" "benchApi" "postgres" "objectStore" "benchPrometheus" -}}
+  {{- if include "servtuner.hopTls" (dict "root" $root "hop" $hop) -}}{{- $found = true -}}{{- end -}}
 {{- end -}}
 {{- if $found -}}true{{- end -}}
 {{- end -}}

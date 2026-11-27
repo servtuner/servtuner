@@ -68,8 +68,8 @@ def test_secret_names_in_finds_every_reference() -> None:
 
 def test_secret_names_in_finds_a_tls_hops_ca_secret() -> None:
     spec = {
-        "target": {"tls": {"mode": "tls", "caSecretRef": {"name": "vllm-ca"}}},
-        "prometheus": {"tls": {"mode": "platform"}},
+        "target": {"tls": {"enabled": True, "caSecretRef": {"name": "vllm-ca"}}},
+        "prometheus": {"tls": {"enabled": False}},
     }
     assert secret_names_in(spec) == ["vllm-ca"]
 

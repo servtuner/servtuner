@@ -10,4 +10,4 @@ or a host through servtuner launcher, from the template stored here. The deploye
 - ``service``: storing, deploying and tearing down (``ManagedTargetService``).
 
 Transport: plain HTTP by default; server-authenticated ``tls`` is the opt-in, with the
-target's own certificate. ``mtls`` is not offered."""
+target's own certificate. Client certificates are not offered yet (client_auth none)."""
