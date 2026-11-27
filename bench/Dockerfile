@@ -15,9 +15,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
 # inference-perf venv: its own virtualenv, built by uv from the
 # hash-locked requirements, on the same Python image the runtime stage uses so the venv's
 # interpreter links resolve there. 0.7.0 needs Python >= 3.12 and pins transformers exactly.
-FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.10 AS uv
 
-FROM python:3.12.12-slim-trixie AS inference-perf
+FROM python:3.12.15-slim-trixie AS inference-perf
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
 COPY internal/engine/inferenceperf/requirements.txt /requirements.txt
@@ -27,7 +27,7 @@ RUN uv venv /opt/inference-perf && \
 # Runtime stage: the slim Python image has sh, cat and the system CAs (tls.caBundle's init
 # container needs them) and the interpreter the venv links to. The two parts are
 # separate layers; the venv comes first because it changes far less often than bench.
-FROM python:3.12.12-slim-trixie
+FROM python:3.12.15-slim-trixie
 COPY --from=inference-perf /opt/inference-perf /opt/inference-perf
 COPY --from=build /servtuner /usr/local/bin/servtuner
 # Where a tokenizer download lands for the non-root user (the home directory is not writable).
