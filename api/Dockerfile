@@ -3,7 +3,7 @@
 # - schema: the repo's schema/json, so the image holds the schemas without a copy in the tree (the api
 #   validates every RunSpec against them).
 # The api launches bench with the SubprocessRunner (api/CLAUDE.md "Runners").
-FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.10 AS uv
 
 # Build stage: the Python version matches .tool-versions (python 3.14). The runtime stage uses
 # the same base image, so the virtualenv's interpreter links resolve there.
