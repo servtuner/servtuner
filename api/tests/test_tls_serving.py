@@ -43,8 +43,8 @@ def mtls_settings(
 ) -> Settings:
     env = plain_env(
         tmp_path,
-        SERVTUNER_TLS_HOP_BENCH_API_ENABLED="true",
-        SERVTUNER_TLS_HOP_INGRESS_API_ENABLED="true",
+        SERVTUNER_TLS_CONNECTION_BENCH_API="true",
+        SERVTUNER_TLS_CONNECTION_INGRESS_API="true",
         SERVTUNER_TLS_CLIENT_AUTH=client_auth,
         SERVTUNER_TLS_CERT_FILE=str(served.cert_file),
         SERVTUNER_TLS_KEY_FILE=str(served.key_file),

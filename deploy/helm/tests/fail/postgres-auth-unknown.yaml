@@ -1,0 +1,4 @@
+# expect: postgres.auth "kerberos" is unknown; use certificate or password
+tls: {enabled: false}
+storage: {file: {pvc: {create: true}}}
+postgres: {auth: kerberos}

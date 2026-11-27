@@ -70,9 +70,9 @@ mocks/
   - The CNPG operator is a cluster prerequisite and is not bundled. The chart
     fails rendering in `cnpg` mode when the `postgresql.cnpg.io` CRDs are
     missing.
-  - With TLS on the postgres hop the CNPG `Cluster` serves TLS with certs from the same cert-manager or
-    user-Secret source, and authenticates by client certificate (or, with `clientCert: false`, by password
-    over TLS only).
+  - With TLS on the postgres connection the CNPG `Cluster` serves TLS with certs from the same cert-manager or
+    user-Secret source. `postgres.auth` decides the sign-in: `certificate` (the default; the api certificate's
+    CN is the user, so it needs TLS) or `password` (over TLS only when the connection uses TLS).
   - **No Bitnami charts or images anywhere.**
 - The dev object store is optional: `storage.dev.deploy` is `rustfs` or `none`
   (the default), using the official RustFS chart at a pinned version. MinIO
@@ -92,9 +92,9 @@ mocks/
 - **Transport security**. Values:
   ```yaml
   tls:
-    enabled: true              # TLS on every hop by default; false is plain HTTP
+    enabled: true              # TLS on every connection by default; false is plain HTTP
     clientAuth: required       # the api listener: required | optional | none
-    hops: {}                   # per hop: {enabled}, and {clientCert} for hops to servers servtuner does not run
+    connections: {}            # per connection, true or false: benchApi, benchPrometheus, ingressApi, objectStore, postgres
     source: cert-manager       # cert-manager | secret
     certManager: {issuerRef: {kind: ClusterIssuer, name: <issuer>}}
     secrets: {api: <name>, bench: <name>, ingress: <name>, postgres: <name>, objectStore: <name>}  # when source: secret
@@ -103,12 +103,15 @@ mocks/
   - With `source: cert-manager`, the chart renders `Certificate` resources.
     With `source: secret`, it only mounts the named `kubernetes.io/tls`
     Secrets. Templates mount Secrets the same way in both cases.
-  - When any hop uses TLS, an init container (a shared template) concatenates the
+  - Each component has one certificate and presents it on every connection with TLS; the server
+    decides whether to ask for it.
+  - When any connection uses TLS, an init container (a shared template) concatenates the
     system CAs and `ca.crt` into an `emptyDir` and sets `SSL_CERT_FILE`.
   - With TLS and client certificates, Postgres and the dev object store are configured to require
     them. Without TLS they listen plain.
   - The chart **fails rendering** on contradictory values, for example
-    cert Secrets set for hops without TLS.
+    cert Secrets set for connections without TLS, or `postgres.auth: certificate` without TLS on
+    postgres. servtuner 0.1's `tls.mode` and `tls.hops` are refused with their replacement.
 - **Ingress** (optional, ingress-nginx): two Ingresses for one host. The UI goes to the frontend under
   `frontend.basePath`; the api is served under the same base path (`<basePath>/api`, prefix stripped), so the
   image's relative `config.json` works under any context path. With TLS the api Ingress uses backend TLS with

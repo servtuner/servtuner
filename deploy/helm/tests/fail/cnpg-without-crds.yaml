@@ -2,3 +2,4 @@
 # expect: postgresql.cnpg.io/v1 is not available
 tls: {enabled: false}
 storage: {file: {pvc: {create: true}}}
+postgres: {auth: password}

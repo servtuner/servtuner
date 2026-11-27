@@ -1,7 +1,7 @@
 # The site's values for the servtuner chart: copy to deploy/site-values.yaml and edit.
 # Every value of deploy/helm/servtuner/values.yaml may be set here; these are the ones every site decides.
 tls:
-  enabled: true                  # TLS on every hop (false: plain HTTP); deploy/helm/servtuner/values.yaml
+  enabled: true                  # TLS on every connection (false: plain HTTP, and postgres.auth password)
   clientAuth: required           # the api listener: required, optional or none
   source: cert-manager
   certManager:

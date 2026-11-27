@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from servtuner_api.settings.models import ClientAuth, Hop, Settings, TlsSettings
+from servtuner_api.settings.models import ClientAuth, Connection, Settings, TlsSettings
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ CERT_REQS = {
 
 def uvicorn_ssl_options(tls: TlsSettings) -> dict[str, Any]:
     """Options for ``uvicorn.Config``; empty without TLS (plain HTTP)."""
-    if not tls.uses_tls(Hop.INGRESS_API):
+    if not tls.uses_tls(Connection.INGRESS_API):
         return {}
     options: dict[str, Any] = {
         "ssl_certfile": str(tls.cert_file),

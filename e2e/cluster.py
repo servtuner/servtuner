@@ -441,6 +441,9 @@ def install_chart(
         settings["rbac.tuning.namespaces[0]"] = deployment.target_namespace
     if deployment.mode is Security.MUTUAL_TLS:
         settings["tls.certManager.issuerRef.name"] = CLUSTER_ISSUER
+    else:
+        # Without TLS the api signs in to Postgres with the generated password.
+        settings["postgres.auth"] = "password"
     # --set-string: a host or tag with a comma or a number-like value cannot inject or be coerced.
     set_arguments = [f"--set-string={key}={value}" for key, value in settings.items()]
     # tls.enabled must reach the chart as a boolean, so it is the one plain --set.
@@ -624,8 +627,8 @@ def gateway_service(deployment: Deployment) -> str:
 
 
 def check_backend_hostname_is_verified(deployment: Deployment, api: httpx2.Client) -> None:
-    """Mutual TLS through the gateway: a wrong BackendTLSPolicy hostname must break the hop, so
-    the api's certificate is checked by name and not only by CA. The policy is restored after.
+    """Mutual TLS through the gateway: a wrong BackendTLSPolicy hostname must break the connection,
+    so the api's certificate is checked by name and not only by CA. The policy is restored after.
     """
     policy = f"backendtlspolicy/{deployment.release}-api"
     right = f"{deployment.release}-api.{deployment.namespace}.svc"
@@ -642,7 +645,8 @@ def check_backend_hostname_is_verified(deployment: Deployment, api: httpx2.Clien
             ROUTE_TIMEOUT_SECONDS,
         )
         print(
-            "ok   mutual-tls: a BackendTLSPolicy hostname the api certificate lacks breaks the hop"
+            "ok   mutual-tls: a BackendTLSPolicy hostname the api certificate lacks breaks the "
+            "connection"
         )
     finally:
         set_hostname(right)

@@ -1,4 +1,4 @@
-# TLS with client certificates on every hop, issued by cert-manager (the default path).
+# TLS with client certificates on every connection, issued by cert-manager (the default path).
 tls:
   enabled: true
   source: cert-manager

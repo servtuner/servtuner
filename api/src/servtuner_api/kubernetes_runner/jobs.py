@@ -95,7 +95,7 @@ class JobBuilder:
                 str(run_bundle_dir(config.data_dir, run_id)),
                 config.s3,
                 ObjectStoreClient(
-                    config.object_store_hop,
+                    config.object_store_connection,
                     str(BENCH_TLS_DIR / "tls.crt"),
                     str(BENCH_TLS_DIR / "tls.key"),
                     str(CA_DIR / "ca.crt"),
@@ -108,7 +108,7 @@ class JobBuilder:
             "--run-token-file",
             str(TOKEN_DIR / TOKEN_KEY),
             "--api-tls",
-            tls_flag(config.api_hop.enabled),
+            tls_flag(config.api_connection.enabled),
         ]
         if config.engine_override == NULL_ENGINE:
             args += ["--engine-override", NULL_ENGINE]
@@ -117,10 +117,10 @@ class JobBuilder:
         if shards > 1:
             # Kubernetes expands $(VAR) from the container's env (_env).
             args += [SHARD_INDEX_FLAG, f"$({COMPLETION_INDEX_ENV})"]
-        if config.api_hop.enabled:
+        if config.api_connection.enabled:
             # The private CA that signed the api's certificate.
             args += ["--tls-ca-file", str(CA_DIR / "ca.crt")]
-        if config.api_hop.client_cert:
+        if config.api_connection.client_cert:
             args += [
                 "--tls-cert-file",
                 str(BENCH_TLS_DIR / "tls.crt"),

@@ -44,8 +44,8 @@ class ClientAuth(StrEnum):
     NONE = "none"  # ask for no client certificate
 
 
-class Hop(StrEnum):
-    """The five transport hops the chart configures."""
+class Connection(StrEnum):
+    """The five connections of servtuner's own that the chart configures."""
 
     BENCH_API = "bench_api"
     BENCH_PROMETHEUS = "bench_prometheus"
@@ -114,21 +114,29 @@ class CredentialsSource(StrEnum):
     AMBIENT = "ambient"
 
 
+class DatabaseAuth(StrEnum):
+    """How the api signs in to Postgres."""
+
+    CERTIFICATE = "certificate"  # its client certificate, whose CN is the user; needs TLS
+    PASSWORD = "password"
+
+
 class DatabaseSslMode(StrEnum):
     VERIFY_FULL = "verify-full"
     DISABLE = "disable"
 
 
-# Which sslmode the Postgres hop requires, by whether it uses TLS: they may not disagree.
+# Which sslmode the Postgres connection requires, by whether it uses TLS: they may not disagree.
 SSLMODE_FOR_TLS = {
     True: DatabaseSslMode.VERIFY_FULL,
     False: DatabaseSslMode.DISABLE,
 }
 
 
-# The hops that reach the api's own listener: their client certificate follows the
-# listener's policy. The others reach a server servtuner does not run.
-API_LISTENER_HOPS = frozenset({Hop.INGRESS_API, Hop.BENCH_API})
+# The connections that reach the api's own listener: their client certificate follows the
+# listener's policy. The others reach a server servtuner does not run, which decides itself
+# whether to ask for the certificate each component presents.
+API_LISTENER_CONNECTIONS = frozenset({Connection.INGRESS_API, Connection.BENCH_API})
 
 
 DEFAULT_S3_PART_SIZE_MIB = 16
@@ -181,12 +189,14 @@ class DatabaseSettings:
     name: str
     user: str
     ssl_mode: DatabaseSslMode
+    auth: DatabaseAuth = DatabaseAuth.PASSWORD
     password: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
-class HopTls:
-    """One hop: whether it uses TLS, and whether servtuner presents its client certificate."""
+class ConnectionTls:
+    """One connection: whether it uses TLS, and whether servtuner presents its client certificate
+    on it (derived: the component's one certificate, whenever the server may ask for it)."""
 
     enabled: bool
     client_cert: bool
@@ -194,7 +204,7 @@ class HopTls:
 
 @dataclass(frozen=True)
 class TlsSettings:
-    hops: Mapping[Hop, HopTls]
+    connections: Mapping[Connection, ConnectionTls]
     # The api listener's policy (ingress_api, bench_api), meaningful when they use TLS.
     client_auth: ClientAuth
     cert_file: Path | None
@@ -202,14 +212,14 @@ class TlsSettings:
     ca_bundle_file: Path | None  # SSL_CERT_FILE: trust for OUTBOUND connections only
     client_ca_file: Path | None  # private CA only: what the listener accepts client certs from
 
-    def hop(self, hop: Hop) -> HopTls:
-        return self.hops[hop]
+    def connection(self, connection: Connection) -> ConnectionTls:
+        return self.connections[connection]
 
-    def uses_tls(self, hop: Hop) -> bool:
-        return self.hops[hop].enabled
+    def uses_tls(self, connection: Connection) -> bool:
+        return self.connections[connection].enabled
 
-    def presents_cert(self, hop: Hop) -> bool:
-        return self.hops[hop].client_cert
+    def presents_cert(self, connection: Connection) -> bool:
+        return self.connections[connection].client_cert
 
 
 @dataclass(frozen=True)
@@ -232,7 +242,7 @@ class KubernetesRunnerSettings:
     node_pinned: bool
     api_component_label: tuple[str, str] | None
     api_namespace: str
-    # Secrets in the runs namespace: bench's client certificate, when a hop it opens
+    # Secrets in the runs namespace: bench's client certificate, when a connection it opens
     # presents one, and the private CA that verifies the api (with TLS).
     bench_tls_secret: str | None
     ca_secret: str | None

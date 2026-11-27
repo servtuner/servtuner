@@ -23,8 +23,8 @@ spec:
       database: {{ $cnpg.database }}
       owner: {{ $cnpg.owner }}
   {{- if include "servtuner.roleNeeded" (dict "root" . "role" "postgres") }}
-  {{- /* With TLS. A client certificate, whose CN is the database user, authenticates when the hop presents
-         one (tls.hops.postgres.clientCert); otherwise the password does, over TLS only. */}}
+  {{- /* With TLS. postgres.auth certificate: the api's certificate, whose CN is the database user,
+         authenticates; password: the password does, over TLS only. */}}
   {{- $serverSecret := include "servtuner.tlsSecretName" (dict "root" . "role" "postgres") }}
   {{- $caSecret := $serverSecret }}
   {{- if .Values.tls.caSecretRef }}{{- $caSecret = .Values.tls.caSecretRef.name }}{{- end }}
@@ -35,7 +35,7 @@ spec:
     replicationTLSSecret: {{ include "servtuner.tlsSecretName" (dict "root" . "role" "postgresReplication") }}
   postgresql:
     pg_hba:
-      {{- if include "servtuner.hopClientCert" (dict "root" . "hop" "postgres") }}
+      {{- if eq .Values.postgres.auth "certificate" }}
       - hostssl all all all cert
       {{- else }}
       - hostssl all all all scram-sha-256

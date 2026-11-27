@@ -2,11 +2,11 @@
 tls:
   enabled: true
   clientAuth: none
-  hops:
-    postgres: {clientCert: false}
   source: cert-manager
   certManager:
     issuerRef: {kind: ClusterIssuer, name: servtuner-ca}
+postgres:
+  auth: password
 storage:
   file:
     pvc: {create: true, accessMode: ReadWriteMany}

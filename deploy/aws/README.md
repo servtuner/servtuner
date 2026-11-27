@@ -16,13 +16,12 @@ storage:
     forcePathStyle: false        # AWS uses virtual-hosted addressing
     checksumMode: when_supported # AWS accepts the SDK's default checksums
     credentials: {source: ambient}
-tls:
-  hops:
-    objectStore: {enabled: true, clientCert: false}   # AWS S3 is HTTPS, with no client certificate
 ```
 
-Leave `storage.s3.endpoint` empty for AWS. With an endpoint (RustFS, Ceph RGW, SeaweedFS, Garage), the
-`objectStore` hop has TLS on (HTTPS, with or without a client certificate) or off (plain HTTP), as for every hop.
+Leave `storage.s3.endpoint` empty for AWS: the `objectStore` connection is HTTPS to AWS with the system CAs, and
+no client certificate is sent. With an endpoint (RustFS, Ceph RGW, SeaweedFS, Garage), the `objectStore` connection
+uses TLS (HTTPS; api and bench present their certificates, and the store decides whether to ask for them) or not
+(`tls.connections.objectStore: false`, plain HTTP), as for every connection.
 
 ## What the cluster needs
 

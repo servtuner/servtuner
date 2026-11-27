@@ -51,6 +51,7 @@ def api_settings(
             SSL_CERT_FILE=str(authority.cert_file),
             SERVTUNER_TLS_CLIENT_CA_FILE=str(authority.cert_file),
             SERVTUNER_DATABASE_SSLMODE="verify-full",
+            SERVTUNER_DATABASE_AUTH="certificate",
             SERVTUNER_DATABASE_PASSWORD="",
             SERVTUNER_DATABASE_HOST=LOOPBACK,
             SERVTUNER_DATABASE_PORT=str(container.get_exposed_port(POSTGRES_PORT)),

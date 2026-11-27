@@ -4,7 +4,7 @@
 {{- if .Values.gateway.enabled }}
 {{- $fullname := include "servtuner.fullname" . }}
 {{- $gateway := .Values.gateway }}
-{{- $apiTls := include "servtuner.hopTls" (dict "root" . "hop" "ingressApi") }}
+{{- $apiTls := include "servtuner.connectionTls" (dict "root" . "connection" "ingressApi") }}
 {{- $apiHost := printf "%s-api.%s.svc" $fullname .Release.Namespace }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -50,7 +50,7 @@ spec:
 {{- if $apiTls }}
 {{- $ingressSecret := include "servtuner.tlsSecretName" (dict "root" . "role" "ingress") }}
 ---
-{{- /* The ingress -> api hop with TLS: no standard field carries a gateway's client certificate, so Envoy's
+{{- /* The ingress -> api connection with TLS: no standard field carries a gateway's client certificate, so Envoy's
        Backend presents the chart's ingress certificate when the api asks for one (the Secret must share
        the Backend's namespace). */}}
 apiVersion: gateway.envoyproxy.io/v1alpha1

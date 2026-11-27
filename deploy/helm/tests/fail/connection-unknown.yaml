@@ -1,0 +1,4 @@
+# expect: tls.connections.database is unknown
+tls: {enabled: false, connections: {database: false}}
+storage: {file: {pvc: {create: true}}}
+postgres: {auth: password}

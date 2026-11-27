@@ -14,14 +14,10 @@ BACKTICKED = re.compile(r"`(_?[A-Z][A-Z0-9_]*)`")
 def read_by_the_api() -> set[str]:
     sources = [Path(module.__file__ or "").read_text() for module in (env, datadir)]
     literal_names = {name for source in sources for name in ENV_NAME.findall(source)}
-    hop_names = {env.hop_env_name(hop) for hop in models.Hop} | {
-        env.hop_env_name(hop, "CLIENT_CERT")
-        for hop in models.Hop
-        if hop not in models.API_LISTENER_HOPS
-    }
+    connection_names = {env.connection_env_name(connection) for connection in models.Connection}
     # servtuner 0.1's names are read only to be refused, so they are not part of the contract.
-    legacy = {env.LEGACY_ENV_TLS_MODE} | {env.legacy_hop_env_name(hop) for hop in models.Hop}
-    return (literal_names | hop_names) - legacy
+    legacy = {env.LEGACY_ENV_TLS_MODE} | {env.legacy_hop_env_name(hop) for hop in models.Connection}
+    return (literal_names | connection_names) - legacy
 
 
 def documented_names() -> set[str]:
@@ -54,8 +50,7 @@ def test_the_check_sees_the_new_names() -> None:
         "SERVTUNER_TLS_CLIENT_CA_FILE",
         "SERVTUNER_TLS_ENABLED",
         "SERVTUNER_TLS_CLIENT_AUTH",
-        "SERVTUNER_TLS_HOP_POSTGRES_ENABLED",
-        "SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT",
+        "SERVTUNER_TLS_CONNECTION_POSTGRES",
+        "SERVTUNER_DATABASE_AUTH",
     } <= (read_by_the_api())
-    assert "SERVTUNER_TLS_HOP_INGRESS_API_CLIENT_CERT" not in read_by_the_api()
     assert "SERVTUNER_TLS_MODE" not in read_by_the_api()

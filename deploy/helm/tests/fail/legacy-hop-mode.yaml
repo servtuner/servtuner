@@ -1,3 +1,0 @@
-# expect: tls.hops.postgres "platform" was replaced in servtuner 0.2
-tls: {enabled: false, hops: {postgres: platform}}
-storage: {file: {pvc: {create: true}}}

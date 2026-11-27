@@ -14,7 +14,7 @@ from servtuner_api.runner import (
     shard_count,
 )
 from servtuner_api.secret_store import FileSecretStore, SecretStore
-from servtuner_api.settings.models import HopTls
+from servtuner_api.settings.models import ConnectionTls
 from tests.support.waiting import wait_until
 
 # Records its argv and the token it was handed, then exits as BENCH_EXIT_CODE says.
@@ -35,14 +35,14 @@ exit "${BENCH_EXIT_CODE:-0}"
 """
 RUN_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
-PLAIN = HopTls(enabled=False, client_cert=False)
-TLS_ONLY = HopTls(enabled=True, client_cert=False)
-MUTUAL = HopTls(enabled=True, client_cert=True)
+PLAIN = ConnectionTls(enabled=False, client_cert=False)
+TLS_ONLY = ConnectionTls(enabled=True, client_cert=False)
+MUTUAL = ConnectionTls(enabled=True, client_cert=True)
 
 
 def make_runner(
     tmp_path: Path,
-    hop: HopTls,
+    connection: ConnectionTls,
     engine_override: str | None = None,
     secret_store: SecretStore | None = None,
 ) -> SubprocessRunner:
@@ -55,10 +55,14 @@ def make_runner(
         SubprocessRunnerConfig(
             bench_binary=bench,
             data_dir=data_dir,
-            api_url="https://api.example.invalid" if hop.enabled else "http://api.example.invalid",
-            api_hop=hop,
-            tls_cert_file=Path("/certs/tls.crt") if hop.client_cert else None,
-            tls_key_file=Path("/certs/tls.key") if hop.client_cert else None,
+            api_url=(
+                "https://api.example.invalid"
+                if connection.enabled
+                else "http://api.example.invalid"
+            ),
+            api_connection=connection,
+            tls_cert_file=Path("/certs/tls.crt") if connection.client_cert else None,
+            tls_key_file=Path("/certs/tls.key") if connection.client_cert else None,
             engine_override=engine_override,
             run_secrets_dir=tmp_path / "run-secrets",
             mounted_secrets_dir=tmp_path / "mounted",
@@ -73,9 +77,9 @@ def run_to_completion(runner: SubprocessRunner) -> tuple[str, RunnerState]:
     return handle.reference, runner.status(handle).state
 
 
-@pytest.mark.parametrize("hop", [PLAIN, TLS_ONLY, MUTUAL])
-def test_command_line_follows_the_contract(tmp_path: Path, hop: HopTls) -> None:
-    runner = make_runner(tmp_path, hop)
+@pytest.mark.parametrize("connection", [PLAIN, TLS_ONLY, MUTUAL])
+def test_command_line_follows_the_contract(tmp_path: Path, connection: ConnectionTls) -> None:
+    runner = make_runner(tmp_path, connection)
     run_to_completion(runner)
     argv = (tmp_path / "data" / "argv.txt").read_text().split()
     data_dir = tmp_path / "data"
@@ -84,9 +88,9 @@ def test_command_line_follows_the_contract(tmp_path: Path, hop: HopTls) -> None:
         "--out", str(data_dir / "runs" / RUN_ID), "--run-id", RUN_ID,
         "--api-url", runner._config.api_url,
         "--run-token-file", str(data_dir / "tokens" / RUN_ID),
-        "--api-tls", "true" if hop.enabled else "false",
+        "--api-tls", "true" if connection.enabled else "false",
     ]  # fmt: skip
-    if hop.client_cert:
+    if connection.client_cert:
         expected += ["--tls-cert-file", "/certs/tls.crt", "--tls-key-file", "/certs/tls.key"]
     assert argv == expected
 

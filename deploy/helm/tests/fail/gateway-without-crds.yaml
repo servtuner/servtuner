@@ -2,3 +2,4 @@
 # api-versions: postgresql.cnpg.io/v1
 tls: {enabled: false}
 gateway: {enabled: true, hostname: a.example.test, parentRefs: [{name: eg}]}
+postgres: {auth: password}
