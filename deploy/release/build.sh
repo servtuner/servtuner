@@ -4,8 +4,8 @@
 #   deploy/release/build.sh VERSION [--with-vllm] [--with-flashinfer [--sm SM]...]
 #                               [--from-registry REGISTRY [--verify-identity REGEX]]
 #
-# By default servtuner's images are built here (just _image-api _image-frontend). With --from-registry they are the
-# published ones instead, REGISTRY/servtuner-{api,bench,frontend}:VERSION (the release workflow passes
+# By default servtuner's images are built here (just _image-api _image-frontend _image-mock). With --from-registry
+# they are the published ones instead, REGISTRY/servtuner-{api,bench,frontend,mock}:VERSION (the release workflow passes
 # ghcr.io/servtuner after pushing them), so the archive holds exactly what a connected install pulls, with its
 # signatures and attestations. --verify-identity checks each image's cosign keyless signature as it is added: the
 # signing workflow's certificate identity must match REGEX (GitHub Actions' OIDC issuer).
@@ -69,7 +69,7 @@ if [ -n "$from_registry" ]; then
   bench_image="$from_registry/servtuner-bench:$version"
 else
   step "building servtuner's images as $version"
-  (cd "$root" && SERVTUNER_IMAGE_TAG="$version" SERVTUNER_VERSION="$version" just _image-api _image-frontend)
+  (cd "$root" && SERVTUNER_IMAGE_TAG="$version" SERVTUNER_VERSION="$version" just _image-api _image-frontend _image-mock)
   bench_image="servtuner-bench:$version"
 fi
 
@@ -79,6 +79,10 @@ mkdir -p "$bundle/deploy/charts" "$bundle/deploy/helm"
 cp "$deploy/helmfile.yaml.gotmpl" "$bundle/deploy/"
 cp -r "$deploy/helmfile" "$bundle/deploy/"
 cp -r "$deploy/helm/servtuner" "$bundle/deploy/helm/"
+# The mock target's chart, so an air-gapped site can try servtuner without GPUs (its image is in the core archive).
+mkdir -p "$bundle/deploy/mocks"
+cp -r "$deploy/mocks/chart" "$bundle/deploy/mocks/"
+sed -i "s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/mocks/chart/Chart.yaml"
 cp "$deploy/kind/envoy-gateway-class.yaml" "$bundle/deploy/helmfile/"
 sed -i "s/^servtunerVersion: .*/servtunerVersion: $version/" "$bundle/deploy/helmfile/env/common.yaml"
 sed -i "s/^appVersion: .*/appVersion: \"$version\"/" "$bundle/deploy/helm/servtuner/Chart.yaml"
@@ -97,7 +101,7 @@ images() { awk -v section="[$1]" '/^\[/ {current = $0; next} current == section 
 
 step "the core archive"
 store="$work/core-store"
-for name in api bench frontend; do
+for name in api bench frontend mock; do
   if [ -n "$from_registry" ]; then
     verify=()
     [ -z "$verify_identity" ] || verify=(--certificate-identity-regexp "$verify_identity"

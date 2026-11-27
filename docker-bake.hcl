@@ -23,9 +23,9 @@ group "default" {
   targets = ["bench", "api", "frontend", "mock"]
 }
 
-# What a release publishes. The mock is a test target and is never published.
+# What a release publishes. The mock ships too, so trying servtuner on a cluster needs no image builds.
 group "release" {
-  targets = ["bench", "api", "frontend"]
+  targets = ["bench", "api", "frontend", "mock"]
 }
 
 target "meta-bench" {
@@ -38,6 +38,10 @@ target "meta-api" {
 
 target "meta-frontend" {
   tags = ["servtuner-frontend:${TAG}"]
+}
+
+target "meta-mock" {
+  tags = ["servtuner-mock:${TAG}"]
 }
 
 target "_version" {
@@ -65,6 +69,6 @@ target "frontend" {
 }
 
 target "mock" {
-  context = "deploy/mocks/openai-mock"
-  tags    = ["servtuner-mock:${TAG}"]
+  inherits = ["_version", "meta-mock"]
+  context  = "deploy/mocks/openai-mock"
 }

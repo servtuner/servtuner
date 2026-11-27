@@ -3,7 +3,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY *.go ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /openai-mock .
+# The release version (docker-bake.hcl sets it from the tag): openai-mock --version.
+ARG SERVTUNER_VERSION=0.0.0-dev
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${SERVTUNER_VERSION}" -o /openai-mock .
 
 FROM gcr.io/distroless/static:nonroot
 COPY --from=build /openai-mock /openai-mock

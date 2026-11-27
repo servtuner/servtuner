@@ -1,8 +1,10 @@
 # The mock target for servtuner (deploy/mocks/README.md). Install one release per namespace:
-#   helm install openai-mock deploy/mocks/chart -n servtuner-mock --create-namespace --set tls.enabled=true ...
+#   helm install openai-mock oci://ghcr.io/servtuner/charts/servtuner-mock -n servtuner-mock --create-namespace ...
 image:
-  repository: servtuner-mock     # built by `just images` (servtuner-mock:<tag>); push or load it where the cluster can pull it
-  tag: e2e
+  # The published image; the tag defaults to .Chart.AppVersion. A local build (`just images`) is servtuner-mock:<tag>:
+  # set both, and push or load it where the cluster can pull it.
+  repository: ghcr.io/servtuner/servtuner-mock
+  tag: ""
   pullPolicy: IfNotPresent
 
 # Mock behaviour; each key maps to an OPENAI_MOCK_* variable (deploy/mocks/openai-mock/config.go).

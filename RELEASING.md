@@ -5,14 +5,14 @@ is built or uploaded by hand.
 
 | Published | Where |
 |---|---|
-| `servtuner-api`, `servtuner-bench`, `servtuner-frontend` (linux/amd64, linux/arm64; provenance and SBOM attached; cosign-signed) | `ghcr.io/servtuner/<image>:<version>`, also `:<major>.<minor>` and, for the newest stable release, `:latest` |
-| The Helm chart (cosign-signed) | `oci://ghcr.io/servtuner/charts/servtuner`, version = the release |
-| The `servtuner` CLI for linux and darwin, amd64 and arm64 | the GitHub Release |
+| `servtuner-api`, `servtuner-bench`, `servtuner-frontend`, `servtuner-mock` (linux/amd64, linux/arm64; provenance and SBOM attached; cosign-signed) | `ghcr.io/servtuner/<image>:<version>`, also `:<major>.<minor>` and, for the newest stable release, `:latest` |
+| The Helm charts (cosign-signed): servtuner, and the mock target | `oci://ghcr.io/servtuner/charts/servtuner` and `charts/servtuner-mock`, version = the release |
+| The `servtuner` CLI and the `servtuner-mock` target for linux and darwin, amd64 and arm64 | the GitHub Release |
 | The air-gapped archive, the deploy bundle, `SHA256SUMS`, `THIRD_PARTY_NOTICES`, `INSTALL.md` | the GitHub Release |
 | `checksums.txt` over every Release file, and its cosign bundle `checksums.txt.sigstore.json` | the GitHub Release |
 
-Every binary and image reports the release version (`servtuner --version`, and `bench_version` in every run
-bundle).
+Every binary and image reports the release version (`servtuner --version`, `servtuner-mock --version`, and
+`bench_version` in every run bundle).
 
 ## Versions
 
@@ -27,8 +27,9 @@ bundle).
 - **Tag protection:** add a repository ruleset for tags matching `v*` that allows only maintainers to create
   them and blocks updates and deletions. A pushed tag publishes.
 - **Packages:** after the first release, an organization owner makes each package public (Organization →
-  Packages → each `servtuner-*` image and `charts/servtuner` → Package settings → Change visibility). Until then,
-  only members can pull.
+  Packages → each `servtuner-*` image and chart → Package settings → Change visibility). Until then, only members
+  can pull. A package published for the first time (such as `servtuner-mock` and `charts/servtuner-mock`) starts
+  private too.
 
 ## Steps
 

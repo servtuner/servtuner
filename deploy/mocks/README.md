@@ -1,6 +1,6 @@
 # Mock target on a cluster
 
-`chart/` is a small Helm chart that runs `openai-mock` in namespace `servtuner-mock`, with TLS (`tls.enabled`) and client
+`chart/` (published as `oci://ghcr.io/servtuner/charts/servtuner-mock`) is a small Helm chart that runs `openai-mock` in namespace `servtuner-mock`, with TLS (`tls.enabled`) and client
 certificates `required`, `optional` or `none` (`tls.clientAuth`), or as plain HTTP. `test.sh` renders each combination offline
 (`KUBECONFIG=/dev/null`, no cluster contact). `examples/` has RunSpecs for mock-direct (with a client certificate, and
 without TLS) and Bifrost to mock; all validate with `servtuner validate`.
@@ -22,6 +22,16 @@ Pods carry the label `servtuner.dev/scrape=true`.
 ## 1. Install the mock
 
 Prerequisite: the `servtuner-ca` ClusterIssuer is Ready (with TLS; `deploy/kind/cluster-issuer.yaml`).
+
+Each release publishes the chart and its image (`ghcr.io/servtuner/servtuner-mock:<version>`, signed like servtuner's
+own images), and its Release carries a `servtuner-mock` binary for one machine:
+
+```
+helm install openai-mock oci://ghcr.io/servtuner/charts/servtuner-mock --version <version> \
+  -n servtuner-mock --create-namespace --set tls.enabled=true --set tls.clientAuth=required
+```
+
+From this checkout instead, with a local image:
 
 ```
 just images                                  # builds servtuner-mock:<tag> (SERVTUNER_IMAGE_TAG, default e2e)
