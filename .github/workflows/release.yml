@@ -295,3 +295,7 @@ jobs:
           args: ${{ env.PUBLISH == 'true' && 'release --clean' || 'release --snapshot --clean --skip=sign,publish' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The tag that started this run. On its own GoReleaser takes the highest tag on the commit, and git ranks
+          # v0.1.0-rc.3 above v0.1.0, so a release tagged on its last RC's commit would publish the RC again.
+          # Empty (unset) for the snapshot dry run.
+          GORELEASER_CURRENT_TAG: ${{ env.PUBLISH == 'true' && github.ref_name || '' }}
