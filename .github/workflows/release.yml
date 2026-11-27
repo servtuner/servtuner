@@ -157,13 +157,13 @@ jobs:
           sbom: true
           set: |
             *.platform=linux/amd64,linux/arm64
+      # Each pushed image's digest, read back from the registry. (Bake's metadata output carries the
+      # full provenance and is too large to pass through the environment.)
       - id: digests
         if: env.PUBLISH == 'true'
-        env:
-          METADATA: ${{ steps.bake.outputs.metadata }}
         run: |
           for name in bench api frontend; do
-            digest="$(jq -r --arg t "$name" '.[$t]["containerimage.digest"]' <<<"$METADATA")"
+            digest="$(docker buildx imagetools inspect "$REGISTRY/servtuner-$name:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)"
             [[ "$digest" == sha256:* ]] || { echo "::error::no digest for $name"; exit 1; }
             echo "$name=$digest" >> "$GITHUB_OUTPUT"
             echo "$REGISTRY/servtuner-$name@$digest" >> "$GITHUB_STEP_SUMMARY"
