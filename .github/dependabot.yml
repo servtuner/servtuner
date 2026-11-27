@@ -1,0 +1,67 @@
+# Dependabot version updates. Weekly, minor and patch updates grouped into one pull request per ecosystem, majors on
+# their own. A release must be 14 days old before it is proposed, so a bad or compromised release has time to be
+# pulled first. Pins stay exact: Dependabot rewrites the pinned version.
+#
+# Left out on purpose:
+# - Toolchains: .tool-versions is the only place they are defined (go, python, nodejs, uv, just, helm, helmfile,
+#   hauler, cosign, goreleaser), and Dependabot cannot read it. The Dockerfiles' golang and uv images move with it,
+#   by hand, so they are ignored below.
+# - bench/internal/engine/inferenceperf/requirements.txt: a hash-locked install of inference-perf 0.7.0 with --no-deps.
+#   The engine adapter is written against that version, so upgrading it is a deliberate change, not a bump.
+# - The prerequisite charts and images pinned in deploy/helmfile.yaml.gotmpl and deploy/release/images.lock.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directories: [/bench, /deploy/mocks/openai-mock]
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: deps }
+    groups:
+      go:
+        update-types: [minor, patch]
+
+  - package-ecosystem: uv
+    directory: /api
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: deps }
+    groups:
+      python:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: deps }
+    groups:
+      npm:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories: [/api, /bench, /frontend, /deploy/mocks/openai-mock]
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: deps }
+    groups:
+      images:
+        update-types: [minor, patch]
+    ignore:
+      # Toolchains move with .tool-versions, by hand.
+      - dependency-name: golang
+      - dependency-name: ghcr.io/astral-sh/uv
+      # .tool-versions pins Python to a minor version, and bench stays on 3.12 for inference-perf: patches only.
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      # .tool-versions pins Node to a major version.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/setup]
+    schedule: { interval: weekly, day: monday }
+    cooldown: { default-days: 14 }
+    commit-message: { prefix: ci }
+    groups:
+      actions:
+        update-types: [minor, patch]
