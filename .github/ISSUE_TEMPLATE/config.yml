@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation problem
+    url: https://github.com/servtuner/docs/issues/new?template=docs_issue.yml
+    about: Report a mistake, a gap or a broken example in the documentation at docs.servtuner.dev.
+  - name: Security vulnerability
+    url: https://github.com/servtuner/servtuner/security/advisories/new
+    about: Report security problems privately, never in a public issue.
+  - name: Documentation
+    url: https://docs.servtuner.dev/
+    about: Guides, concepts and reference for servtuner.

@@ -1,0 +1,140 @@
+name: Bug report
+description: Something in servtuner does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Report security problems privately** through
+        [private vulnerability reporting](https://github.com/servtuner/servtuner/security/advisories/new), not here.
+
+        Before you paste anything, remove secrets, tokens, internal hostnames and IP addresses.
+        RunSpecs name Kubernetes Secrets; they never need to contain a credential.
+
+  - type: input
+    id: version
+    attributes:
+      label: servtuner version
+      description: The output of `servtuner --version`, or the chart and image version you installed.
+      placeholder: servtuner version 0.1.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where you saw the problem. Pick the closest one if you are not sure.
+      options:
+        - CLI (servtuner run, validate, analyze, compare, plan)
+        - loadgen engine
+        - inference-perf engine
+        - Analysis, capacity or recommendations
+        - API
+        - Web UI
+        - Helm chart or helmfile install
+        - Air-gapped install
+        - Managed vLLM, tuning sessions or the launcher
+        - Schema or generated types
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - CLI from a GitHub Release
+        - Helm chart from oci://ghcr.io/servtuner/charts/servtuner
+        - Deploy bundle with helmfile
+        - Air-gapped archive
+        - Built from source
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target type
+      description: The `target.type` of the run, if the problem involves one.
+      options:
+        - Not relevant
+        - vllm
+        - litellm
+        - bifrost
+        - openai-compatible
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport mode
+      description: The `tls.mode` of the connection involved, if any.
+      options:
+        - Not relevant
+        - mtls
+        - tls
+        - platform
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, including any error message.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What should have happened instead. Link the documentation page if it describes the expected behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The smallest set of steps that shows the problem. A run against the mock server is ideal.
+      placeholder: |
+        1. Start the mock: go run github.com/servtuner/servtuner/deploy/mocks/openai-mock@main --tls-mode platform --listen 127.0.0.1:18000
+        2. servtuner run --spec spec.yaml --out ./run
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: runspec
+    attributes:
+      label: RunSpec
+      description: The RunSpec, if the problem involves a run. Replace real endpoints with placeholders such as `gateway.example.svc`.
+      render: yaml
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and bundle files
+      description: Relevant log lines, or files from the run bundle such as `phases.json` or `analysis.json`. Trim them to what matters.
+      render: text
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Kubernetes distribution and version, GPU and model, operating system and CPU architecture, whatever applies.
+      placeholder: |
+        Kubernetes: <distribution and version>
+        GPU and model: <GPU, count and model name>
+        OS and architecture: <operating system, amd64 or arm64>
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I removed secrets, tokens, internal hostnames and IP addresses from everything above.
+          required: true
