@@ -49,10 +49,10 @@ class HopTransports(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    target: common_schema.TransportMode
-    prometheus: common_schema.TransportMode | None = None
-    api: common_schema.TransportMode | None = None
-    object_store: common_schema.TransportMode | None = None
+    target: common_schema.HopTransport
+    prometheus: common_schema.HopTransport | None = None
+    api: common_schema.HopTransport | None = None
+    object_store: common_schema.HopTransport | None = None
 
 
 class Environment(BaseModel):

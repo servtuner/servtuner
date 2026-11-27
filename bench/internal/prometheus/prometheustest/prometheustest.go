@@ -1,7 +1,7 @@
 // Package prometheustest is a fake Prometheus HTTP API for tests of everything
 // that queries Prometheus ("Tests share fixtures"). Serve
-// its Handler with tlstest.NewMTLSServer or tlstest.NewPlatformServer to test a
-// client in each transport mode. It is only for tests.
+// its Handler with tlstest.NewMTLSServer or tlstest.NewPlainServer to test a
+// client with and without TLS. It is only for tests.
 package prometheustest
 
 import (

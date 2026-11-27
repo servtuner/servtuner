@@ -1,0 +1,44 @@
+{
+  "apiVersion": "servtuner.dev/v2",
+  "kind": "RunSpec",
+  "name": "vllm-smoke",
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/model-8b",
+    "tls": {
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
+      },
+      "caSecretRef": {
+        "name": "private-ca"
+      }
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 128
+      },
+      "output_tokens": {
+        "mean": 64
+      }
+    }
+  },
+  "load": {
+    "stages": [
+      {
+        "rate": 1,
+        "duration": "30s"
+      }
+    ]
+  }
+}

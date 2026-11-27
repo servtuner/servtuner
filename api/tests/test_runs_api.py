@@ -103,7 +103,7 @@ def test_every_invalid_example_is_rejected(client: TestClient) -> None:
 
 
 def test_valid_examples_are_accepted(client: TestClient) -> None:
-    for name in ("minimal-vllm-mtls", "full-vllm-mtls", "router-bifrost-platform"):
+    for name in ("minimal-vllm-client-cert", "full-vllm-client-cert", "router-bifrost-tls-off"):
         create(client, example_bytes("runspec", "valid", name))
 
 
@@ -115,7 +115,7 @@ def test_get_unknown_run_is_404(client: TestClient) -> None:
 def test_list_filters(client: TestClient) -> None:
     create(client, run_spec_bytes(name="a", experiment="exp-1", labels={"team": "red"}))
     create(client, run_spec_bytes(name="b", experiment="exp-2", labels={"team": "blue"}))
-    router = json.loads(example_bytes("runspec", "valid", "router-bifrost-platform"))
+    router = json.loads(example_bytes("runspec", "valid", "router-bifrost-tls-off"))
     create(client, json.dumps(router).encode())
 
     def names(query: str) -> list[str]:

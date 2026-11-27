@@ -228,10 +228,10 @@ def test_defaults_are_applied() -> None:
 
 def test_tls_variants_are_typed() -> None:
     mtls = parse_run_spec(
-        _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-mtls.json")
+        _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-client-cert.json")
     )
     platform = parse_run_spec(
-        _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "router-bifrost-platform.json")
+        _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "router-bifrost-tls-off.json")
     )
     assert isinstance(mtls.target.tls.root, TlsMtls)
     assert isinstance(platform.target.tls.root, TlsPlatform)
@@ -244,7 +244,7 @@ def test_parse_run_spec_rejects_invalid_examples(name: str, validity: str, path:
 
 
 def test_parse_run_spec_rejects_what_pydantic_alone_accepts() -> None:
-    document = _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-mtls.json")
+    document = _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-client-cert.json")
     document["experiment"] = None
     RunSpec.model_validate(document)  # the generated model tolerates an explicit null
     with pytest.raises(SchemaValidationError) as caught:
@@ -253,7 +253,7 @@ def test_parse_run_spec_rejects_what_pydantic_alone_accepts() -> None:
 
 
 def test_validation_error_lists_every_violation() -> None:
-    document = _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-mtls.json")
+    document = _load_json(EXAMPLES_ROOT / "runspec" / "valid" / "minimal-vllm-client-cert.json")
     document["name"] = "Bad_Name"
     document["extra"] = 1
     with pytest.raises(SchemaValidationError) as caught:

@@ -20,7 +20,7 @@ const recordedStreamFixture = "testdata/mock-completions-usage.sse"
 // poster sends a request to a running mock and returns the response and the time it was sent.
 type poster func(path, body string) (*http.Response, time.Time)
 
-// eachTLSMode runs test once against a platform-mode mock and once against an mtls-mode mock, with cfg's
+// eachTLSMode runs test once against a plain-HTTP mock and once against one that requires client certificates, with cfg's
 // timing and token settings applied to both.
 func eachTLSMode(t *testing.T, cfg Config, test func(t *testing.T, post poster)) {
 	t.Helper()
@@ -36,10 +36,10 @@ func eachTLSMode(t *testing.T, cfg Config, test func(t *testing.T, post poster))
 			return response, sent
 		})
 	}
-	t.Run("platform", func(t *testing.T) {
-		platform := cfg
-		platform.TLSMode = tlsModePlatform
-		run(t, "http", startMock(t, platform), newClient(nil))
+	t.Run("plain", func(t *testing.T) {
+		plain := cfg
+		plain.TLS = tlsOff
+		run(t, "http", startMock(t, plain), newClient(nil))
 	})
 	t.Run("mtls", func(t *testing.T) {
 		pki := newTestPKI(t)
@@ -71,7 +71,7 @@ func decodeTextChunk(t *testing.T, event sseEvent) textChunk {
 }
 
 func TestCompletionsStreamingFormatAndUsage(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 4
 	eachTLSMode(t, cfg, func(t *testing.T, post poster) {
 		response, _ := post(completionsPath, `{"model":"m","prompt":"one two three","stream":true,"stream_options":{"include_usage":true}}`)
@@ -105,7 +105,7 @@ func TestCompletionsStreamingFormatAndUsage(t *testing.T) {
 }
 
 func TestCompletionsStreamingOmitsUsageUnlessRequested(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 2
 	eachTLSMode(t, cfg, func(t *testing.T, post poster) {
 		response, _ := post(completionsPath, `{"prompt":"hi","stream":true}`)
@@ -122,7 +122,7 @@ func TestCompletionsStreamingOmitsUsageUnlessRequested(t *testing.T) {
 }
 
 func TestCompletionsNonStreamingReturnsTextAndUsage(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 3
 	eachTLSMode(t, cfg, func(t *testing.T, post poster) {
 		response, _ := post(completionsPath, `{"model":"m","prompt":"a b c d","max_tokens":5}`)
@@ -150,7 +150,7 @@ func TestCompletionsNonStreamingReturnsTextAndUsage(t *testing.T) {
 }
 
 func TestCompletionsMaxTokensIgnoredWhenNotHonored(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 3
 	cfg.HonorRequestMaxTokens = false
 	address := startMock(t, cfg)
@@ -171,7 +171,7 @@ func TestCompletionsMaxTokensIgnoredWhenNotHonored(t *testing.T) {
 }
 
 func TestCompletionsPromptArrayUsesFirstPrompt(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 1
 	eachTLSMode(t, cfg, func(t *testing.T, post poster) {
 		response, _ := post(completionsPath, `{"prompt":["one two","three four five six"]}`)
@@ -186,7 +186,7 @@ func TestCompletionsPromptArrayUsesFirstPrompt(t *testing.T) {
 }
 
 func TestCompletionsRejectsBadBodies(t *testing.T) {
-	eachTLSMode(t, platformConfig(), func(t *testing.T, post poster) {
+	eachTLSMode(t, plainConfig(), func(t *testing.T, post poster) {
 		for _, body := range []string{`{not json`, `{"prompt":42}`, `{"prompt":[1,2,3]}`} {
 			response, _ := post(completionsPath, body)
 			if response.StatusCode != http.StatusBadRequest {
@@ -197,7 +197,7 @@ func TestCompletionsRejectsBadBodies(t *testing.T) {
 }
 
 func TestCompletionsStreamingTimingsAreHonoured(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.TimeToFirstToken = 150 * time.Millisecond
 	cfg.InterTokenLatency = 40 * time.Millisecond
 	cfg.OutputTokens = 4
@@ -221,7 +221,7 @@ func TestCompletionsStreamingTimingsAreHonoured(t *testing.T) {
 }
 
 func TestCompletionsOpeningChunkSeparatesTTFBFromTTFT(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.TimeToFirstToken = 200 * time.Millisecond
 	cfg.OutputTokens = 2
 	cfg.SendRoleOnlyFirstChunk = true
@@ -243,7 +243,7 @@ func TestCompletionsOpeningChunkSeparatesTTFBFromTTFT(t *testing.T) {
 }
 
 func TestNonStreamingTakesTimeToFinishGenerating(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.TimeToFirstToken = 100 * time.Millisecond
 	cfg.InterTokenLatency = 30 * time.Millisecond
 	cfg.OutputTokens = 4
@@ -257,7 +257,7 @@ func TestNonStreamingTakesTimeToFinishGenerating(t *testing.T) {
 }
 
 func TestCompletionsAreCountedByPath(t *testing.T) {
-	address := startMock(t, platformConfig())
+	address := startMock(t, plainConfig())
 	postChat(t, address, `{"messages":[]}`)
 	for _, body := range []string{`{"prompt":"x"}`, `{"prompt":"x","stream":true}`} {
 		response, err := newClient(nil).Post("http://"+address+completionsPath, "application/json", strings.NewReader(body))
@@ -292,7 +292,7 @@ var createdField = regexp.MustCompile(`"created":\d+`)
 // timestamp zeroed). The bench SSE parser tests use a copy of it. Regenerate with `go test -run
 // TestRecordedStreamFixture -update`.
 func TestRecordedStreamFixture(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 4
 	cfg.ModelName = "mock-model"
 	address := startMock(t, cfg)

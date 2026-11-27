@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/servtuner/servtuner/bench/internal/spec"
 	"github.com/servtuner/servtuner/bench/internal/tlstest"
 )
 
@@ -36,7 +35,7 @@ func newMTLSFixture(t *testing.T) mtlsFixture {
 		serverURL: server.URL,
 		hop: Hop{
 			Name:     "test",
-			Mode:     spec.TransportModeMtls,
+			TLS:      true,
 			URL:      server.URL,
 			CertFile: certFile,
 			KeyFile:  keyFile,
@@ -114,15 +113,15 @@ func TestMTLSClientWithoutPrivateCAdoesNotTrustServer(t *testing.T) {
 	}
 }
 
-func TestPlatformClientWorksAgainstPlainServer(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, okHandler)
-	client, err := NewHTTPClient(Hop{Name: "test", Mode: spec.TransportModePlatform, URL: server.URL}, clientTimeout)
+func TestPlainClientWorksAgainstPlainServer(t *testing.T) {
+	server := tlstest.NewPlainServer(t, okHandler)
+	client, err := NewHTTPClient(Hop{Name: "test", URL: server.URL}, clientTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
 	response, err := client.Get(server.URL)
 	if err != nil {
-		t.Fatalf("platform request failed: %v", err)
+		t.Fatalf("plain request failed: %v", err)
 	}
 	response.Body.Close()
 }
@@ -144,7 +143,7 @@ func newTLSFixture(t *testing.T) tlsFixture {
 		serverURL: server.URL,
 		hop: Hop{
 			Name:   "test",
-			Mode:   spec.TransportModeTls,
+			TLS:    true,
 			URL:    server.URL,
 			CAFile: tlstest.WriteFile(t, t.TempDir(), "ca.crt", authority.CertPEM),
 		},
@@ -158,7 +157,7 @@ func TestTLSClientVerifiesServerWithoutCertificate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(config.Certificates) != 0 {
-		t.Errorf("tls hop presents %d client certificates, want none", len(config.Certificates))
+		t.Errorf("a hop without a client certificate presents %d, want none", len(config.Certificates))
 	}
 	client, err := NewHTTPClient(fixture.hop, clientTimeout)
 	if err != nil {
@@ -203,27 +202,26 @@ func TestTLSClientWithoutPrivateCAdoesNotTrustServer(t *testing.T) {
 	}
 }
 
-// TestTLSClientIsRefusedByMTLSServer: a tls hop presents nothing, so a server
-// that requires client certificates turns it away; tls is never a quiet
-// stand-in for mtls.
+// TestTLSClientIsRefusedByMTLSServer: a TLS hop without a client certificate
+// presents nothing, so a server that requires one turns it away.
 func TestTLSClientIsRefusedByMTLSServer(t *testing.T) {
 	fixture := newMTLSFixture(t)
-	hop := Hop{Name: "test", Mode: spec.TransportModeTls, URL: fixture.serverURL, CAFile: fixture.hop.CAFile}
+	hop := Hop{Name: "test", TLS: true, URL: fixture.serverURL, CAFile: fixture.hop.CAFile}
 	client, err := NewHTTPClient(hop, clientTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if response, err := client.Get(fixture.serverURL); err == nil {
 		response.Body.Close()
-		t.Fatal("an mtls server accepted a tls client with no certificate")
+		t.Fatal("a server requiring client certificates accepted a client with none")
 	}
 }
 
 func TestClientDoesNotFollowRedirects(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := tlstest.NewPlainServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://example.invalid/", http.StatusTemporaryRedirect)
 	}))
-	client, err := NewHTTPClient(Hop{Name: "test", Mode: spec.TransportModePlatform, URL: server.URL}, clientTimeout)
+	client, err := NewHTTPClient(Hop{Name: "test", URL: server.URL}, clientTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,24 +235,21 @@ func TestClientDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
-func TestMixingTheModesIsRejected(t *testing.T) {
+func TestMixingTLSAndPlainIsRejected(t *testing.T) {
 	fixture := newMTLSFixture(t)
+	cert, key, ca := fixture.hop.CertFile, fixture.hop.KeyFile, fixture.hop.CAFile
 	cases := map[string]Hop{
-		"mtls with http url":          {Mode: spec.TransportModeMtls, URL: "http://svc:80", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"platform with https url":     {Mode: spec.TransportModePlatform, URL: "https://svc:443"},
-		"platform with certificate":   {Mode: spec.TransportModePlatform, URL: "http://svc:80", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"platform with CA bundle":     {Mode: spec.TransportModePlatform, URL: "http://svc:80", CAFile: fixture.hop.CAFile},
-		"mtls without certificate":    {Mode: spec.TransportModeMtls, URL: "https://svc:443"},
-		"mtls without key":            {Mode: spec.TransportModeMtls, URL: "https://svc:443", CertFile: fixture.hop.CertFile},
-		"mtls url without host":       {Mode: spec.TransportModeMtls, URL: "https://", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"platform url without host":   {Mode: spec.TransportModePlatform, URL: "http:///v1"},
-		"unknown mode":                {Mode: "plain", URL: "http://svc:80"},
-		"empty mode (never inferred)": {URL: "https://svc:443"},
-		"non-http scheme under mtls":  {Mode: spec.TransportModeMtls, URL: "ftp://svc", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"unparseable url under mtls":  {Mode: spec.TransportModeMtls, URL: "https://svc:bad", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"tls with http url":           {Mode: spec.TransportModeTls, URL: "http://svc:80"},
-		"tls with client certificate": {Mode: spec.TransportModeTls, URL: "https://svc:443", CertFile: fixture.hop.CertFile, KeyFile: fixture.hop.KeyFile},
-		"tls with client key only":    {Mode: spec.TransportModeTls, URL: "https://svc:443", KeyFile: fixture.hop.KeyFile},
+		"tls with http url":                {TLS: true, URL: "http://svc:80"},
+		"tls and a client cert, http url":  {TLS: true, URL: "http://svc:80", CertFile: cert, KeyFile: key},
+		"no tls with https url":            {URL: "https://svc:443"},
+		"no tls with a client certificate": {URL: "http://svc:80", CertFile: cert, KeyFile: key},
+		"no tls with a CA bundle":          {URL: "http://svc:80", CAFile: ca},
+		"client certificate without key":   {TLS: true, URL: "https://svc:443", CertFile: cert},
+		"client key without certificate":   {TLS: true, URL: "https://svc:443", KeyFile: key},
+		"tls url without host":             {TLS: true, URL: "https://"},
+		"plain url without host":           {URL: "http:///v1"},
+		"non-http scheme with tls":         {TLS: true, URL: "ftp://svc"},
+		"unparseable url with tls":         {TLS: true, URL: "https://svc:bad"},
 	}
 	for name, hop := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -295,26 +290,25 @@ func TestClientConfigNeverSkipsVerification(t *testing.T) {
 	if config.MinVersion < 0x0303 {
 		t.Errorf("MinVersion = %#x, want at least TLS 1.2", config.MinVersion)
 	}
-	platformConfig, err := ClientConfig(Hop{Name: "test", Mode: spec.TransportModePlatform, URL: "http://svc"})
+	platformConfig, err := ClientConfig(Hop{Name: "test", URL: "http://svc"})
 	if err != nil || platformConfig != nil {
-		t.Errorf("platform ClientConfig = %v, %v; want nil, nil", platformConfig, err)
+		t.Errorf("ClientConfig without TLS = %v, %v; want nil, nil", platformConfig, err)
 	}
 }
 
 func TestCheckScheme(t *testing.T) {
-	if err := CheckScheme(spec.TransportModeMtls, "https://a"); err != nil {
-		t.Error(err)
-	}
-	if err := CheckScheme(spec.TransportModePlatform, "http://a"); err != nil {
-		t.Error(err)
-	}
-	if err := CheckScheme(spec.TransportModeMtls, "http://a"); err == nil {
-		t.Error("mtls with http accepted")
-	}
-	if err := CheckScheme(spec.TransportModeTls, "https://a"); err != nil {
-		t.Error(err)
-	}
-	if err := CheckScheme(spec.TransportModeTls, "http://a"); err == nil {
-		t.Error("tls with http accepted")
+	for _, c := range []struct {
+		tls  bool
+		url  string
+		good bool
+	}{
+		{true, "https://a", true},
+		{false, "http://a", true},
+		{true, "http://a", false},
+		{false, "https://a", false},
+	} {
+		if err := CheckScheme(c.tls, c.url); (err == nil) != c.good {
+			t.Errorf("CheckScheme(%v, %s) = %v", c.tls, c.url, err)
+		}
 	}
 }

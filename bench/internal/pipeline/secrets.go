@@ -68,30 +68,28 @@ func unwrapPath(err error) error {
 	return err
 }
 
-// hop builds the tlsconfig.Hop of a connection from its declared tls block.
-// The mode is the RunSpec's (never inferred from the URL); an mtls hop needs
-// tls.crt and tls.key in the named Secret, and picks up ca.crt when there is
-// one; a tls hop reads only ca.crt, from its caSecretRef, which must then
-// hold it.
+// hop builds the tlsconfig.Hop of a connection from its declared tls block,
+// which is never inferred from the URL. With TLS, caSecretRef's Secret must
+// hold ca.crt; a client certificate needs tls.crt and tls.key in its Secret,
+// whose ca.crt is used when there is no caSecretRef.
 func (s secrets) hop(name string, tls spec.Tls, url string) (tlsconfig.Hop, error) {
 	decoded, err := spec.DecodeTLS(tls)
 	if err != nil {
 		return tlsconfig.Hop{}, fmt.Errorf("%s.tls: %w", name, err)
 	}
-	hop := tlsconfig.Hop{Name: name, Mode: decoded.Mode, URL: url}
-	switch decoded.Mode {
-	case spec.TransportModePlatform:
-		return hop, nil
-	case spec.TransportModeTls:
-		if decoded.Server.CaSecretRef == nil {
-			return hop, nil
-		}
-		if hop.CAFile, err = s.existing(decoded.Server.CaSecretRef.Name, tlsCAKey); err != nil {
-			return tlsconfig.Hop{}, fmt.Errorf("%s hop: %w: %w", name, errSecretUnavailable, err)
-		}
+	hop := tlsconfig.Hop{Name: name, TLS: decoded.Enabled, URL: url}
+	if !decoded.Enabled {
 		return hop, nil
 	}
-	secretName := decoded.Mtls.SecretRef.Name
+	if decoded.CA != nil {
+		if hop.CAFile, err = s.existing(decoded.CA.Name, tlsCAKey); err != nil {
+			return tlsconfig.Hop{}, fmt.Errorf("%s hop: %w: %w", name, errSecretUnavailable, err)
+		}
+	}
+	if decoded.ClientCert == nil {
+		return hop, nil
+	}
+	secretName := decoded.ClientCert.Name
 	var problems []error
 	if hop.CertFile, err = s.existing(secretName, tlsCertKey); err != nil {
 		problems = append(problems, err)
@@ -103,8 +101,8 @@ func (s secrets) hop(name string, tls spec.Tls, url string) (tlsconfig.Hop, erro
 		return tlsconfig.Hop{}, fmt.Errorf("%s hop: %w: %w", name, errSecretUnavailable, err)
 	}
 	// ca.crt is optional: a public CA signs the server, or the pod's system
-	// bundle already holds the private one.
-	if caFile, err := s.existing(secretName, tlsCAKey); err == nil {
+	// bundle already holds the private one. caSecretRef, when set, wins.
+	if caFile, err := s.existing(secretName, tlsCAKey); err == nil && hop.CAFile == "" {
 		hop.CAFile = caFile
 	}
 	return hop, nil

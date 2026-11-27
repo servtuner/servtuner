@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "vllm-lan-baseline",
   "knobs": {
@@ -20,7 +20,7 @@
       "pod": "vllm-lan"
     },
     "tls": {
-      "mode": "platform"
+      "enabled": false
     },
     "hardware": {
       "host": "gpu-box",
@@ -63,7 +63,7 @@
   "prometheus": {
     "url": "http://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "analysis": {

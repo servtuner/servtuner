@@ -17,9 +17,9 @@ func newValidateCommand(streams streams) *cobra.Command {
 	var strict, asJSON bool
 	command := &cobra.Command{
 		Use:   "validate --spec <path>",
-		Short: "Check a RunSpec: schema, transport mode rules and stage lengths",
+		Short: "Check a RunSpec: schema, TLS rules and stage lengths",
 		Long: "Checks a RunSpec (YAML or JSON) against the schema, the transport rules " +
-			"(mtls needs https://, platform needs http://) and the minimum stage length. " +
+			"(tls enabled needs https://, disabled needs http://) and the minimum stage length. " +
 			"Exits 0 when valid and 2 when not, listing every problem. Stage-length findings " +
 			"are warnings unless --strict is given.",
 		Args: cobra.NoArgs,

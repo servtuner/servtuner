@@ -11,17 +11,21 @@ import (
 	"time"
 )
 
-// Transport modes. They never mix on one listener.
+// TLS is "true" or "false", never inferred. With TLS, client-auth is the
+// client-certificate policy: required (refuse a client without a valid one),
+// optional (verify one that is sent, accept none) or none (ask for none, as
+// vLLM does with --ssl-certfile and --ssl-keyfile).
 const (
-	tlsModeMutual   = "mtls"
-	tlsModePlatform = "platform"
-	// tlsModeServer presents a certificate and asks for none, as vLLM does
-	// with --ssl-certfile and --ssl-keyfile.
-	tlsModeServer = "tls"
+	tlsOn  = "true"
+	tlsOff = "false"
+
+	clientAuthRequired = "required"
+	clientAuthOptional = "optional"
+	clientAuthNone     = "none"
 )
 
 // envPrefix is prepended to the upper-snake form of every flag name, e.g.
-// --tls-mode is also settable as OPENAI_MOCK_TLS_MODE. A flag wins over its
+// --client-auth is also settable as OPENAI_MOCK_CLIENT_AUTH. A flag wins over its
 // environment variable.
 const envPrefix = "OPENAI_MOCK_"
 
@@ -29,13 +33,16 @@ const envPrefix = "OPENAI_MOCK_"
 // knobs (Faults below) are consumed by faults.go.
 type Config struct {
 	ListenAddress string
-	// MetricsListenAddress, when set, serves /metrics there in plain HTTP in both TLS modes and removes it from
-	// the main listener. Empty keeps /metrics on the main listener. The counters are not sensitive, and
-	// Prometheus cannot present a client certificate per target, so this lets it scrape an mtls mock.
+	// MetricsListenAddress, when set, serves /metrics there in plain HTTP, with or without TLS on the main
+	// listener, and removes it from the main listener. Empty keeps /metrics there. The counters are not
+	// sensitive, and Prometheus cannot present a client certificate per target, so this lets it scrape a mock
+	// that requires client certificates.
 	MetricsListenAddress string
 	ModelName            string
 
-	TLSMode      string
+	TLS string
+	// ClientAuth is empty until loadConfig resolves it: required by default with TLS.
+	ClientAuth   string
 	CertFile     string
 	KeyFile      string
 	ClientCAFile string
@@ -92,7 +99,7 @@ func defaultConfig() Config {
 	return Config{
 		ListenAddress:         ":8000",
 		ModelName:             "mock-model",
-		TLSMode:               tlsModeMutual,
+		TLS:                   tlsOn,
 		TimeToFirstToken:      200 * time.Millisecond,
 		InterTokenLatency:     20 * time.Millisecond,
 		OutputTokens:          32,
@@ -104,21 +111,31 @@ func defaultConfig() Config {
 // Validate rejects contradictory settings so a misconfigured mock fails at
 // startup instead of silently serving the wrong transport.
 func (c Config) Validate() error {
-	switch c.TLSMode {
-	case tlsModeMutual:
-		if c.CertFile == "" || c.KeyFile == "" || c.ClientCAFile == "" {
-			return fmt.Errorf("tls-mode %q requires --tls-cert-file, --tls-key-file and --tls-client-ca-file", tlsModeMutual)
+	switch c.TLS {
+	case tlsOff:
+		if c.CertFile != "" || c.KeyFile != "" || c.ClientCAFile != "" || c.ClientAuth != "" {
+			return fmt.Errorf("--tls false serves plain HTTP and must not be combined with --client-auth or certificate files")
 		}
-	case tlsModePlatform:
-		if c.CertFile != "" || c.KeyFile != "" || c.ClientCAFile != "" {
-			return fmt.Errorf("tls-mode %q serves plain HTTP and must not be combined with certificate files", tlsModePlatform)
+	case tlsOn:
+		if c.CertFile == "" || c.KeyFile == "" {
+			return fmt.Errorf("--tls true needs --tls-cert-file and --tls-key-file")
 		}
-	case tlsModeServer:
-		if c.CertFile == "" || c.KeyFile == "" || c.ClientCAFile != "" {
-			return fmt.Errorf("tls-mode %q needs --tls-cert-file and --tls-key-file and no client CA", tlsModeServer)
+		switch c.ClientAuth {
+		case clientAuthRequired, clientAuthOptional:
+			if c.ClientCAFile == "" {
+				return fmt.Errorf("--client-auth %s needs --tls-client-ca-file", c.ClientAuth)
+			}
+		case clientAuthNone:
+			if c.ClientCAFile != "" {
+				return fmt.Errorf("--client-auth none verifies no client certificates and takes no --tls-client-ca-file")
+			}
+		default:
+			return fmt.Errorf("--client-auth %q is not one of %q, %q, %q", c.ClientAuth, clientAuthRequired, clientAuthOptional, clientAuthNone)
 		}
+	case "mtls", "tls", "platform":
+		return fmt.Errorf("--tls %q: servtuner 0.2 replaced transport modes with --tls true|false and --client-auth", c.TLS)
 	default:
-		return fmt.Errorf("tls-mode %q is not one of %q, %q, %q", c.TLSMode, tlsModeMutual, tlsModePlatform, tlsModeServer)
+		return fmt.Errorf("--tls %q is not true or false", c.TLS)
 	}
 	if c.ListenAddress == "" {
 		return fmt.Errorf("listen address must not be empty")
@@ -172,12 +189,13 @@ func loadConfig(args []string, environment func(string) string, usageOutput io.W
 	flags := flag.NewFlagSet("openai-mock", flag.ContinueOnError)
 	flags.SetOutput(usageOutput)
 	flags.StringVar(&cfg.ListenAddress, "listen", env.String("LISTEN", cfg.ListenAddress), "listen address")
-	flags.StringVar(&cfg.MetricsListenAddress, "metrics-listen", env.String("METRICS_LISTEN", cfg.MetricsListenAddress), "plain-HTTP address serving only /metrics in both TLS modes (the counters are not sensitive); empty serves /metrics on --listen")
+	flags.StringVar(&cfg.MetricsListenAddress, "metrics-listen", env.String("METRICS_LISTEN", cfg.MetricsListenAddress), "plain-HTTP address serving only /metrics, with or without --tls (the counters are not sensitive); empty serves /metrics on --listen")
 	flags.StringVar(&cfg.ModelName, "model", env.String("MODEL", cfg.ModelName), "model name served and reported")
-	flags.StringVar(&cfg.TLSMode, "tls-mode", env.String("TLS_MODE", cfg.TLSMode), "mtls (require and verify client certificates) or platform (plain HTTP)")
-	flags.StringVar(&cfg.CertFile, "tls-cert-file", env.String("TLS_CERT_FILE", cfg.CertFile), "server certificate (mtls mode)")
-	flags.StringVar(&cfg.KeyFile, "tls-key-file", env.String("TLS_KEY_FILE", cfg.KeyFile), "server private key (mtls mode)")
-	flags.StringVar(&cfg.ClientCAFile, "tls-client-ca-file", env.String("TLS_CLIENT_CA_FILE", cfg.ClientCAFile), "CA that signs accepted client certificates (mtls mode)")
+	flags.StringVar(&cfg.TLS, "tls", env.String("TLS", cfg.TLS), "serve TLS: true or false (plain HTTP)")
+	flags.StringVar(&cfg.ClientAuth, "client-auth", env.String("CLIENT_AUTH", cfg.ClientAuth), "client certificates with --tls true: required (the default), optional or none")
+	flags.StringVar(&cfg.CertFile, "tls-cert-file", env.String("TLS_CERT_FILE", cfg.CertFile), "server certificate (--tls true)")
+	flags.StringVar(&cfg.KeyFile, "tls-key-file", env.String("TLS_KEY_FILE", cfg.KeyFile), "server private key (--tls true)")
+	flags.StringVar(&cfg.ClientCAFile, "tls-client-ca-file", env.String("TLS_CLIENT_CA_FILE", cfg.ClientCAFile), "CA that signs accepted client certificates (--client-auth required or optional)")
 	flags.DurationVar(&cfg.TimeToFirstToken, "ttft", env.Duration("TTFT", cfg.TimeToFirstToken), "delay before the first content token")
 	flags.DurationVar(&cfg.InterTokenLatency, "itl", env.Duration("ITL", cfg.InterTokenLatency), "delay between content tokens")
 	flags.IntVar(&cfg.OutputTokens, "output-tokens", env.Int("OUTPUT_TOKENS", cfg.OutputTokens), "completion tokens when the request gives no max_tokens")
@@ -196,6 +214,9 @@ func loadConfig(args []string, environment func(string) string, usageOutput io.W
 
 	if err := flags.Parse(args); err != nil {
 		return Config{}, err
+	}
+	if cfg.TLS == tlsOn && cfg.ClientAuth == "" {
+		cfg.ClientAuth = clientAuthRequired
 	}
 	if err := env.Err(); err != nil {
 		return Config{}, err

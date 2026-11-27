@@ -30,7 +30,7 @@ func clusterTargets() []prometheustest.Target {
 
 func TestDiscoverTargetsFoldsPoolsAndAssignsRoles(t *testing.T) {
 	fake := &prometheustest.Server{Targets: clusterTargets()}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	fixedNow := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 	client.options.Now = func() time.Time { return fixedNow }
 
@@ -64,7 +64,7 @@ func TestDiscoverTargetsFoldsPoolsAndAssignsRoles(t *testing.T) {
 }
 
 func TestDiscoveredTargetsValidateAgainstTheSchema(t *testing.T) {
-	client := newPlatformClient(t, &prometheustest.Server{Targets: clusterTargets()}, nil)
+	client := newPlainClient(t, &prometheustest.Server{Targets: clusterTargets()}, nil)
 	discovered, err := client.DiscoverTargets(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestDiscoverTargetsOverMTLS(t *testing.T) {
 func TestDiscoverTargetsRetriesServerErrors(t *testing.T) {
 	fake := &prometheustest.Server{Targets: clusterTargets()}
 	fake.FailNext(http.StatusServiceUnavailable)
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	if _, err := client.DiscoverTargets(context.Background()); err != nil {
 		t.Fatalf("discovery should survive a 503: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestDiscoverTargetsRetriesServerErrors(t *testing.T) {
 
 func TestDiscoverTargetsNeedsScrapeSettings(t *testing.T) {
 	fake := &prometheustest.Server{Targets: []prometheustest.Target{{Pool: "old", Job: "old", URL: "http://192.0.2.9/metrics"}}}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	_, err := client.DiscoverTargets(context.Background())
 	if err == nil || !strings.Contains(err.Error(), "too old") {
 		t.Errorf("err = %v", err)

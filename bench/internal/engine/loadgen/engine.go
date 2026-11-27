@@ -71,8 +71,9 @@ type Options struct {
 	// BearerToken is the resolved target.auth secret, sent as
 	// "Authorization: Bearer". Empty sends no header. Never logged or recorded.
 	BearerToken string
-	// ClientCertFile, ClientKeyFile and CAFile are the mounted mtls Secret.
-	// mtls needs the first two; platform forbids all three.
+	// ClientCertFile, ClientKeyFile and CAFile come from the mounted Secrets.
+	// The first two are given exactly when target.tls names a client
+	// certificate; without TLS all three are forbidden.
 	ClientCertFile, ClientKeyFile, CAFile string
 	// ClientSink receives the self-monitoring samples. Nil disables sampling.
 	ClientSink engine.ClientSink
@@ -136,17 +137,9 @@ func (*Engine) Version() string { return Version }
 // Prepare validates the spec, builds the transport, pacers and workload, and
 // sends nothing.
 func (e *Engine) Prepare(_ context.Context, runSpec spec.RunSpec) error {
-	mode, err := spec.ModeOf(runSpec.Target.Tls)
+	hop, err := tlsconfig.SpecHop("target", runSpec.Target.Tls, runSpec.Target.Endpoint, e.options.ClientCertFile, e.options.ClientKeyFile, e.options.CAFile)
 	if err != nil {
-		return fmt.Errorf("target.tls: %w", err)
-	}
-	hop := tlsconfig.Hop{
-		Name:     "target",
-		Mode:     mode,
-		URL:      runSpec.Target.Endpoint,
-		CertFile: e.options.ClientCertFile,
-		KeyFile:  e.options.ClientKeyFile,
-		CAFile:   e.options.CAFile,
+		return err
 	}
 	tlsConfig, err := tlsconfig.ClientConfig(hop)
 	if err != nil {

@@ -10,9 +10,18 @@
   },
   "clock_source": "ntp",
   "transport": {
-    "prometheus": "platform",
-    "api": "mtls",
-    "object_store": "platform"
+    "prometheus": {
+      "tls": false,
+      "client_cert": false
+    },
+    "api": {
+      "tls": true,
+      "client_cert": true
+    },
+    "object_store": {
+      "tls": false,
+      "client_cert": false
+    }
   },
   "tls_relay_used": false
 }

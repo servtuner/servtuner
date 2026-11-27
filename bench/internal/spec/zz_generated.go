@@ -2640,20 +2640,52 @@ func (j *HardwareProfile) UnmarshalJSON(value []byte) error {
 
 type HistogramCounts []int
 
-// Transport mode of every hop used by this run. A hop that was not used is
-// omitted.
+// How one connection was secured: whether it used TLS, and whether servtuner
+// presented a client certificate on it. Never inferred.
+type HopTransport struct {
+	// servtuner presented a client certificate on it. Always false without TLS.
+	ClientCert bool `json:"client_cert"`
+
+	// The connection used TLS. False is plain HTTP or TCP.
+	Tls bool `json:"tls"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *HopTransport) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["client_cert"]; raw != nil && !ok {
+		return fmt.Errorf("field client_cert in HopTransport: required")
+	}
+	if _, ok := raw["tls"]; raw != nil && !ok {
+		return fmt.Errorf("field tls in HopTransport: required")
+	}
+	type Plain HopTransport
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = HopTransport(plain)
+	return nil
+}
+
+// How every hop used by this run was secured. A hop that was not used is omitted.
+// Bundle format version 1 recorded a mode string per hop (mtls, tls or platform);
+// readers upgrade it when they load such a bundle.
 type HopTransports struct {
 	// Api corresponds to the JSON schema field "api".
-	Api *TransportMode `json:"api,omitempty,omitzero"`
+	Api *HopTransport `json:"api,omitempty,omitzero"`
 
 	// ObjectStore corresponds to the JSON schema field "object_store".
-	ObjectStore *TransportMode `json:"object_store,omitempty,omitzero"`
+	ObjectStore *HopTransport `json:"object_store,omitempty,omitzero"`
 
 	// Prometheus corresponds to the JSON schema field "prometheus".
-	Prometheus *TransportMode `json:"prometheus,omitempty,omitzero"`
+	Prometheus *HopTransport `json:"prometheus,omitempty,omitzero"`
 
 	// Target corresponds to the JSON schema field "target".
-	Target TransportMode `json:"target"`
+	Target HopTransport `json:"target"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -4240,8 +4272,10 @@ type Manifest struct {
 	// BenchVersion corresponds to the JSON schema field "bench_version".
 	BenchVersion string `json:"bench_version"`
 
-	// Changes only on a breaking change to the bundle layout.
-	BundleVersion int `json:"bundle_version"`
+	// Changes only on a breaking change to the bundle layout. 2 (servtuner 0.2)
+	// records each hop's transport in environment.json as {tls, client_cert}; 1
+	// (servtuner 0.1) recorded a mode string. Readers accept both.
+	BundleVersion ManifestBundleVersion `json:"bundle_version"`
 
 	// Error corresponds to the JSON schema field "error".
 	Error *Failure `json:"error,omitempty,omitzero"`
@@ -4266,6 +4300,33 @@ type Manifest struct {
 
 	// Storage corresponds to the JSON schema field "storage".
 	Storage *BundleLocation `json:"storage,omitempty,omitzero"`
+}
+
+type ManifestBundleVersion int
+
+var enumValues_ManifestBundleVersion = []interface{}{
+	1,
+	2,
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *ManifestBundleVersion) UnmarshalJSON(value []byte) error {
+	var v int
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_ManifestBundleVersion {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_ManifestBundleVersion, v)
+	}
+	*j = ManifestBundleVersion(v)
+	return nil
 }
 
 type ManifestFile struct {
@@ -4343,9 +4404,6 @@ func (j *Manifest) UnmarshalJSON(value []byte) error {
 	}
 	if utf8.RuneCountInString(string(plain.BenchVersion)) < 1 {
 		return fmt.Errorf("field %s length: must be >= %d", "bench_version", 1)
-	}
-	if plain.BundleVersion != 1 {
-		return fmt.Errorf("field %s: must be equal to %v", "bundle_version", 1)
 	}
 	if plain.Name != nil && utf8.RuneCountInString(string(*plain.Name)) < 1 {
 		return fmt.Errorf("field %s length: must be >= %d", "name", 1)
@@ -8541,8 +8599,8 @@ func (j *RunSpec) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
-	if plain.ApiVersion != "servtuner.dev/v1" {
-		return fmt.Errorf("field %s: must be equal to %s", "apiVersion", "servtuner.dev/v1")
+	if plain.ApiVersion != "servtuner.dev/v2" {
+		return fmt.Errorf("field %s: must be equal to %s", "apiVersion", "servtuner.dev/v2")
 	}
 	if plain.Experiment != nil && utf8.RuneCountInString(string(*plain.Experiment)) < 1 {
 		return fmt.Errorf("field %s length: must be >= %d", "experiment", 1)
@@ -10751,102 +10809,97 @@ func (j *TimeWindow) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Transport security of one connection, discriminated by mode. Required wherever
-// it appears: the mode is never inferred.
+// Transport security of one connection on which servtuner is the client,
+// discriminated by enabled. Required wherever it appears: it is never inferred.
 type Tls interface{}
 
-// mtls: present a client certificate from the named kubernetes.io/tls Secret and
-// verify the server.
-type TlsMtls struct {
-	// Mode corresponds to the JSON schema field "mode".
-	Mode string `json:"mode"`
-
+// A client certificate to present: the tls.crt and tls.key of the named
+// kubernetes.io/tls Secret.
+type TlsClientCert struct {
 	// SecretRef corresponds to the JSON schema field "secretRef".
 	SecretRef SecretRef `json:"secretRef"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *TlsMtls) UnmarshalJSON(value []byte) error {
+func (j *TlsClientCert) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["mode"]; raw != nil && !ok {
-		return fmt.Errorf("field mode in TlsMtls: required")
-	}
 	if _, ok := raw["secretRef"]; raw != nil && !ok {
-		return fmt.Errorf("field secretRef in TlsMtls: required")
+		return fmt.Errorf("field secretRef in TlsClientCert: required")
 	}
-	type Plain TlsMtls
+	type Plain TlsClientCert
 	var plain Plain
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
-	if plain.Mode != "mtls" {
-		return fmt.Errorf("field %s: must be equal to %s", "mode", "mtls")
-	}
-	*j = TlsMtls(plain)
+	*j = TlsClientCert(plain)
 	return nil
 }
 
-// platform: plain HTTP, encryption asserted by the platform. Carries no
-// certificate settings.
-type TlsPlatform struct {
-	// Mode corresponds to the JSON schema field "mode".
-	Mode string `json:"mode"`
+// enabled false: plain HTTP or TCP, with no TLS from servtuner. Use it where a
+// service mesh or an encrypted CNI encrypts the connection, or for local testing.
+// Carries no certificate settings.
+type TlsDisabled struct {
+	// Enabled corresponds to the JSON schema field "enabled".
+	Enabled bool `json:"enabled"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *TlsPlatform) UnmarshalJSON(value []byte) error {
+func (j *TlsDisabled) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["mode"]; raw != nil && !ok {
-		return fmt.Errorf("field mode in TlsPlatform: required")
+	if _, ok := raw["enabled"]; raw != nil && !ok {
+		return fmt.Errorf("field enabled in TlsDisabled: required")
 	}
-	type Plain TlsPlatform
+	type Plain TlsDisabled
 	var plain Plain
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
-	if plain.Mode != "platform" {
-		return fmt.Errorf("field %s: must be equal to %s", "mode", "platform")
+	if plain.Enabled != false {
+		return fmt.Errorf("field %s: must be equal to %t", "enabled", false)
 	}
-	*j = TlsPlatform(plain)
+	*j = TlsDisabled(plain)
 	return nil
 }
 
-// tls: server-authenticated TLS. Verify the server against the system pool plus
-// SSL_CERT_FILE, and the optional ca.crt of caSecretRef; present no client
-// certificate, so there is no secretRef.
-type TlsServer struct {
+// enabled true: TLS. The server is verified against the system pool plus
+// SSL_CERT_FILE, and the ca.crt of caSecretRef when it is set; the certificate of
+// clientCert is presented when it is set.
+type TlsEnabled struct {
 	// A Secret whose ca.crt is the private CA that signed the server certificate.
 	// Only ca.crt is read.
 	CaSecretRef *SecretRef `json:"caSecretRef,omitempty,omitzero"`
 
-	// Mode corresponds to the JSON schema field "mode".
-	Mode string `json:"mode"`
+	// ClientCert corresponds to the JSON schema field "clientCert".
+	ClientCert *TlsClientCert `json:"clientCert,omitempty,omitzero"`
+
+	// Enabled corresponds to the JSON schema field "enabled".
+	Enabled bool `json:"enabled"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *TlsServer) UnmarshalJSON(value []byte) error {
+func (j *TlsEnabled) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["mode"]; raw != nil && !ok {
-		return fmt.Errorf("field mode in TlsServer: required")
+	if _, ok := raw["enabled"]; raw != nil && !ok {
+		return fmt.Errorf("field enabled in TlsEnabled: required")
 	}
-	type Plain TlsServer
+	type Plain TlsEnabled
 	var plain Plain
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
-	if plain.Mode != "tls" {
-		return fmt.Errorf("field %s: must be equal to %s", "mode", "tls")
+	if plain.Enabled != true {
+		return fmt.Errorf("field %s: must be equal to %t", "enabled", true)
 	}
-	*j = TlsServer(plain)
+	*j = TlsEnabled(plain)
 	return nil
 }
 
@@ -11228,38 +11281,6 @@ func (j *TokenPricing) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s length: must be >= %d", "url", 1)
 	}
 	*j = TokenPricing(plain)
-	return nil
-}
-
-type TransportMode string
-
-const TransportModeMtls TransportMode = "mtls"
-const TransportModePlatform TransportMode = "platform"
-const TransportModeTls TransportMode = "tls"
-
-var enumValues_TransportMode = []interface{}{
-	"mtls",
-	"platform",
-	"tls",
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *TransportMode) UnmarshalJSON(value []byte) error {
-	var v string
-	if err := json.Unmarshal(value, &v); err != nil {
-		return err
-	}
-	var ok bool
-	for _, expected := range enumValues_TransportMode {
-		if reflect.DeepEqual(v, expected) {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_TransportMode, v)
-	}
-	*j = TransportMode(v)
 	return nil
 }
 

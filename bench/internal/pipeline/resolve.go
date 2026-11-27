@@ -146,8 +146,7 @@ func (r *run) discoverPrometheus(ctx context.Context) error {
 		return nil
 	}
 	r.client = client
-	mode := hop.Mode
-	r.prometheusMode = &mode
+	r.prometheusTransport = &spec.HopTransport{Tls: hop.TLS, ClientCert: hop.PresentsClientCert()}
 	return r.readTargets(ctx, roles)
 }
 
@@ -248,12 +247,12 @@ func (r *run) credentials() (engine.Credentials, error) {
 	return credentials, nil
 }
 
-// environment records what ran the benchmark and the transport mode of every
-// hop the run used (the mode is never inferred, always recorded). An
+// environment records what ran the benchmark and how every hop the run used
+// was secured (never inferred, always recorded). An
 // unused hop is omitted, as the schema says. It is rewritten as the run learns
 // more (knobs after the snapshot, the HTTP version and workload after the load).
 func (r *run) environment() (spec.Environment, error) {
-	targetMode, err := spec.ModeOf(r.runSpec.Target.Tls)
+	targetTransport, err := spec.TransportOf(r.runSpec.Target.Tls)
 	if err != nil {
 		return spec.Environment{}, fmt.Errorf("target.tls: %w", err)
 	}
@@ -262,7 +261,7 @@ func (r *run) environment() (spec.Environment, error) {
 		GoVersion:    runtime.Version(),
 		Engine:       spec.EngineInfo{Name: r.engine.Name(), Version: r.engine.Version()},
 		ClockSource:  clockSource,
-		Transport:    spec.HopTransports{Target: targetMode, Prometheus: r.prometheusMode, Api: r.opts.APITransport},
+		Transport:    spec.HopTransports{Target: targetTransport, Prometheus: r.prometheusTransport, Api: r.opts.APITransport},
 		TlsRelayUsed: false,
 	}
 	if r.opts.Offline {

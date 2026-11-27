@@ -36,8 +36,8 @@ func (t UtcTimestamp) Time() (time.Time, error) {
 // every sub-block empty. Parsing it makes the schema, not this code, supply
 // the defaults.
 const analysisProbe = `{
-  "apiVersion": "servtuner.dev/v1", "kind": "RunSpec", "name": "defaults-probe",
-  "target": {"type": "vllm", "endpoint": "http://probe", "model": "probe", "tls": {"mode": "platform"}},
+  "apiVersion": "servtuner.dev/v2", "kind": "RunSpec", "name": "defaults-probe",
+  "target": {"type": "vllm", "endpoint": "http://probe", "model": "probe", "tls": {"enabled": false}},
   "engine": {"type": "loadgen"},
   "workload": {"streaming": false, "dataset": {"type": "synthetic", "input_tokens": {"mean": 1}, "output_tokens": {"mean": 1}}},
   "load": {"stages": [{"rate": 1, "duration": "1s"}]},

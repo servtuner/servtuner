@@ -37,7 +37,7 @@ func (s Scenario) WriteBundle(dir string) error {
 	pod := BenchPod
 	environment := spec.Environment{
 		BenchVersion: "0.0.0-synthetic", GoVersion: "go0", Pod: &pod, ClockSource: "synthetic",
-		Engine: spec.EngineInfo{Name: "loadgen", Version: "0"}, Transport: spec.HopTransports{Target: spec.TransportModePlatform},
+		Engine: spec.EngineInfo{Name: "loadgen", Version: "0"}, Transport: spec.HopTransports{Target: spec.HopTransport{}},
 	}
 	if s.Bifrost != nil {
 		environment.Knobs = s.Bifrost.knobs()

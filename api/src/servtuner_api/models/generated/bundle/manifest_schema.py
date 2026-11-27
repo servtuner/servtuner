@@ -2,10 +2,15 @@
 #   filename:  bundle/manifest.schema.json
 
 from __future__ import annotations
-from enum import Enum
+from enum import Enum, IntEnum
 from pydantic import BaseModel, ConfigDict, Field
 from .. import common_schema, events_schema
-from typing import Annotated, Literal
+from typing import Annotated
+
+
+class BundleVersion(IntEnum):
+    integer_1 = 1
+    integer_2 = 2
 
 
 class RunStatus(Enum):
@@ -49,7 +54,10 @@ class Manifest(BaseModel):
         extra="forbid",
     )
     bundle_version: Annotated[
-        Literal[1], Field(description="Changes only on a breaking change to the bundle layout.")
+        BundleVersion,
+        Field(
+            description="Changes only on a breaking change to the bundle layout. 2 (servtuner 0.2) records each hop's transport in environment.json as {tls, client_cert}; 1 (servtuner 0.1) recorded a mode string. Readers accept both."
+        ),
     ]
     run_id: Annotated[str, Field(min_length=1)]
     name: Annotated[str | None, Field(description="RunSpec name.", min_length=1)] = None

@@ -103,8 +103,8 @@ func compileEmbeddedSchemas() (map[string]*jsonschema.Schema, error) {
 // Parse is the only way to read a schema document into its generated type:
 // it validates against the named schema first and unmarshals second. Never
 // call json.Unmarshal on a document from a user, a file or the network
-// directly: the generated types accept things the schema forbids (a platform
-// TLS block carrying a secretRef, unknown fields, object knob values).
+// directly: the generated types accept things the schema forbids (a disabled
+// TLS block carrying a certificate, unknown fields, object knob values).
 func Parse[T any](schemaName string, document []byte) (T, error) {
 	var parsed T
 	if err := Validate(schemaName, document); err != nil {
@@ -117,8 +117,13 @@ func Parse[T any](schemaName string, document []byte) (T, error) {
 }
 
 // ParseRunSpec validates and decodes a RunSpec given as JSON. Callers must
-// use it instead of a bare json.Unmarshal into RunSpec.
+// use it instead of a bare json.Unmarshal into RunSpec. A servtuner 0.1
+// (servtuner.dev/v1) RunSpec is an error that says what to change; data
+// servtuner wrote itself goes through UpgradeLegacyRunSpec first.
 func ParseRunSpec(document []byte) (RunSpec, error) {
+	if err := legacyRunSpecError(document); err != nil {
+		return RunSpec{}, err
+	}
 	return Parse[RunSpec](SchemaRunSpec, document)
 }
 

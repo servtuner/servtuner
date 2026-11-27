@@ -82,8 +82,9 @@ type Client struct {
 	options Options
 }
 
-// NewClient builds the client from the hop's mode: mtls presents the client
-// certificate, platform is plain http://. The HTTP client comes from
+// NewClient builds the client from the hop: with TLS it verifies the server and
+// presents the client certificate when the hop has one; without TLS it is
+// plain http://. The HTTP client comes from
 // tlsconfig, so the trust pool is the system pool plus the private CA, there is
 // no way to skip verification, and redirects are never followed.
 func NewClient(hop tlsconfig.Hop, options Options) (*Client, error) {

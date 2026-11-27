@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/servtuner/servtuner/bench/internal/launcher"
+	"github.com/servtuner/servtuner/bench/internal/tlsconfig"
 )
 
 // The launcher's defaults when neither a flag nor the config file sets them.
@@ -25,7 +26,7 @@ func newLauncherCommand(streams streams) *cobra.Command {
 	var configPath string
 	var flags launcher.Config // only the flags' storage: launcherConfig reads them by name
 	command := &cobra.Command{
-		Use:   "launcher [--config FILE] [--listen ADDR --token-file FILE --tls-mode platform|tls]",
+		Use:   "launcher [--config FILE] [--listen ADDR --token-file FILE --tls true|false [--client-auth required|optional|none]]",
 		Short: "Run vLLM for servtuner's tuning loop on a host outside Kubernetes",
 		Long: "Serves the launcher API: servtuner's deployer starts, stops and inspects `vllm serve` " +
 			"here with the flags a tuning session chooses (\"Hosts outside Kubernetes\"). " +
@@ -34,8 +35,9 @@ func newLauncherCommand(streams streams) *cobra.Command {
 			"Every request needs the bearer token in the token file. vLLM's own API key, if any, is read from " +
 			"the API key file and given as VLLM_API_KEY, never sent over the network. Under systemd, the files " +
 			"default to the unit's LoadCredential= " + launcher.TokenCredential + " and " + launcher.APIKeyCredential +
-			". The TLS mode is required and never inferred: platform serves plain HTTP, tls serves " +
-			"the certificate and key files.",
+			". --tls is required and never inferred: false serves plain HTTP; true serves the certificate and " +
+			"key files, and --client-auth says whether clients must present a certificate (required), may " +
+			"(optional: one that is sent is verified) or need not (none).",
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			config, err := launcherConfig(command)
@@ -74,14 +76,16 @@ func newLauncherCommand(streams streams) *cobra.Command {
 		"file holding vLLM's --api-key value, given to vLLM as VLLM_API_KEY (api_key_file)")
 	set.StringVar(&flags.VLLM, "vllm", launcherDefaults.VLLM, "the vllm executable (vllm)")
 	set.StringVar(&flags.LogDir, "log-dir", launcherDefaults.LogDir, "directory for vllm.log (log_dir)")
-	set.StringVar(&flags.TLSMode, "tls-mode", "", "platform (plain HTTP) or tls; required (tls_mode)")
-	set.StringVar(&flags.TLSCertFile, "tls-cert-file", "", "server certificate, tls mode (tls_cert_file)")
-	set.StringVar(&flags.TLSKeyFile, "tls-key-file", "", "server key, tls mode (tls_key_file)")
+	set.StringVar(&flags.TLS, "tls", "", "serve over TLS: true or false; required (tls)")
+	set.StringVar(&flags.ClientAuth, "client-auth", "", "client certificates with --tls true: required, optional or none (client_auth)")
+	set.StringVar(&flags.TLSCertFile, "tls-cert-file", "", "server certificate, with --tls true (tls_cert_file)")
+	set.StringVar(&flags.TLSKeyFile, "tls-key-file", "", "server key, with --tls true (tls_key_file)")
+	set.StringVar(&flags.TLSClientCAFile, "tls-client-ca-file", "", "CA that signs client certificates, with --client-auth required or optional (tls_client_ca_file)")
 	return command
 }
 
 // launcherConfig layers the settings: a flag given on the command line, else the config file, else
-// the default; then systemd's credentials for files still unset. The token and TLS mode are required.
+// the default; then systemd's credentials for files still unset. The token and tls are required.
 func launcherConfig(command *cobra.Command) (launcher.Config, error) {
 	set := command.Flags()
 	configPath, _ := set.GetString("config")
@@ -95,8 +99,8 @@ func launcherConfig(command *cobra.Command) (launcher.Config, error) {
 	}
 	for flag, value := range map[string]*string{
 		"listen": &config.Listen, "token-file": &config.TokenFile, "api-key-file": &config.APIKeyFile,
-		"vllm": &config.VLLM, "log-dir": &config.LogDir, "tls-mode": &config.TLSMode,
-		"tls-cert-file": &config.TLSCertFile, "tls-key-file": &config.TLSKeyFile,
+		"vllm": &config.VLLM, "log-dir": &config.LogDir, "tls": &config.TLS, "client-auth": &config.ClientAuth,
+		"tls-cert-file": &config.TLSCertFile, "tls-key-file": &config.TLSKeyFile, "tls-client-ca-file": &config.TLSClientCAFile,
 	} {
 		// A flag's own default is the fallback, so the file wins over it but not over a typed flag.
 		if set.Changed(flag) || *value == "" {
@@ -108,28 +112,36 @@ func launcherConfig(command *cobra.Command) (launcher.Config, error) {
 		return config, errors.New("no token file: set token_file in the config, pass --token-file, " +
 			"or give the unit LoadCredential=" + launcher.TokenCredential)
 	}
-	if config.TLSMode == "" {
-		return config, errors.New("no TLS mode: set tls_mode in the config or pass --tls-mode (platform or tls)")
+	if config.TLS == "" {
+		return config, errors.New("no tls setting: set tls in the config or pass --tls (true or false); it is never inferred")
 	}
 	return config, nil
 }
 
-// launcherTLS is the listener's TLS: none in platform mode, the server certificate in tls mode.
+// launcherTLS is the listener's TLS: none with tls false; with tls true the server certificate and
+// the client-certificate policy.
 func launcherTLS(config launcher.Config) (*tls.Config, error) {
-	switch config.TLSMode {
-	case "platform":
-		if config.TLSCertFile != "" || config.TLSKeyFile != "" {
-			return nil, errors.New("tls mode platform serves plain HTTP: drop the TLS certificate and key files")
+	switch config.TLS {
+	case "false":
+		if config.TLSCertFile != "" || config.TLSKeyFile != "" || config.TLSClientCAFile != "" || config.ClientAuth != "" {
+			return nil, errors.New("tls false serves plain HTTP: drop client_auth and the TLS certificate, key and client CA files")
 		}
 		return nil, nil
-	case "tls":
-		certificate, err := tls.LoadX509KeyPair(config.TLSCertFile, config.TLSKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("tls mode tls: %w", err)
+	case "true":
+		if config.ClientAuth == "" {
+			return nil, errors.New("tls true needs client_auth (--client-auth): required, optional or none")
 		}
-		return &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}}, nil
+		clientAuth, err := tlsconfig.ParseClientAuth(config.ClientAuth)
+		if err != nil {
+			return nil, err
+		}
+		return tlsconfig.ServerConfig(tlsconfig.Server{
+			CertFile: config.TLSCertFile, KeyFile: config.TLSKeyFile, ClientAuth: clientAuth, ClientCAFile: config.TLSClientCAFile,
+		})
+	case "platform":
+		return nil, errors.New("tls_mode platform was replaced in servtuner 0.2: set tls false")
 	default:
-		return nil, fmt.Errorf("tls mode %q: want platform or tls", config.TLSMode)
+		return nil, fmt.Errorf("tls %q: want true or false", config.TLS)
 	}
 }
 

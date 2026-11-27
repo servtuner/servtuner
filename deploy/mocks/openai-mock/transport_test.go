@@ -8,8 +8,8 @@ import (
 )
 
 func mutualConfig(pki testPKI) Config {
-	cfg := platformConfig()
-	cfg.TLSMode = tlsModeMutual
+	cfg := plainConfig()
+	cfg.TLS, cfg.ClientAuth = tlsOn, clientAuthRequired
 	cfg.CertFile = pki.serverCertFile
 	cfg.KeyFile = pki.serverKeyFile
 	cfg.ClientCAFile = pki.caFile
@@ -52,13 +52,13 @@ func TestMutualTLSRefusesPlainHTTP(t *testing.T) {
 	if err == nil {
 		defer response.Body.Close()
 		if response.StatusCode == http.StatusOK {
-			t.Fatal("plain HTTP must not be served in mtls mode")
+			t.Fatal("plain HTTP must not be served with TLS on")
 		}
 	}
 }
 
-func TestPlatformModeServesPlainHTTP(t *testing.T) {
-	address := startMock(t, platformConfig())
+func TestTLSOffServesPlainHTTP(t *testing.T) {
+	address := startMock(t, plainConfig())
 	response, err := newClient(nil).Get("http://" + address + "/healthz")
 	if err != nil {
 		t.Fatal(err)
@@ -69,10 +69,11 @@ func TestPlatformModeServesPlainHTTP(t *testing.T) {
 	}
 }
 
-func TestMutualTLSConfigFailsOnUnreadableFiles(t *testing.T) {
+func TestServerTLSConfigFailsOnUnreadableFiles(t *testing.T) {
 	cfg := defaultConfig()
+	cfg.ClientAuth = clientAuthRequired
 	cfg.CertFile, cfg.KeyFile, cfg.ClientCAFile = "missing.crt", "missing.key", "missing-ca.crt"
-	if _, err := mutualTLSConfig(cfg); err == nil {
+	if _, err := serverTLSConfig(cfg); err == nil {
 		t.Fatal("expected an error for missing certificate files")
 	}
 }
@@ -114,7 +115,7 @@ func TestMetricsListenerIsPlainAndMainListenerRefusesMetricsInMutualTLS(t *testi
 }
 
 func TestMetricsListenerServesOnlyMetricsInPlatformMode(t *testing.T) {
-	address, metricsAddress := startMockWithMetrics(t, metricsListenerConfig(platformConfig()))
+	address, metricsAddress := startMockWithMetrics(t, metricsListenerConfig(plainConfig()))
 	get := func(url string) int {
 		response, err := newClient(nil).Get(url)
 		if err != nil {
@@ -134,5 +135,40 @@ func TestMetricsListenerServesOnlyMetricsInPlatformMode(t *testing.T) {
 	}
 	if status := get("http://" + address + "/healthz"); status != http.StatusOK {
 		t.Errorf("main listener /healthz: status %d", status)
+	}
+}
+
+// TestClientAuthPolicies: optional accepts a client without a certificate and one with a good certificate,
+// and refuses one from a CA it does not trust; none accepts a client without one.
+func TestClientAuthPolicies(t *testing.T) {
+	pki := newTestPKI(t)
+	stranger := newTestPKI(t)
+	clients := map[string]*tls.Config{
+		"no certificate":        {RootCAs: pki.caPool, MinVersion: tls.VersionTLS12},
+		"good certificate":      {RootCAs: pki.caPool, Certificates: []tls.Certificate{pki.clientCertificate}, MinVersion: tls.VersionTLS12},
+		"untrusted certificate": {RootCAs: pki.caPool, Certificates: []tls.Certificate{stranger.clientCertificate}, MinVersion: tls.VersionTLS12},
+	}
+	optional := mutualConfig(pki)
+	optional.ClientAuth = clientAuthOptional
+	none := mutualConfig(pki)
+	none.ClientAuth, none.ClientCAFile = clientAuthNone, ""
+	for policy, c := range map[string]struct {
+		cfg  Config
+		want map[string]bool
+	}{
+		"optional": {optional, map[string]bool{"no certificate": true, "good certificate": true, "untrusted certificate": false}},
+		"none":     {none, map[string]bool{"no certificate": true, "good certificate": true}},
+	} {
+		address := startMock(t, c.cfg)
+		for name, want := range c.want {
+			response, err := newClient(clients[name]).Get("https://" + address + "/healthz")
+			accepted := err == nil && response.StatusCode == http.StatusOK
+			if err == nil {
+				response.Body.Close()
+			}
+			if accepted != want {
+				t.Errorf("%s/%s: accepted %v, want %v (%v)", policy, name, accepted, want, err)
+			}
+		}
 	}
 }

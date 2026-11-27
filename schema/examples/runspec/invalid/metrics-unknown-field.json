@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "vllm-lan-baseline",
   "knobs": {
@@ -21,7 +21,7 @@
       "instance": "192.0.2.1:80"
     },
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -57,7 +57,7 @@
   "prometheus": {
     "url": "http://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   }
 }

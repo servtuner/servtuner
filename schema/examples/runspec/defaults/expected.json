@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "defaults-input",
   "target": {
@@ -7,9 +7,11 @@
     "endpoint": "https://vllm.inference.svc:8000/v1",
     "model": "example/model-8b",
     "tls": {
-      "mode": "mtls",
-      "secretRef": {
-        "name": "servtuner-client"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
       }
     },
     "upstreams": []
@@ -50,9 +52,11 @@
   "prometheus": {
     "url": "https://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "mtls",
-      "secretRef": {
-        "name": "servtuner-client"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
       }
     },
     "catalogs": [],

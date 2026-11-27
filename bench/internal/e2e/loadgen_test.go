@@ -204,8 +204,8 @@ func checkClientSamples(t *testing.T, bundleDir string) {
 func checkEnvironment(t *testing.T, bundleDir string) {
 	t.Helper()
 	environment := readDocument[spec.Environment](t, bundleDir, bundle.EnvironmentJSON, spec.SchemaEnvironment)
-	if environment.Engine.Name != string(spec.EngineTypeLoadgen) || environment.Transport.Target != spec.TransportModePlatform {
-		t.Errorf("environment engine %+v, target transport %s", environment.Engine, environment.Transport.Target)
+	if environment.Engine.Name != string(spec.EngineTypeLoadgen) || environment.Transport.Target != (spec.HopTransport{}) {
+		t.Errorf("environment engine %+v, target transport %+v", environment.Engine, environment.Transport.Target)
 	}
 	if environment.Workload == nil || environment.Workload.Hash == "" {
 		t.Errorf("environment workload = %+v", environment.Workload)
@@ -220,7 +220,7 @@ const (
 	stageSeconds  = 5.0
 )
 
-// writeRunSpec writes a short platform-mode ladder against the mock.
+// writeRunSpec writes a short ladder against the mock, without TLS.
 func writeRunSpec(t *testing.T, endpoint string) string {
 	t.Helper()
 	return writeRunSpecWith(t, endpoint, map[string]any{"type": "loadgen"})
@@ -233,12 +233,12 @@ func writeRunSpecWith(t *testing.T, endpoint string, engineBlock map[string]any)
 		stages[index] = map[string]any{"rate": rate, "duration": fmt.Sprintf("%gs", stageSeconds)}
 	}
 	runSpec := map[string]any{
-		"apiVersion": "servtuner.dev/v1",
+		"apiVersion": "servtuner.dev/v2",
 		"kind":       "RunSpec",
 		"name":       "e2e-local-loadgen",
 		"target": map[string]any{
 			"type": "openai-compatible", "endpoint": endpoint, "model": mockModel,
-			"tls": map[string]any{"mode": "platform"},
+			"tls": map[string]any{"enabled": false},
 		},
 		"engine": engineBlock,
 		"workload": map[string]any{
@@ -260,8 +260,8 @@ func writeRunSpecWith(t *testing.T, endpoint string, engineBlock map[string]any)
 	return path
 }
 
-// startMock builds the repository's mock, starts it on a free loopback port in
-// platform mode and returns its /v1 endpoint. The process is stopped when the
+// startMock builds the repository's mock, starts it on a free loopback port
+// without TLS and returns its /v1 endpoint. The process is stopped when the
 // test ends.
 func startMock(t *testing.T) string {
 	t.Helper()
@@ -275,7 +275,7 @@ func startMock(t *testing.T) string {
 	}
 
 	address := freeLoopbackAddress(t)
-	mock := exec.Command(binary, "--listen", address, "--tls-mode", "platform", "--model", mockModel,
+	mock := exec.Command(binary, "--listen", address, "--tls", "false", "--model", mockModel,
 		"--ttft", "20ms", "--itl", "2ms")
 	mock.Stdout, mock.Stderr = os.Stderr, os.Stderr
 	if err := mock.Start(); err != nil {

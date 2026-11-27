@@ -89,8 +89,8 @@ func checkDelivered(t *testing.T, received *capture) {
 
 func TestEventsDeliveredInPlatformMode(t *testing.T) {
 	received := &capture{}
-	server := tlstest.NewPlatformServer(t, received.handler())
-	client, err := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", Mode: spec.TransportModePlatform, URL: server.URL}, 5*time.Second)
+	server := tlstest.NewPlainServer(t, received.handler())
+	client, err := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", URL: server.URL}, 5*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestEventsDeliveredInMTLSMode(t *testing.T) {
 	directory := t.TempDir()
 	certFile, keyFile := authority.IssueClient(t).WriteFiles(t, directory, "client")
 	client, err := tlsconfig.NewHTTPClient(tlsconfig.Hop{
-		Name: "api", Mode: spec.TransportModeMtls, URL: server.URL,
+		Name: "api", TLS: true, URL: server.URL,
 		CertFile: certFile, KeyFile: keyFile, CAFile: tlstest.WriteFile(t, directory, "ca.crt", authority.CertPEM),
 	}, 5*time.Second)
 	if err != nil {
@@ -129,8 +129,8 @@ func (l *logCapture) Write(p []byte) (int, error) {
 
 func TestDeliveryFailureIsLoggedNotFatalAndNeverLogsTheToken(t *testing.T) {
 	received := &capture{respond: http.StatusInternalServerError}
-	server := tlstest.NewPlatformServer(t, received.handler())
-	client, _ := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", Mode: spec.TransportModePlatform, URL: server.URL}, 5*time.Second)
+	server := tlstest.NewPlainServer(t, received.handler())
+	client, _ := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", URL: server.URL}, 5*time.Second)
 	logs := &logCapture{}
 	reporter := NewHTTPReporter(client, server.URL, testRunID, testToken, slog.New(slog.NewTextHandler(logs, nil)), fixedNow)
 	reportThreeEvents(reporter) // must return normally
@@ -146,10 +146,10 @@ func TestDeliveryFailureIsLoggedNotFatalAndNeverLogsTheToken(t *testing.T) {
 }
 
 func TestUnreachableApiDoesNotPanicOrBlock(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, http.NotFoundHandler())
+	server := tlstest.NewPlainServer(t, http.NotFoundHandler())
 	url := server.URL
 	server.Close()
-	client, _ := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", Mode: spec.TransportModePlatform, URL: url}, time.Second)
+	client, _ := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "api", URL: url}, time.Second)
 	reportThreeEvents(NewHTTPReporter(client, url, testRunID, testToken, discardLogger(), fixedNow))
 }
 

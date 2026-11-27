@@ -44,12 +44,12 @@ type runFlags struct {
 	runID        string
 	apiURL       string
 	runTokenFile string
-	apiTLSMode   string
+	apiTLS       string
 	tlsCertFile  string
 	tlsKeyFile   string
 	tlsCAFile    string
 	// The object-store hop, for an s3:// --out.
-	objectStoreTLSMode  string
+	objectStoreTLS      string
 	objectStoreCertFile string
 	objectStoreKeyFile  string
 	objectStoreCAFile   string
@@ -66,7 +66,7 @@ func newRunCommand(streams streams) *cobra.Command {
 		Use:   "run --spec <path> --out <bundle dir>",
 		Short: "Execute one run and write its bundle",
 		Long: "Executes one run end to end and writes the run bundle into --out. " +
-			"With --api-url, status events are POSTed to the api (--api-tls-mode is then required; it is never inferred).",
+			"With --api-url, status events are POSTed to the api (--api-tls is then required; it is never inferred).",
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
 			return runBench(command.Context(), streams, flags)
@@ -75,17 +75,17 @@ func newRunCommand(streams streams) *cobra.Command {
 	set := command.Flags()
 	set.StringVar(&flags.specPath, "spec", "", "path to the RunSpec (YAML or JSON)")
 	set.StringVar(&flags.outDir, "out", "", "bundle directory, or s3://<bucket>/<prefix> (default: <data dir>/runs/<run id>)")
-	set.StringVar(&flags.objectStoreTLSMode, "object-store-tls-mode", "", "transport mode of the object-store hop with an s3:// --out: mtls or platform (required then; never inferred)")
-	set.StringVar(&flags.objectStoreCertFile, "object-store-cert-file", "", "client certificate for the object store (mtls only)")
-	set.StringVar(&flags.objectStoreKeyFile, "object-store-key-file", "", "client key for the object store (mtls only)")
-	set.StringVar(&flags.objectStoreCAFile, "object-store-ca-file", "", "extra CA bundle the object store's certificate is verified against (mtls only)")
+	set.StringVar(&flags.objectStoreTLS, "object-store-tls", "", "whether the object-store hop of an s3:// --out uses TLS: true or false (required then; never inferred)")
+	set.StringVar(&flags.objectStoreCertFile, "object-store-cert-file", "", "client certificate to present to the object store (with --object-store-tls true)")
+	set.StringVar(&flags.objectStoreKeyFile, "object-store-key-file", "", "client key for --object-store-cert-file")
+	set.StringVar(&flags.objectStoreCAFile, "object-store-ca-file", "", "extra CA bundle the object store's certificate is verified against (with --object-store-tls true)")
 	set.StringVar(&flags.runID, "run-id", "", "run id, a ULID (default: a fresh one)")
 	set.StringVar(&flags.apiURL, "api-url", "", "api base URL for status events")
 	set.StringVar(&flags.runTokenFile, "run-token-file", "", "file holding the per-run bearer token")
-	set.StringVar(&flags.apiTLSMode, "api-tls-mode", "", "transport mode of the api hop: mtls or platform (required with --api-url)")
-	set.StringVar(&flags.tlsCertFile, "tls-cert-file", "", "client certificate for the api hop (mtls only)")
-	set.StringVar(&flags.tlsKeyFile, "tls-key-file", "", "client key for the api hop (mtls only)")
-	set.StringVar(&flags.tlsCAFile, "tls-ca-file", "", "extra CA bundle the api's certificate is verified against, added to the system pool (mtls only)")
+	set.StringVar(&flags.apiTLS, "api-tls", "", "whether the api hop uses TLS: true or false (required with --api-url; never inferred)")
+	set.StringVar(&flags.tlsCertFile, "tls-cert-file", "", "client certificate to present to the api (with --api-tls true)")
+	set.StringVar(&flags.tlsKeyFile, "tls-key-file", "", "client key for --tls-cert-file")
+	set.StringVar(&flags.tlsCAFile, "tls-ca-file", "", "extra CA bundle the api's certificate is verified against, added to the system pool (with --api-tls true)")
 	set.StringVar(&flags.kubeconfig, "kubeconfig", "", "kubeconfig for the read-only target snapshot (default: in-cluster config; no cluster means the Kubernetes part is skipped)")
 	set.StringVar(&flags.secretsDir, "secrets-dir", "", "directory where the Secrets named by the RunSpec are mounted, one subdirectory per Secret (default: $SERVTUNER_SECRETS_DIR, else "+pipeline.DefaultSecretsDir+")")
 	set.BoolVar(&flags.offline, "offline", false, "no internet access: never fetch the public token-price datasheet and refuse AWS Price List prices; recorded in environment.json")
@@ -218,7 +218,7 @@ type destination struct {
 // further prefix.
 func openDestination(ctx context.Context, flags runFlags, runID string) (destination, error) {
 	if !strings.HasPrefix(flags.outDir, storage.S3Scheme) {
-		if flags.objectStoreTLSMode != "" || flags.objectStoreCertFile != "" || flags.objectStoreKeyFile != "" || flags.objectStoreCAFile != "" {
+		if flags.objectStoreTLS != "" || flags.objectStoreCertFile != "" || flags.objectStoreKeyFile != "" || flags.objectStoreCAFile != "" {
 			return destination{}, errors.New("--object-store-* flags need an s3:// --out")
 		}
 		outDir := flags.outDir
@@ -256,23 +256,24 @@ func openS3(ctx context.Context, flags runFlags, runID string) (*storage.S3Store
 	if err != nil {
 		return nil, "", err
 	}
-	if flags.objectStoreTLSMode == "" {
-		return nil, "", errors.New("an s3:// --out needs --object-store-tls-mode (mtls or platform); the mode is never inferred")
+	if flags.objectStoreTLS == "" {
+		return nil, "", errors.New("an s3:// --out needs --object-store-tls (true or false); it is never inferred")
 	}
-	if err := checkOwnHopMode("--object-store-tls-mode", flags.objectStoreTLSMode); err != nil {
+	useTLS, err := parseTLSFlag("--object-store-tls", flags.objectStoreTLS)
+	if err != nil {
 		return nil, "", err
 	}
 	if cfg.Endpoint != "" {
 		hop := tlsconfig.Hop{
-			Name: "object store", Mode: spec.TransportMode(flags.objectStoreTLSMode), URL: cfg.Endpoint,
+			Name: "object store", TLS: useTLS, URL: cfg.Endpoint,
 			CertFile: flags.objectStoreCertFile, KeyFile: flags.objectStoreKeyFile, CAFile: flags.objectStoreCAFile,
 		}
 		if cfg.HTTPClient, err = tlsconfig.NewHTTPClient(hop, objectStoreTimeout); err != nil {
 			return nil, "", err
 		}
-	} else if flags.objectStoreTLSMode != string(spec.TransportModeMtls) {
+	} else if !useTLS {
 		// AWS S3 is always HTTPS with a public certificate.
-		return nil, "", errors.New("AWS S3 (no SERVTUNER_S3_ENDPOINT) is reached over TLS: use --object-store-tls-mode mtls")
+		return nil, "", errors.New("AWS S3 (no SERVTUNER_S3_ENDPOINT) is reached over TLS: use --object-store-tls true")
 	}
 	store, err := storage.NewS3Store(ctx, cfg)
 	if err != nil {
@@ -285,24 +286,25 @@ func openS3(ctx context.Context, flags runFlags, runID string) (*storage.S3Store
 // source of the price book's datasheet, which the api serves to the same run
 // token on the run's own route, GET /runs/{id}/datasheet. With no --api-url there is neither, and any other api flag
 // is a mistake rather than something to ignore silently.
-func newReporter(flags runFlags, runID string, streams streams) (events.Reporter, *spec.TransportMode, *pipeline.PriceBookSource, error) {
+func newReporter(flags runFlags, runID string, streams streams) (events.Reporter, *spec.HopTransport, *pipeline.PriceBookSource, error) {
 	if flags.apiURL == "" {
-		if flags.runTokenFile != "" || flags.apiTLSMode != "" || flags.tlsCertFile != "" || flags.tlsKeyFile != "" || flags.tlsCAFile != "" {
-			return nil, nil, nil, fmt.Errorf("--run-token-file, --api-tls-mode, --tls-cert-file, --tls-key-file and --tls-ca-file need --api-url")
+		if flags.runTokenFile != "" || flags.apiTLS != "" || flags.tlsCertFile != "" || flags.tlsKeyFile != "" || flags.tlsCAFile != "" {
+			return nil, nil, nil, fmt.Errorf("--run-token-file, --api-tls, --tls-cert-file, --tls-key-file and --tls-ca-file need --api-url")
 		}
 		return events.Discard{}, nil, nil, nil
 	}
-	if flags.apiTLSMode == "" {
-		return nil, nil, nil, fmt.Errorf("--api-url needs --api-tls-mode (mtls or platform); the mode is never inferred")
+	if flags.apiTLS == "" {
+		return nil, nil, nil, fmt.Errorf("--api-url needs --api-tls (true or false); it is never inferred")
 	}
 	if flags.runTokenFile == "" {
 		return nil, nil, nil, fmt.Errorf("--api-url needs --run-token-file")
 	}
-	if err := checkOwnHopMode("--api-tls-mode", flags.apiTLSMode); err != nil {
+	useTLS, err := parseTLSFlag("--api-tls", flags.apiTLS)
+	if err != nil {
 		return nil, nil, nil, err
 	}
-	mode := spec.TransportMode(flags.apiTLSMode)
-	hop := tlsconfig.Hop{Name: "api", Mode: mode, URL: flags.apiURL, CertFile: flags.tlsCertFile, KeyFile: flags.tlsKeyFile, CAFile: flags.tlsCAFile}
+	hop := tlsconfig.Hop{Name: "api", TLS: useTLS, URL: flags.apiURL, CertFile: flags.tlsCertFile, KeyFile: flags.tlsKeyFile, CAFile: flags.tlsCAFile}
+	transport := spec.HopTransport{Tls: hop.TLS, ClientCert: hop.PresentsClientCert()}
 	client, err := tlsconfig.NewHTTPClient(hop, eventTimeout)
 	if err != nil {
 		return nil, nil, nil, err
@@ -317,7 +319,7 @@ func newReporter(flags runFlags, runID string, streams streams) (events.Reporter
 	}
 	sheetClient.Transport = bearer{token: token, next: sheetClient.Transport}
 	priceBook := &pipeline.PriceBookSource{URL: strings.TrimSuffix(flags.apiURL, "/") + "/runs/" + runID + "/datasheet", Client: sheetClient}
-	return events.NewHTTPReporter(client, flags.apiURL, runID, token, streams.logger(), time.Now), &mode, priceBook, nil
+	return events.NewHTTPReporter(client, flags.apiURL, runID, token, streams.logger(), time.Now), &transport, priceBook, nil
 }
 
 // bearer adds the run token to each request of the price book client.
@@ -362,12 +364,18 @@ func engineFactory(override string) func(spec.RunSpec, engine.Inputs) (engine.En
 	}
 }
 
-// checkOwnHopMode keeps servtuner's own hops (the api, the object store) to mtls
-// or platform: tls is a mode for RunSpec hops only.
-func checkOwnHopMode(flag, mode string) error {
-	switch spec.TransportMode(mode) {
-	case spec.TransportModeMtls, spec.TransportModePlatform:
-		return nil
+// parseTLSFlag reads a TLS flag, which must say true or false: it is never
+// inferred, and a 0.1 mode name gets its replacement.
+func parseTLSFlag(flag, value string) (bool, error) {
+	switch value {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	case "mtls", "tls":
+		return false, fmt.Errorf("%s %q: servtuner 0.2 replaced transport modes; use %s true, with the client certificate flags to present one", flag, value, flag)
+	case "platform":
+		return false, fmt.Errorf("%s %q: servtuner 0.2 replaced transport modes; use %s false", flag, value, flag)
 	}
-	return fmt.Errorf("%s %q: servtuner's own hops are mtls or platform", flag, mode)
+	return false, fmt.Errorf("%s %q: want true or false", flag, value)
 }

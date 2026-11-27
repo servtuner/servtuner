@@ -29,7 +29,7 @@ func TestLoadRunSpecYAMLMatchesJSON(t *testing.T) {
 }
 
 func TestLoadRunSpecPassesJSONThroughUntouched(t *testing.T) {
-	document, err := os.ReadFile(filepath.Join(examplesRoot, "runspec", "valid", "router-bifrost-platform.json"))
+	document, err := os.ReadFile(filepath.Join(examplesRoot, "runspec", "valid", "router-bifrost-tls-off.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestLoadRunSpecPassesJSONThroughUntouched(t *testing.T) {
 func TestLoadRunSpecRejectsBadDocuments(t *testing.T) {
 	for name, document := range map[string]string{
 		"not yaml":         "a: [unclosed",
-		"schema violation": "apiVersion: servtuner.dev/v1\nkind: RunSpec\n",
+		"schema violation": "apiVersion: servtuner.dev/v2\nkind: RunSpec\n",
 		"empty object":     "{}",
 	} {
 		if _, _, err := LoadRunSpec([]byte(document)); err == nil {
@@ -51,25 +51,26 @@ func TestLoadRunSpecRejectsBadDocuments(t *testing.T) {
 	}
 }
 
-func TestModeOf(t *testing.T) {
+func TestTransportOf(t *testing.T) {
 	cases := map[string]struct {
 		tls  Tls
-		want TransportMode
+		want HopTransport
 	}{
-		"mtls":     {map[string]any{"mode": "mtls", "secretRef": map[string]any{"name": "s"}}, TransportModeMtls},
-		"platform": {map[string]any{"mode": "platform"}, TransportModePlatform},
+		"client cert": {map[string]any{"enabled": true, "clientCert": map[string]any{"secretRef": map[string]any{"name": "s"}}}, HopTransport{Tls: true, ClientCert: true}},
+		"tls":         {map[string]any{"enabled": true}, HopTransport{Tls: true}},
+		"disabled":    {map[string]any{"enabled": false}, HopTransport{}},
 	}
 	for name, c := range cases {
-		if got, err := ModeOf(c.tls); err != nil || got != c.want {
-			t.Errorf("%s: ModeOf = %q, %v", name, got, err)
+		if got, err := TransportOf(c.tls); err != nil || got != c.want {
+			t.Errorf("%s: TransportOf = %+v, %v", name, got, err)
 		}
 	}
 	for name, tls := range map[string]Tls{
-		"platform with secretRef": map[string]any{"mode": "platform", "secretRef": map[string]any{"name": "s"}},
-		"unknown mode":            map[string]any{"mode": "plain"},
-		"skip verify":             map[string]any{"mode": "mtls", "secretRef": map[string]any{"name": "s"}, "skipVerify": true},
+		"disabled with a client cert": map[string]any{"enabled": false, "clientCert": map[string]any{"secretRef": map[string]any{"name": "s"}}},
+		"0.1 mode":                    map[string]any{"mode": "plain"},
+		"skip verify":                 map[string]any{"enabled": true, "skipVerify": true},
 	} {
-		if _, err := ModeOf(tls); err == nil {
+		if _, err := TransportOf(tls); err == nil {
 			t.Errorf("%s accepted", name)
 		}
 	}

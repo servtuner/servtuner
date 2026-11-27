@@ -1,13 +1,13 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
-  "name": "bifrost-two-backends",
+  "name": "bifrost-mtls-upstream-admin-token",
   "knobs": {
     "bifrost.concurrency": 1000
   },
   "target": {
     "type": "bifrost",
-    "endpoint": "http://bifrost.gateway.svc:8080/v1",
+    "endpoint": "https://bifrost.gateway.svc:8080/v1",
     "model": "example/model-8b",
     "workload": {
       "namespace": "gateway",
@@ -17,27 +17,38 @@
     },
     "upstreams": [
       {
-        "name": "mock-a",
-        "endpoint": "http://mock-a.mock.svc:8000/v1",
+        "name": "vllm-a",
+        "type": "vllm",
+        "endpoint": "https://vllm-a.inference.svc:8000/v1",
         "tls": {
-          "mode": "platform"
+          "enabled": true,
+          "clientCert": {
+            "secretRef": {
+              "name": "servtuner-client"
+            }
+          }
         }
       },
       {
         "name": "mock-b",
-        "workload": {
-          "namespace": "mock",
-          "selector": {
-            "app": "mock-b"
-          }
-        },
         "tls": {
-          "mode": "platform"
+          "enabled": false
         }
       }
     ],
     "tls": {
-      "mode": "platform"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
+      }
+    },
+    "admin": {
+      "secretRef": {
+        "name": "bifrost-admin",
+        "tokenKey": "token"
+      }
     }
   },
   "engine": {
@@ -74,7 +85,7 @@
   "prometheus": {
     "url": "http://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   }
 }

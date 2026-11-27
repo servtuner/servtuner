@@ -228,6 +228,10 @@ func readDocument[T any](ctx context.Context, store storage.BundleStore, name, s
 	if err != nil {
 		return zero, err
 	}
+	// A bundle servtuner 0.1 wrote is read in today's shape (spec/legacy.go).
+	if content, err = spec.UpgradeBundleDocument(schemaName, content); err != nil {
+		return zero, fmt.Errorf("read %s: %w", name, err)
+	}
 	document, err := spec.Parse[T](schemaName, content)
 	if err != nil {
 		return zero, fmt.Errorf("read %s: %w", name, err)

@@ -156,8 +156,8 @@ func NewMTLSServer(t testing.TB, serverCA, clientCA *Authority, handler http.Han
 	return server
 }
 
-// NewPlatformServer starts a plain HTTP server, as in platform mode.
-func NewPlatformServer(t testing.TB, handler http.Handler) *httptest.Server {
+// NewPlainServer starts a plain HTTP server: a hop without TLS.
+func NewPlainServer(t testing.TB, handler http.Handler) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)

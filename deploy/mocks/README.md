@@ -1,7 +1,9 @@
 # Mock target on a cluster
 
-`chart/` is a small Helm chart that runs `openai-mock` in namespace `servtuner-mock`, in `mtls` or `platform` mode. `test.sh` renders both modes offline (`KUBECONFIG=/dev/null`, no cluster contact). `examples/`
-has RunSpecs for mock-direct (both modes) and Bifrost to mock; all validate with `servtuner validate`.
+`chart/` is a small Helm chart that runs `openai-mock` in namespace `servtuner-mock`, with TLS (`tls.enabled`) and client
+certificates `required`, `optional` or `none` (`tls.clientAuth`), or as plain HTTP. `test.sh` renders each combination offline
+(`KUBECONFIG=/dev/null`, no cluster contact). `examples/` has RunSpecs for mock-direct (with a client certificate, and
+without TLS) and Bifrost to mock; all validate with `servtuner validate`.
 
 Nothing here is applied automatically. The steps below are for whoever operates the cluster. All images,
 registries and hostnames are placeholders.
@@ -9,29 +11,29 @@ registries and hostnames are placeholders.
 ## How /metrics is exposed
 
 The mock has a `--metrics-listen` flag (`OPENAI_MOCK_METRICS_LISTEN`). When set, `/metrics` is served there in
-**plain HTTP in both TLS modes** and is removed from the main listener; empty keeps it on the main listener. The
+**plain HTTP, with or without TLS on the main listener**, and is removed from the main listener; empty keeps it on the main listener. The
 reason: the mock's counters are not sensitive, and Prometheus cannot present a client certificate per target,
-so an mtls mock would otherwise be unscrapable. The main listener keeps its mode (in mtls it still refuses
-clients without a certificate). The chart sets it to port 9100 in both modes, so there is one scrape path:
+so a mock that requires client certificates would otherwise be unscrapable. The main listener keeps its own settings (it
+still refuses clients without a certificate when they are required). The chart sets it to port 9100 either way, so there is one scrape path:
 the pod annotations are `servtuner.dev/metrics-port: "9100"`, `servtuner.dev/metrics-scheme: http`, `servtuner.dev/metrics-path: /metrics`.
 
 Pods carry the label `servtuner.dev/scrape=true`.
 
 ## 1. Install the mock
 
-Prerequisite: the `servtuner-ca` ClusterIssuer is Ready (mtls only; `deploy/kind/cluster-issuer.yaml`).
+Prerequisite: the `servtuner-ca` ClusterIssuer is Ready (with TLS; `deploy/kind/cluster-issuer.yaml`).
 
 ```
 just images                                  # builds servtuner-mock:<tag> (SERVTUNER_IMAGE_TAG, default e2e)
 # make the image pullable by the cluster (push to your registry, or `kind load docker-image`), then:
 helm install openai-mock deploy/mocks/chart -n servtuner-mock --create-namespace \
-  --set tls.mode=mtls \
+  --set tls.enabled=true --set tls.clientAuth=required \
   --set image.repository=<registry>/servtuner-mock --set image.tag=<tag>
 ```
 
-For plain connections use `--set tls.mode=platform`. One release per namespace; switching mode is
-`helm upgrade` with the other value. Mock behaviour (`mock.ttft`, `mock.itl`, `mock.outputTokens`, ...) is in `chart/values.yaml`.
-Endpoints: `https://openai-mock.servtuner-mock.svc:8000/v1` (mtls) or `http://openai-mock.servtuner-mock.svc:8000/v1` (platform).
+For plain HTTP use `--set tls.enabled=false`; `tls.clientAuth` also takes `optional` (a certificate that is sent is
+verified) and `none`. One release per namespace; changing these is `helm upgrade` with the new values. Mock behaviour (`mock.ttft`, `mock.itl`, `mock.outputTokens`, ...) is in `chart/values.yaml`.
+Endpoints: `https://openai-mock.servtuner-mock.svc:8000/v1` (TLS) or `http://openai-mock.servtuner-mock.svc:8000/v1` (plain HTTP).
 The mock serves `POST /v1/chat/completions` and `POST /v1/completions` (the legacy text API that inference-perf
 uses), both streaming and non-streaming, plus `GET /v1/models`, `/healthz` and `/metrics`. Both inference paths
 share one generation core, so the TTFT/ITL knobs, token accounting and `openai_mock_*` metrics behave the
@@ -103,8 +105,8 @@ Bifrost appends it; model `mock-model`; chat and text completions, streaming all
 ignores). Nothing is added by hand through the UI or API.
 
 The chart is the Bifrost checkout's `helm-charts/bifrost` (chart 2.1.44, app 1.5.12, image `docker.io/maximhq/bifrost`
-from Docker Hub). It is not vendored here. Install the platform-mode mock first (step 1, `tls.mode=platform`). The
-Bifrost-to-mock hop is plain HTTP, and `examples/bifrost-to-mock.json` declares it as an upstream with `tls.mode: platform`
+from Docker Hub). It is not vendored here. Install the plain-HTTP mock first (step 1, `tls.enabled=false`). The
+Bifrost-to-mock hop is plain HTTP, and `examples/bifrost-to-mock.json` declares it as an upstream with `tls: {enabled: false}`
 (upstreams carry their own `tls`, never inferred).
 
 ```
@@ -124,6 +126,6 @@ Check: `kubectl get pod -n servtuner-bifrost -l servtuner.dev/scrape=true`, then
 
 ## Examples
 
-`examples/mock-direct-mtls.json` (client certificate Secret `servtuner-bench-tls`, as issued by the servtuner chart),
-`examples/mock-direct-platform.json`, `examples/bifrost-to-mock.json`. Validate with
+`examples/mock-direct-client-cert.json` (client certificate Secret `servtuner-bench-tls`, as issued by the servtuner chart),
+`examples/mock-direct-tls-off.json`, `examples/bifrost-to-mock.json`. Validate with
 `cd bench && go run ./cmd/servtuner validate --spec ../deploy/mocks/examples/<file>`.

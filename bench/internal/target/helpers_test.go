@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/servtuner/servtuner/bench/internal/spec"
 	"github.com/servtuner/servtuner/bench/internal/tlsconfig"
 	"github.com/servtuner/servtuner/bench/internal/tlstest"
 )
@@ -60,9 +59,9 @@ func serveFixtures(t *testing.T, fixtures map[string]string, requireAuthorizatio
 // whose client comes from tlsconfig exactly as the pipeline builds it.
 func forEachTransportMode(t *testing.T, handler http.Handler, test func(t *testing.T, endpoint Endpoint)) {
 	t.Helper()
-	t.Run("platform", func(t *testing.T) {
-		server := tlstest.NewPlatformServer(t, handler)
-		client, err := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "target", Mode: spec.TransportModePlatform, URL: server.URL}, testClientTimeout)
+	t.Run("plain", func(t *testing.T) {
+		server := tlstest.NewPlainServer(t, handler)
+		client, err := tlsconfig.NewHTTPClient(tlsconfig.Hop{Name: "target", URL: server.URL}, testClientTimeout)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +84,7 @@ func newMTLSEndpoint(t *testing.T, handler http.Handler) (Endpoint, tlsconfig.Ho
 	certFile, keyFile := authority.IssueClient(t).WriteFiles(t, directory, "client")
 	hop := tlsconfig.Hop{
 		Name:     "target",
-		Mode:     spec.TransportModeMtls,
+		TLS:      true,
 		URL:      server.URL,
 		CertFile: certFile,
 		KeyFile:  keyFile,

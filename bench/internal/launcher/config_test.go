@@ -62,14 +62,14 @@ func TestANamedConfigMustExist(t *testing.T) {
 func TestLoadConfigRefusesUnknownKeys(t *testing.T) {
 	directory := t.TempDir()
 	good := filepath.Join(directory, "good.yaml")
-	writeFile(t, good, "listen: 0.0.0.0:9123\ntls_mode: platform\ntoken_file: /etc/servtuner/token\n")
+	writeFile(t, good, "listen: 0.0.0.0:9123\ntls: false\ntoken_file: /etc/servtuner/token\n")
 	config, err := LoadConfig(good)
-	if err != nil || config != (Config{Listen: "0.0.0.0:9123", TLSMode: "platform", TokenFile: "/etc/servtuner/token"}) {
+	if err != nil || config != (Config{Listen: "0.0.0.0:9123", TLS: "false", TokenFile: "/etc/servtuner/token"}) {
 		t.Fatalf("got %+v, %v", config, err)
 	}
 	typo := filepath.Join(directory, "typo.yaml")
-	writeFile(t, typo, "tls_mod: platform\n")
-	if _, err := LoadConfig(typo); err == nil || !strings.Contains(err.Error(), "tls_mod") {
+	writeFile(t, typo, "tl: false\n")
+	if _, err := LoadConfig(typo); err == nil || !strings.Contains(err.Error(), "tl") {
 		t.Errorf("a typo must be refused, naming the key: %v", err)
 	}
 }

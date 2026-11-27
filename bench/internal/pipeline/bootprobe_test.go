@@ -35,8 +35,8 @@ func bootProbeRequest(t *testing.T, endpoint, tls string) spec.BootProbeRequest 
 }
 
 func TestBootProbeComputesCKVFromTheCacheConfig(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, fakeBootedVLLM(`block_size="16",engine="0",num_gpu_blocks="8192"`))
-	result, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"mode": "platform"}`))
+	server := tlstest.NewPlainServer(t, fakeBootedVLLM(`block_size="16",engine="0",num_gpu_blocks="8192"`))
+	result, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"enabled": false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,14 +62,14 @@ func TestBootProbeComputesCKVFromTheCacheConfig(t *testing.T) {
 // later session reuses the boot only on the same vLLM.
 func TestBootProbeRecordsTheVLLMVersion(t *testing.T) {
 	booted := fakeBootedVLLM(`block_size="16",engine="0",num_gpu_blocks="8192"`)
-	server := tlstest.NewPlatformServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := tlstest.NewPlainServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/version" {
 			_, _ = w.Write([]byte(`{"version": "0.34.0"}`))
 			return
 		}
 		booted.ServeHTTP(w, r)
 	}))
-	result, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"mode": "platform"}`))
+	result, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"enabled": false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,8 +79,8 @@ func TestBootProbeRecordsTheVLLMVersion(t *testing.T) {
 }
 
 func TestBootProbeNeedsAllocatedBlocks(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, fakeBootedVLLM(`block_size="16",engine="0",num_gpu_blocks="None"`))
-	_, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"mode": "platform"}`))
+	server := tlstest.NewPlainServer(t, fakeBootedVLLM(`block_size="16",engine="0",num_gpu_blocks="None"`))
+	_, err := BootProbe(context.Background(), t.TempDir(), bootProbeRequest(t, server.URL+"/v1", `{"enabled": false}`))
 	if err == nil || !strings.Contains(err.Error(), "num_gpu_blocks") {
 		t.Fatalf("err = %v, want the missing cache config named", err)
 	}
@@ -94,7 +94,7 @@ func TestBootProbeOverTLS(t *testing.T) {
 	secretsDir := t.TempDir()
 	writeSecret(t, secretsDir, "vllm-ca", "ca.crt", authority.CertPEM)
 	result, err := BootProbe(context.Background(), secretsDir,
-		bootProbeRequest(t, server.URL+"/v1", `{"mode": "tls", "caSecretRef": {"name": "vllm-ca"}}`))
+		bootProbeRequest(t, server.URL+"/v1", `{"enabled": true, "caSecretRef": {"name": "vllm-ca"}}`))
 	if err != nil {
 		t.Fatal(err)
 	}

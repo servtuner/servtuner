@@ -21,7 +21,7 @@ func TestProbeReportsCollectedWhenTheMarkerExists(t *testing.T) {
 		}
 		return nil
 	}}
-	for name, client := range map[string]*Client{"platform": newPlatformClient(t, fake, nil), "mtls": newMTLSClient(t, fake)} {
+	for name, client := range map[string]*Client{"plain": newPlainClient(t, fake, nil), "mtls": newMTLSClient(t, fake)} {
 		results, err := ProbeOptionalCatalogs(context.Background(), client, []spec.CatalogName{spec.CatalogNameDcgm}, probeInput(), probeTime)
 		if err != nil || len(results) != 1 {
 			t.Fatalf("%s: results = %v, err = %v", name, results, err)
@@ -37,7 +37,7 @@ func TestProbeReportsCollectedWhenTheMarkerExists(t *testing.T) {
 }
 
 func TestProbeReportsAbsentWithTheMarkerInTheDetail(t *testing.T) {
-	client := newPlatformClient(t, &prometheustest.Server{}, nil)
+	client := newPlainClient(t, &prometheustest.Server{}, nil)
 	results, err := ProbeOptionalCatalogs(context.Background(), client, []spec.CatalogName{spec.CatalogNameDcgm}, probeInput(), probeTime)
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +50,7 @@ func TestProbeReportsAbsentWithTheMarkerInTheDetail(t *testing.T) {
 func TestProbeReportsErrorWhenPrometheusFails(t *testing.T) {
 	fake := &prometheustest.Server{}
 	fake.FailNext(http.StatusInternalServerError, http.StatusInternalServerError, http.StatusInternalServerError, http.StatusInternalServerError)
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	results, err := ProbeOptionalCatalogs(context.Background(), client, []spec.CatalogName{spec.CatalogNameDcgm}, probeInput(), probeTime)
 	if err != nil {
 		t.Fatalf("a failed probe is a result, not a Go error: %v", err)
@@ -62,7 +62,7 @@ func TestProbeReportsErrorWhenPrometheusFails(t *testing.T) {
 
 func TestProbeWithoutKnownNodesAsksAboutAnyNode(t *testing.T) {
 	fake := &prometheustest.Server{}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	unscoped := RenderInput{Selectors: Selectors{NamespaceRegex: "llm", PodRegex: "vllm-.*"}}
 	if _, err := ProbeOptionalCatalogs(context.Background(), client, []spec.CatalogName{spec.CatalogNameDcgm}, unscoped, probeTime); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestProbeWithoutKnownNodesAsksAboutAnyNode(t *testing.T) {
 
 func TestAnyCatalogCanBeProbedAndAMarkerNeedsNoInterval(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	names := []spec.CatalogName{spec.CatalogNameVllm, spec.CatalogNameBifrost, spec.CatalogNameLitellm, spec.CatalogNameKubernetes}
 	results, err := ProbeOptionalCatalogs(context.Background(), client, names, probeInput(), probeTime)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestAnyCatalogCanBeProbedAndAMarkerNeedsNoInterval(t *testing.T) {
 }
 
 func TestProbeResultsValidateAgainstTheSchema(t *testing.T) {
-	client := newPlatformClient(t, &prometheustest.Server{}, nil)
+	client := newPlainClient(t, &prometheustest.Server{}, nil)
 	results, err := ProbeOptionalCatalogs(context.Background(), client, []spec.CatalogName{spec.CatalogNameDcgm}, probeInput(), probeTime)
 	if err != nil {
 		t.Fatal(err)

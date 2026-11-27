@@ -6,12 +6,10 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/servtuner/servtuner/bench/internal/spec"
 	"github.com/servtuner/servtuner/bench/internal/tlsconfig"
 	"github.com/servtuner/servtuner/bench/internal/tlstest"
 )
@@ -21,7 +19,7 @@ func TestQueryRangeInMTLSMode(t *testing.T) {
 	client := newMTLSClient(t, fake)
 	matrix, _, err := client.QueryRange(context.Background(), "up", testWindow, 5*time.Second)
 	if err != nil {
-		t.Fatalf("mtls query failed: %v", err)
+		t.Fatalf("query with a client certificate failed: %v", err)
 	}
 	if len(matrix) != 1 || matrix[0].Metric["pod"] != "vllm-0" {
 		t.Errorf("matrix = %v", matrix)
@@ -41,13 +39,18 @@ func TestMTLSRefusesWithoutAcceptedCertificate(t *testing.T) {
 	directory := t.TempDir()
 	caFile := tlstest.WriteFile(t, directory, "ca.crt", serverAuthority.CertPEM)
 
-	if _, err := NewClient(tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModeMtls, URL: server.URL, CAFile: caFile}, fastOptions); err == nil ||
-		!strings.Contains(err.Error(), "certificate") {
-		t.Errorf("a client with no certificate must not be built, got %v", err)
+	// TLS without a client certificate is a valid hop, so the client is built; a server
+	// that requires one refuses it at the handshake.
+	bare, err := NewClient(tlsconfig.Hop{Name: "prometheus", TLS: true, URL: server.URL, CAFile: caFile}, fastOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := bare.QueryRange(context.Background(), "up", testWindow, 5*time.Second); err == nil {
+		t.Fatal("the server accepted a client with no certificate")
 	}
 
 	certFile, keyFile := strangerAuthority.IssueClient(t).WriteFiles(t, directory, "stranger")
-	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModeMtls, URL: server.URL, CertFile: certFile, KeyFile: keyFile, CAFile: caFile}, fastOptions)
+	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", TLS: true, URL: server.URL, CertFile: certFile, KeyFile: keyFile, CAFile: caFile}, fastOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,22 +64,22 @@ func TestMTLSRefusesWithoutAcceptedCertificate(t *testing.T) {
 
 func TestPlatformModeIsPlainHTTPAndRefusesCertificates(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	if _, _, err := client.QueryRange(context.Background(), "up", testWindow, 5*time.Second); err != nil {
-		t.Fatalf("platform query failed: %v", err)
+		t.Fatalf("plain query failed: %v", err)
 	}
-	mixed := tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModePlatform, URL: "http://prometheus.invalid", CertFile: "c", KeyFile: "k"}
+	mixed := tlsconfig.Hop{Name: "prometheus", URL: "http://prometheus.invalid", CertFile: "c", KeyFile: "k"}
 	if _, err := NewClient(mixed, fastOptions); err == nil {
 		t.Error("platform mode with certificate settings must be rejected")
 	}
-	if _, err := NewClient(tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModeMtls, URL: "http://prometheus.invalid", CertFile: "c", KeyFile: "k"}, fastOptions); err == nil {
+	if _, err := NewClient(tlsconfig.Hop{Name: "prometheus", TLS: true, URL: "http://prometheus.invalid", CertFile: "c", KeyFile: "k"}, fastOptions); err == nil {
 		t.Error("mtls mode with an http:// URL must be rejected")
 	}
 }
 
 func TestQueryRangeSendsTheWindowAndStep(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	if _, _, err := client.QueryRange(context.Background(), `up{job="servtuner-targets"}`, testWindow, 5*time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +102,7 @@ func TestQueryRangeSendsTheWindowAndStep(t *testing.T) {
 func TestRetriesServerErrorsThenSucceeds(t *testing.T) {
 	fake := answerEverything()
 	fake.FailNext(http.StatusServiceUnavailable, http.StatusInternalServerError)
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	if _, _, err := client.QueryRange(context.Background(), "up", testWindow, 5*time.Second); err != nil {
 		t.Fatalf("query should survive two 5xx answers: %v", err)
 	}
@@ -111,7 +114,7 @@ func TestRetriesServerErrorsThenSucceeds(t *testing.T) {
 func TestRetriesAreBounded(t *testing.T) {
 	fake := answerEverything()
 	fake.FailNext(500, 500, 500, 500, 500, 500)
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	_, _, err := client.QueryRange(context.Background(), "up", testWindow, 5*time.Second)
 	if err == nil {
 		t.Fatal("a persistent 5xx must fail")
@@ -125,7 +128,7 @@ func TestClientErrorsAreNotRetried(t *testing.T) {
 	for _, status := range []int{http.StatusBadRequest, http.StatusUnprocessableEntity, http.StatusTooManyRequests} {
 		fake := answerEverything()
 		fake.ErrorFor = func(string) (int, string) { return status, "bad query" }
-		client := newPlatformClient(t, fake, nil)
+		client := newPlainClient(t, fake, nil)
 		_, _, err := client.QueryRange(context.Background(), "up{", testWindow, 5*time.Second)
 		if err == nil {
 			t.Errorf("status %d: the query must fail", status)
@@ -148,8 +151,8 @@ func TestRetriesATimeout(t *testing.T) {
 			next.ServeHTTP(w, r)
 		})
 	}
-	server := tlstest.NewPlatformServer(t, hangFirst(answerEverything().Handler()))
-	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModePlatform, URL: server.URL},
+	server := tlstest.NewPlainServer(t, hangFirst(answerEverything().Handler()))
+	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", URL: server.URL},
 		Options{RequestTimeout: 100 * time.Millisecond, MaxAttempts: 3, InitialBackoff: time.Millisecond, MaxBackoff: time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +168,7 @@ func TestRetriesATimeout(t *testing.T) {
 func TestACancelledContextStopsRetrying(t *testing.T) {
 	fake := answerEverything()
 	fake.FailNext(500, 500, 500, 500)
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, _, err := client.QueryRange(ctx, "up", testWindow, 5*time.Second); err == nil {
@@ -232,7 +235,7 @@ func TestOptionsDefaults(t *testing.T) {
 
 func TestLongWindowsAreSplitUnderThePointLimit(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	window := Window{Start: testWindow.Start, End: testWindow.Start.Add(25000 * time.Second)}
 	matrix, _, err := client.QueryRange(context.Background(), "up", window, time.Second)
 	if err != nil {
@@ -258,7 +261,7 @@ func TestLongWindowsAreSplitUnderThePointLimit(t *testing.T) {
 
 func TestAWindowOfExactlyOneChunkIsOneRequest(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	window := Window{Start: testWindow.Start, End: testWindow.Start.Add(maxPointsPerChunk * time.Second)}
 	if _, _, err := client.QueryRange(context.Background(), "up", window, time.Second); err != nil {
 		t.Fatal(err)

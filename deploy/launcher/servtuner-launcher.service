@@ -9,7 +9,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=%h/servtuner-launcher
 # Settings live in ~/.config/servtuner/launcher.yaml (deploy/launcher/launcher.yaml is the example):
-# the listener, the TLS mode, the token and API key files, and the vllm executable.
+# the listener, TLS, the token and API key files, and the vllm executable.
 ExecStart=%h/servtuner-launcher/servtuner launcher --config=%h/.config/servtuner/launcher.yaml
 # SIGTERM: the launcher stops vLLM's process group (SIGKILL after 30 s), so wait longer than that.
 KillSignal=SIGTERM

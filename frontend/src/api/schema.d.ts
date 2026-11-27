@@ -2780,12 +2780,25 @@ export interface components {
         HistogramCount: number;
         /** HistogramCounts */
         HistogramCounts: components["schemas"]["HistogramCount"][];
+        /** HopTransport */
+        HopTransport: {
+            /**
+             * Client Cert
+             * @description servtuner presented a client certificate on it. Always false without TLS.
+             */
+            client_cert: boolean;
+            /**
+             * Tls
+             * @description The connection used TLS. False is plain HTTP or TCP.
+             */
+            tls: boolean;
+        };
         /** HopTransports */
         HopTransports: {
-            api?: components["schemas"]["TransportMode"] | null;
-            object_store?: components["schemas"]["TransportMode"] | null;
-            prometheus?: components["schemas"]["TransportMode"] | null;
-            target: components["schemas"]["TransportMode"];
+            api?: components["schemas"]["HopTransport"] | null;
+            object_store?: components["schemas"]["HopTransport"] | null;
+            prometheus?: components["schemas"]["HopTransport"] | null;
+            target: components["schemas"]["HopTransport"];
         };
         /**
          * HostCreate
@@ -4842,7 +4855,7 @@ export interface components {
              * Apiversion
              * @constant
              */
-            apiVersion: "servtuner.dev/v1";
+            apiVersion: "servtuner.dev/v2";
             engine: components["schemas"]["Engine"];
             /**
              * Experiment
@@ -5015,21 +5028,23 @@ export interface components {
         };
         /**
          * Tls
-         * @description Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.
+         * @description Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.
          */
-        RunSpec_Tls: components["schemas"]["TlsMtls"] | components["schemas"]["TlsPlatform"] | components["schemas"]["RunSpec_TlsServer"];
-        /** TlsServer */
-        RunSpec_TlsServer: {
+        RunSpec_Tls: components["schemas"]["TlsDisabled"] | components["schemas"]["RunSpec_TlsEnabled"];
+        /** TlsEnabled */
+        RunSpec_TlsEnabled: {
             /**
              * @description A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read.
              * @default null
              */
             caSecretRef: components["schemas"]["SecretRef"] | null;
+            /** @default null */
+            clientCert: components["schemas"]["TlsClientCert"] | null;
             /**
-             * Mode
+             * Enabled
              * @constant
              */
-            mode: "tls";
+            enabled: true;
         };
         /** Upstream */
         RunSpec_Upstream: {
@@ -6211,21 +6226,23 @@ export interface components {
         };
         /**
          * Tls
-         * @description Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.
+         * @description Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.
          */
-        TargetCreate_Tls: components["schemas"]["TlsMtls"] | components["schemas"]["TlsPlatform"] | components["schemas"]["TargetCreate_TlsServer"];
-        /** TlsServer */
-        TargetCreate_TlsServer: {
+        TargetCreate_Tls: components["schemas"]["TlsDisabled"] | components["schemas"]["TargetCreate_TlsEnabled"];
+        /** TlsEnabled */
+        TargetCreate_TlsEnabled: {
             /**
              * @description A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read.
              * @default null
              */
             caSecretRef: components["schemas"]["SecretRef"] | null;
+            /** @default null */
+            clientCert: components["schemas"]["TlsClientCert"] | null;
             /**
-             * Mode
+             * Enabled
              * @constant
              */
-            mode: "tls";
+            enabled: true;
         };
         /** Upstream */
         TargetCreate_Upstream: {
@@ -6393,35 +6410,31 @@ export interface components {
         };
         /**
          * Tls
-         * @description Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.
+         * @description Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.
          */
-        Tls: components["schemas"]["TlsMtls"] | components["schemas"]["TlsPlatform"] | components["schemas"]["TlsServer"];
-        /** TlsMtls */
-        TlsMtls: {
-            /**
-             * Mode
-             * @constant
-             */
-            mode: "mtls";
+        Tls: components["schemas"]["TlsDisabled"] | components["schemas"]["TlsEnabled"];
+        /** TlsClientCert */
+        TlsClientCert: {
             secretRef: components["schemas"]["SecretRef"];
         };
-        /** TlsPlatform */
-        TlsPlatform: {
+        /** TlsDisabled */
+        TlsDisabled: {
             /**
-             * Mode
+             * Enabled
              * @constant
              */
-            mode: "platform";
+            enabled: false;
         };
-        /** TlsServer */
-        TlsServer: {
+        /** TlsEnabled */
+        TlsEnabled: {
             /** @description A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read. */
             caSecretRef?: components["schemas"]["SecretRef"] | null;
+            clientCert?: components["schemas"]["TlsClientCert"] | null;
             /**
-             * Mode
+             * Enabled
              * @constant
              */
-            mode: "tls";
+            enabled: true;
         };
         /**
          * TlsTransport
@@ -6543,11 +6556,6 @@ export interface components {
             /** Memory Request Bytes */
             memory_request_bytes: number;
         };
-        /**
-         * TransportMode
-         * @enum {string}
-         */
-        TransportMode: "mtls" | "platform" | "tls";
         /**
          * TuningBootOutcome
          * @enum {string}
@@ -6815,21 +6823,23 @@ export interface components {
         };
         /**
          * Tls
-         * @description Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.
+         * @description Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.
          */
-        UnsavedTargetCheck_Tls: components["schemas"]["TlsMtls"] | components["schemas"]["TlsPlatform"] | components["schemas"]["UnsavedTargetCheck_TlsServer"];
-        /** TlsServer */
-        UnsavedTargetCheck_TlsServer: {
+        UnsavedTargetCheck_Tls: components["schemas"]["TlsDisabled"] | components["schemas"]["UnsavedTargetCheck_TlsEnabled"];
+        /** TlsEnabled */
+        UnsavedTargetCheck_TlsEnabled: {
             /**
              * @description A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read.
              * @default null
              */
             caSecretRef: components["schemas"]["SecretRef"] | null;
+            /** @default null */
+            clientCert: components["schemas"]["TlsClientCert"] | null;
             /**
-             * Mode
+             * Enabled
              * @constant
              */
-            mode: "tls";
+            enabled: true;
         };
         /** Upstream */
         UnsavedTargetCheck_Upstream: {

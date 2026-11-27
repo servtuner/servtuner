@@ -74,9 +74,9 @@ func specFor(endpoint string, tls spec.Tls, isStreaming bool, rate float64, dura
 	}
 }
 
-var platformTLS = spec.TlsPlatform{Mode: "platform"}
-var mtlsTLS = spec.TlsMtls{Mode: "mtls", SecretRef: spec.SecretRef{Name: "servtuner-client"}}
-var serverTLS = spec.TlsServer{Mode: "tls"}
+var plainTLS = spec.TlsDisabled{}
+var mtlsTLS = spec.TlsEnabled{Enabled: true, ClientCert: &spec.TlsClientCert{SecretRef: spec.SecretRef{Name: "servtuner-client"}}}
+var serverTLS = spec.TlsEnabled{Enabled: true}
 
 // usageHandler answers every request with a chat completion after delay.
 func usageHandler(delay time.Duration) http.Handler {
@@ -90,7 +90,7 @@ func usageHandler(delay time.Duration) http.Handler {
 
 func platformServer(t *testing.T, handler http.Handler) string {
 	t.Helper()
-	return tlstest.NewPlatformServer(t, handler).URL + "/v1"
+	return tlstest.NewPlainServer(t, handler).URL + "/v1"
 }
 
 // prepare builds and prepares an engine, failing the test on error.

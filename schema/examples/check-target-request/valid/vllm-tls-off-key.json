@@ -5,8 +5,8 @@
     "model": "tiny",
     "auth": {"secretRef": {"name": "servtuner-target-01m8example-api-key", "key": "token"}},
     "metrics": {"namespace": "servtuner-external", "pod": "vllm-lan", "node": "vllm-lan-gpu"},
-    "tls": {"mode": "platform"}
+    "tls": {"enabled": false}
   },
-  "prometheus": {"url": "http://prometheus.monitoring.svc:9090", "tls": {"mode": "platform"}, "optional_catalogs": ["dcgm"]},
+  "prometheus": {"url": "http://prometheus.monitoring.svc:9090", "tls": {"enabled": false}, "optional_catalogs": ["dcgm"]},
   "generate": true
 }

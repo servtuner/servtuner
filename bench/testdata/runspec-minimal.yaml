@@ -1,6 +1,6 @@
-# The minimal-vllm-mtls example, written as YAML (comments and anchors are
+# The minimal-vllm-client-cert example, written as YAML (comments and anchors are
 # YAML-only, so this exercises the YAML to JSON conversion).
-apiVersion: servtuner.dev/v1
+apiVersion: servtuner.dev/v2
 kind: RunSpec
 name: vllm-smoke-yaml
 target:
@@ -8,9 +8,10 @@ target:
   endpoint: https://vllm.inference.svc:8000/v1
   model: example/model-8b
   tls:
-    mode: mtls
-    secretRef:
-      name: servtuner-client
+    enabled: true
+    clientCert:
+      secretRef:
+        name: servtuner-client
 engine:
   type: loadgen
 workload:

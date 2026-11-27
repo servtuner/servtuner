@@ -152,7 +152,7 @@ type configInputs struct {
 	Phases []engine.Phase
 	// OutputDir is where inference-perf writes its reports.
 	OutputDir string
-	// CertFile and KeyFile are set in mtls mode only.
+	// CertFile and KeyFile are set only with a client certificate.
 	CertFile, KeyFile string
 	// NumWorkers is the worker process count; 0 leaves inference-perf's
 	// default (the CPU count).

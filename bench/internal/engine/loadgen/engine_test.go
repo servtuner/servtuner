@@ -20,7 +20,7 @@ import (
 // TestRunNonStreamingWritesOneRowPerRequest: every scheduled hit becomes a row
 // with usage, TTFB, no TTFT, the stage index and a small send lag.
 func TestRunNonStreamingWritesOneRowPerRequest(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 100, time.Second)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 100, time.Second)
 	e := prepare(t, Options{RunID: "01TESTRUN"}, runSpec)
 	sink := &collectingSink{}
 	result, err := runAll(t, e, runSpec, sink)
@@ -80,7 +80,7 @@ func TestRunStreamingRecordsFirstTokenAndChunkGaps(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`data: {"choices":[],"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}` + "\n\ndata: [DONE]\n\n"))
 	})
-	runSpec := specFor(platformServer(t, handler), platformTLS, true, 5, time.Second)
+	runSpec := specFor(platformServer(t, handler), plainTLS, true, 5, time.Second)
 	e := prepare(t, Options{}, runSpec)
 	sink := &collectingSink{}
 	if _, err := runAll(t, e, runSpec, sink); err != nil {
@@ -137,7 +137,7 @@ func TestErrorClasses(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runSpec := specFor(platformServer(t, tc.handler), platformTLS, tc.isStreaming, 2, time.Second)
+			runSpec := specFor(platformServer(t, tc.handler), plainTLS, tc.isStreaming, 2, time.Second)
 			if tc.options == "timeout" {
 				runSpec.Engine.Options = spec.EngineOptions{OptionRequestTimeoutSeconds: 0.2}
 			}
@@ -152,10 +152,10 @@ func TestErrorClasses(t *testing.T) {
 }
 
 func TestConnectionRefusedIsClassified(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, usageHandler(0))
+	server := tlstest.NewPlainServer(t, usageHandler(0))
 	endpoint := server.URL + "/v1"
 	server.Close()
-	runSpec := specFor(endpoint, platformTLS, false, 2, time.Second)
+	runSpec := specFor(endpoint, plainTLS, false, 2, time.Second)
 	for _, row := range runRows(t, Options{}, runSpec) {
 		if errorOf(row) != ErrorConnectionRefused || row.Status != 0 {
 			t.Fatalf("error %q status %d, want connection_refused with status 0", errorOf(row), row.Status)
@@ -187,7 +187,7 @@ func newMTLSFixture(t *testing.T) mtlsFixture {
 
 // TestMTLSMode: with a certificate the run works over HTTP/1.1; a certificate
 // from another CA is refused by the server and recorded as a tls error; and
-// Prepare refuses mtls with no certificate at all.
+// Prepare refuses a spec that names a client certificate when the run has none.
 func TestMTLSMode(t *testing.T) {
 	fixture := newMTLSFixture(t)
 	runSpec := specFor(fixture.endpoint, mtlsTLS, false, 5, time.Second)
@@ -223,7 +223,7 @@ func TestMTLSMode(t *testing.T) {
 
 // TestTLSMode: a server that asks for no client certificate is reached with
 // the private CA and no certificate; without the CA the server is not
-// trusted; and Prepare refuses a client certificate in tls mode.
+// trusted; and Prepare refuses a client certificate the spec does not name.
 func TestTLSMode(t *testing.T) {
 	authority := tlstest.NewAuthority(t)
 	server := tlstest.NewTLSServer(t, authority, usageHandler(0))
@@ -247,30 +247,30 @@ func TestTLSMode(t *testing.T) {
 		certFile, keyFile := authority.IssueClient(t).WriteFiles(t, t.TempDir(), "client")
 		err := New(Options{ClientCertFile: certFile, ClientKeyFile: keyFile, CAFile: caFile}).Prepare(context.Background(), runSpec)
 		if err == nil || !strings.Contains(err.Error(), "tls") {
-			t.Fatalf("Prepare with a client certificate in tls mode = %v, want a refusal", err)
+			t.Fatalf("Prepare with a client certificate the spec does not name = %v, want a refusal", err)
 		}
 	})
 }
 
 func TestPlatformModeRejectsCertificateSettings(t *testing.T) {
-	runSpec := specFor("http://192.0.2.1:8000/v1", platformTLS, false, 5, time.Second)
+	runSpec := specFor("http://192.0.2.1:8000/v1", plainTLS, false, 5, time.Second)
 	err := New(Options{ClientCertFile: "tls.crt", ClientKeyFile: "tls.key"}).Prepare(context.Background(), runSpec)
 	if err == nil {
-		t.Fatal("platform mode accepted certificate settings")
+		t.Fatal("tls disabled accepted certificate settings")
 	}
 }
 
 func TestModeAndSchemeMustAgree(t *testing.T) {
-	err := New(Options{}).Prepare(context.Background(), specFor("https://192.0.2.1/v1", platformTLS, false, 5, time.Second))
+	err := New(Options{}).Prepare(context.Background(), specFor("https://192.0.2.1/v1", plainTLS, false, 5, time.Second))
 	if err == nil {
-		t.Fatal("platform mode accepted an https url")
+		t.Fatal("tls disabled accepted an https url")
 	}
 }
 
 // TestInFlightCapDelaysButNeverDrops: with a cap of 2 and a slow target, every
 // scheduled request is still sent, and the delay shows up as send lag.
 func TestInFlightCapDelaysButNeverDrops(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(100*time.Millisecond)), platformTLS, false, 50, time.Second)
+	runSpec := specFor(platformServer(t, usageHandler(100*time.Millisecond)), plainTLS, false, 50, time.Second)
 	runSpec.Engine.Options = spec.EngineOptions{OptionMaxInFlight: 2, OptionMaxWaiting: 1000}
 	e := prepare(t, Options{}, runSpec)
 	sink := &collectingSink{}
@@ -296,7 +296,7 @@ func TestInFlightCapDelaysButNeverDrops(t *testing.T) {
 // TestWarmupRowsAreWrittenAsWarmup: warmup stays in raw data, with phase warmup
 // and no stage index; it is counted and teaches the calibrator.
 func TestWarmupRowsAreWrittenAsWarmup(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 20, 500*time.Millisecond)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 20, 500*time.Millisecond)
 	runSpec.Load.Warmup = "500ms"
 	e := prepare(t, Options{}, runSpec)
 	sink := &collectingSink{}
@@ -344,7 +344,7 @@ func TestVLLMTargetsGetMinTokens(t *testing.T) {
 		body = string(buffer[:count])
 		_, _ = w.Write([]byte(chatUsageBody))
 	})
-	runSpec := specFor(platformServer(t, handler), platformTLS, false, 10, 300*time.Millisecond)
+	runSpec := specFor(platformServer(t, handler), plainTLS, false, 10, 300*time.Millisecond)
 	runSpec.Target.Type = spec.TargetTypeVllm
 	e := prepare(t, Options{RunID: "run-1", BearerToken: "secret"}, runSpec)
 	if _, err := runAll(t, e, runSpec, &collectingSink{}); err != nil {
@@ -361,7 +361,7 @@ func TestBearerTokenIsSent(t *testing.T) {
 		header = r.Header.Get("Authorization")
 		_, _ = w.Write([]byte(chatUsageBody))
 	})
-	runSpec := specFor(platformServer(t, handler), platformTLS, false, 10, 300*time.Millisecond)
+	runSpec := specFor(platformServer(t, handler), plainTLS, false, 10, 300*time.Millisecond)
 	e := prepare(t, Options{BearerToken: "secret"}, runSpec)
 	if _, err := runAll(t, e, runSpec, &collectingSink{}); err != nil {
 		t.Fatal(err)
@@ -373,7 +373,7 @@ func TestBearerTokenIsSent(t *testing.T) {
 
 // TestSelfMonitoringSamplesEachInterval.
 func TestSelfMonitoringSamplesEachInterval(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 50, time.Second)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 50, time.Second)
 	clientSink := &collectingClientSink{}
 	e := prepare(t, Options{ClientSink: clientSink, SampleInterval: 100 * time.Millisecond}, runSpec)
 	if _, err := runAll(t, e, runSpec, &collectingSink{}); err != nil {
@@ -401,7 +401,7 @@ func TestSelfMonitoringSamplesEachInterval(t *testing.T) {
 // TestCancelStopsPacingAndKeepsRows: cancelling mid-stage returns promptly, with
 // the rows already written and the window cut short.
 func TestCancelStopsPacingAndKeepsRows(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 100, time.Minute)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 100, time.Minute)
 	e := prepare(t, Options{}, runSpec)
 	phases, err := engine.PlanPhases(runSpec.Load)
 	if err != nil {
@@ -428,7 +428,7 @@ func TestCancelStopsPacingAndKeepsRows(t *testing.T) {
 
 // TestSinkFailureStopsTheRun: a sink that cannot persist rows fails the run.
 func TestSinkFailureStopsTheRun(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 100, time.Minute)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 100, time.Minute)
 	e := prepare(t, Options{}, runSpec)
 	sink := &collectingSink{err: errors.New("disk full")}
 	began := time.Now()
@@ -445,7 +445,7 @@ func TestSinkFailureStopsTheRun(t *testing.T) {
 // and the stuck requests, which were sent, are recorded as abandoned with the
 // time they waited.
 func TestDrainAbandonsRequestsThatNeverFinish(t *testing.T) {
-	runSpec := specFor(platformServer(t, blockUntilClientGone), platformTLS, false, 5, 400*time.Millisecond)
+	runSpec := specFor(platformServer(t, blockUntilClientGone), plainTLS, false, 5, 400*time.Millisecond)
 	runSpec.Engine.Options = spec.EngineOptions{OptionDrainTimeoutSeconds: 0.3}
 	e := prepare(t, Options{}, runSpec)
 	began := time.Now()
@@ -521,7 +521,7 @@ var stallingStream = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 // must still carry its monotonic reading; .UTC() would strip it and turn
 // scheduling into wall-clock arithmetic.
 func TestSecondPhaseKeepsTheMonotonicClock(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 10, 100*time.Millisecond)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 10, 100*time.Millisecond)
 	e := prepare(t, Options{}, runSpec)
 	run, stop := newRunState(context.Background(), e, &collectingSink{})
 	defer stop()
@@ -545,7 +545,7 @@ func TestSecondPhaseKeepsTheMonotonicClock(t *testing.T) {
 // TestBlockingSinkDoesNotHangTheRun: a sink that never returns costs the run
 // its drain time plus a short grace, then Run reports the stuck sink.
 func TestBlockingSinkDoesNotHangTheRun(t *testing.T) {
-	runSpec := specFor(platformServer(t, usageHandler(0)), platformTLS, false, 200, time.Second)
+	runSpec := specFor(platformServer(t, usageHandler(0)), plainTLS, false, 200, time.Second)
 	runSpec.Engine.Options = spec.EngineOptions{OptionMaxInFlight: 20, OptionDrainTimeoutSeconds: 0.5}
 	e := prepare(t, Options{}, runSpec)
 	release := make(chan struct{})
@@ -572,7 +572,7 @@ func (s blockingSink) Write(engine.RequestRow) error { <-s.release; return nil }
 // answers, goroutines stay bounded and the surplus due hits are shed, not
 // parked.
 func TestShedBoundsGoroutinesAgainstADeadTarget(t *testing.T) {
-	runSpec := specFor(platformServer(t, blockUntilClientGone), platformTLS, false, 1000, time.Second)
+	runSpec := specFor(platformServer(t, blockUntilClientGone), plainTLS, false, 1000, time.Second)
 	runSpec.Engine.Options = spec.EngineOptions{OptionMaxInFlight: 10, OptionMaxWaiting: 10, OptionDrainTimeoutSeconds: 0.3}
 	e := prepare(t, Options{}, runSpec)
 	baseline := runtime.NumGoroutine()
@@ -609,7 +609,7 @@ func TestShedBoundsGoroutinesAgainstADeadTarget(t *testing.T) {
 // TestMidStreamTimeoutKeepsStatusAndTimings: the response was a 200 and gave a
 // first token before it stalled, so the row says timeout with both facts.
 func TestMidStreamTimeoutKeepsStatusAndTimings(t *testing.T) {
-	runSpec := specFor(platformServer(t, stallingStream), platformTLS, true, 5, time.Second)
+	runSpec := specFor(platformServer(t, stallingStream), plainTLS, true, 5, time.Second)
 	runSpec.Engine.Options = spec.EngineOptions{OptionRequestTimeoutSeconds: 0.3}
 	for _, row := range runRows(t, Options{}, runSpec) {
 		if errorOf(row) != ErrorTimeout || row.Status != 200 || row.TTFTSeconds == nil {
@@ -619,7 +619,7 @@ func TestMidStreamTimeoutKeepsStatusAndTimings(t *testing.T) {
 }
 
 func TestDNSFailureIsClassified(t *testing.T) {
-	runSpec := specFor("http://servtuner-no-such-host.invalid/v1", platformTLS, false, 5, time.Second)
+	runSpec := specFor("http://servtuner-no-such-host.invalid/v1", plainTLS, false, 5, time.Second)
 	for _, row := range runRows(t, Options{}, runSpec) {
 		if errorOf(row) != ErrorDNS || row.Status != 0 {
 			t.Fatalf("error %q status %d, want dns with status 0", errorOf(row), row.Status)
@@ -631,7 +631,7 @@ func TestDNSFailureIsClassified(t *testing.T) {
 // stops the pacing; once the drain time passes, each open stream is recorded as
 // abandoned, keeping the timings it had (raw first).
 func TestCancelMidStreamAbandonsAfterDrain(t *testing.T) {
-	runSpec := specFor(platformServer(t, stallingStream), platformTLS, true, 20, time.Minute)
+	runSpec := specFor(platformServer(t, stallingStream), plainTLS, true, 20, time.Minute)
 	runSpec.Engine.Options = spec.EngineOptions{OptionDrainTimeoutSeconds: 0.3}
 	e := prepare(t, Options{}, runSpec)
 	phases, _ := engine.PlanPhases(runSpec.Load)
@@ -654,7 +654,7 @@ func TestCancelMidStreamAbandonsAfterDrain(t *testing.T) {
 
 func TestDefaultCapsFitTheContainerMemoryLimit(t *testing.T) {
 	// 10k RPS x 10s expected latency would be 100k slots; 1 GiB affords far fewer.
-	runSpec := specFor("http://192.0.2.1/v1", platformTLS, false, 10000, time.Second)
+	runSpec := specFor("http://192.0.2.1/v1", plainTLS, false, 10000, time.Second)
 	limits, err := resolveLimits(runSpec, 1<<30)
 	if err != nil {
 		t.Fatal(err)
@@ -669,7 +669,7 @@ func TestDefaultCapsFitTheContainerMemoryLimit(t *testing.T) {
 }
 
 func TestNoMemoryLimitKeepsTheLittleCap(t *testing.T) {
-	limits, err := resolveLimits(specFor("http://192.0.2.1/v1", platformTLS, false, 10000, time.Second), 0)
+	limits, err := resolveLimits(specFor("http://192.0.2.1/v1", plainTLS, false, 10000, time.Second), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -679,7 +679,7 @@ func TestNoMemoryLimitKeepsTheLittleCap(t *testing.T) {
 }
 
 func TestExplicitMaxInFlightIsNeverReducedByMemory(t *testing.T) {
-	runSpec := specFor("http://192.0.2.1/v1", platformTLS, false, 10000, time.Second)
+	runSpec := specFor("http://192.0.2.1/v1", plainTLS, false, 10000, time.Second)
 	runSpec.Engine.Options = spec.EngineOptions{OptionMaxInFlight: float64(50000)}
 	limits, err := resolveLimits(runSpec, 1<<30)
 	if err != nil {

@@ -23,7 +23,7 @@ func TestRunUploadsTheBundleToS3(t *testing.T) {
 		"AWS_ACCESS_KEY_ID=" + s3test.AccessKey, "AWS_SECRET_ACCESS_KEY=" + s3test.SecretKey,
 	}
 	result := runSubprocess(t, env, "run", "--spec", yamlFixture, "--engine-override", "null", "--run-id", testRunID,
-		"--out", "s3://servtuner-runs/runs", "--object-store-tls-mode", "platform")
+		"--out", "s3://servtuner-runs/runs", "--object-store-tls", "false")
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
 	}
@@ -63,13 +63,13 @@ func TestAnS3OutNeedsTheObjectStoreModeAndItsSettings(t *testing.T) {
 	} {
 		args := []string{"run", "--spec", yamlFixture, "--engine-override", "null", "--out", "s3://bucket/runs"}
 		if name != "no mode" {
-			args = append(args, "--object-store-tls-mode", "platform")
+			args = append(args, "--object-store-tls", "false")
 		}
 		if result := runSubprocess(t, env, args...); result.code != ExitInvalidSpec {
 			t.Errorf("%s: exit %d, stderr %q", name, result.code, result.stderr)
 		}
 	}
-	if result := run("run", "--spec", yamlFixture, "--engine-override", "null", "--out", bundleDir(t), "--object-store-tls-mode", "platform"); result.code != ExitInvalidSpec {
+	if result := run("run", "--spec", yamlFixture, "--engine-override", "null", "--out", bundleDir(t), "--object-store-tls", "false"); result.code != ExitInvalidSpec {
 		t.Errorf("object-store flags with a directory: exit %d", result.code)
 	}
 }

@@ -9,15 +9,25 @@ import (
 
 func TestValidateRejectsMixedAndIncompleteTransport(t *testing.T) {
 	cases := map[string]func(*Config){
-		"mtls without any files":  func(c *Config) { c.TLSMode = tlsModeMutual },
-		"mtls without client CA":  func(c *Config) { c.TLSMode = tlsModeMutual; c.CertFile = "a"; c.KeyFile = "b" },
-		"platform with cert file": func(c *Config) { c.TLSMode = tlsModePlatform; c.CertFile = "a" },
-		"platform with client CA": func(c *Config) { c.TLSMode = tlsModePlatform; c.ClientCAFile = "a" },
-		"unknown tls mode":        func(c *Config) { c.TLSMode = "auto" },
-		"empty tls mode":          func(c *Config) { c.TLSMode = "" },
-		"negative ttft":           func(c *Config) { c.TLSMode = tlsModePlatform; c.TimeToFirstToken = -time.Second },
-		"zero output tokens":      func(c *Config) { c.TLSMode = tlsModePlatform; c.OutputTokens = 0 },
-		"empty model":             func(c *Config) { c.TLSMode = tlsModePlatform; c.ModelName = "" },
+		"tls without any files":      func(c *Config) { c.ClientAuth = clientAuthRequired },
+		"required without client CA": func(c *Config) { c.ClientAuth = clientAuthRequired; c.CertFile = "a"; c.KeyFile = "b" },
+		"optional without client CA": func(c *Config) { c.ClientAuth = clientAuthOptional; c.CertFile = "a"; c.KeyFile = "b" },
+		"none with a client CA": func(c *Config) {
+			c.ClientAuth = clientAuthNone
+			c.CertFile = "a"
+			c.KeyFile = "b"
+			c.ClientCAFile = "c"
+		},
+		"unknown client auth":    func(c *Config) { c.ClientAuth = "sometimes"; c.CertFile = "a"; c.KeyFile = "b" },
+		"plain with cert file":   func(c *Config) { c.TLS = tlsOff; c.CertFile = "a" },
+		"plain with client CA":   func(c *Config) { c.TLS = tlsOff; c.ClientCAFile = "a" },
+		"plain with client auth": func(c *Config) { c.TLS = tlsOff; c.ClientAuth = clientAuthNone },
+		"tls not a boolean":      func(c *Config) { c.TLS = "auto" },
+		"empty tls":              func(c *Config) { c.TLS = "" },
+		"0.1 mode name":          func(c *Config) { c.TLS = "platform" },
+		"negative ttft":          func(c *Config) { c.TLS = tlsOff; c.TimeToFirstToken = -time.Second },
+		"zero output tokens":     func(c *Config) { c.TLS = tlsOff; c.OutputTokens = 0 },
+		"empty model":            func(c *Config) { c.TLS = tlsOff; c.ModelName = "" },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -32,7 +42,7 @@ func TestValidateRejectsMixedAndIncompleteTransport(t *testing.T) {
 
 func TestLoadConfigFlagsOverrideEnvironment(t *testing.T) {
 	environment := map[string]string{
-		"OPENAI_MOCK_TLS_MODE":              "platform",
+		"OPENAI_MOCK_TLS":                   "false",
 		"OPENAI_MOCK_TTFT":                  "1s",
 		"OPENAI_MOCK_MODEL":                 "from-env",
 		"OPENAI_MOCK_ROLE_ONLY_FIRST_CHUNK": "true",
@@ -48,7 +58,7 @@ func TestLoadConfigFlagsOverrideEnvironment(t *testing.T) {
 
 func TestLoadConfigRejectsBadEnvironmentAndMixedModes(t *testing.T) {
 	noEnv := func(string) string { return "" }
-	if _, err := loadConfig([]string{"--tls-mode", "platform", "--ttft", "fast"}, noEnv, io.Discard); err == nil {
+	if _, err := loadConfig([]string{"--tls", "false", "--ttft", "fast"}, noEnv, io.Discard); err == nil {
 		t.Error("expected a bad --ttft to fail")
 	}
 	badEnv := func(k string) string {
@@ -57,20 +67,20 @@ func TestLoadConfigRejectsBadEnvironmentAndMixedModes(t *testing.T) {
 		}
 		return ""
 	}
-	_, err := loadConfig([]string{"--tls-mode", "platform"}, badEnv, io.Discard)
+	_, err := loadConfig([]string{"--tls", "false"}, badEnv, io.Discard)
 	if err == nil || !strings.Contains(err.Error(), "OPENAI_MOCK_OUTPUT_TOKENS") {
 		t.Errorf("expected the bad variable to be named, got %v", err)
 	}
-	if _, err := loadConfig([]string{"--tls-mode", "platform", "--tls-cert-file", "x"}, noEnv, io.Discard); err == nil {
-		t.Error("expected platform with a cert file to fail")
+	if _, err := loadConfig([]string{"--tls", "false", "--tls-cert-file", "x"}, noEnv, io.Discard); err == nil {
+		t.Error("expected --tls false with a cert file to fail")
 	}
 	if _, err := loadConfig(nil, noEnv, io.Discard); err == nil {
-		t.Error("expected the mtls default without cert files to fail")
+		t.Error("expected the TLS default (client certificates required) without cert files to fail")
 	}
 }
 
 func TestValidateRejectsMetricsListenEqualToListen(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.MetricsListenAddress = cfg.ListenAddress
 	if cfg.Validate() == nil {
 		t.Fatal("metrics-listen equal to listen must be rejected")

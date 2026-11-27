@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/servtuner/servtuner/bench/internal/prometheus/prometheustest"
-	"github.com/servtuner/servtuner/bench/internal/spec"
 	"github.com/servtuner/servtuner/bench/internal/tlsconfig"
 	"github.com/servtuner/servtuner/bench/internal/tlstest"
 )
@@ -22,15 +21,15 @@ var testWindow = Window{
 
 var testSelectors = Selectors{NamespaceRegex: AnyOf("llm", "servtuner"), PodRegex: "vllm-.*|bench-.*", NodeRegex: "gpu-node-1"}
 
-// newPlatformClient serves the fake over plain HTTP and returns a client for it.
-func newPlatformClient(t *testing.T, fake *prometheustest.Server, wrap func(http.Handler) http.Handler) *Client {
+// newPlainClient serves the fake over plain HTTP and returns a client for it.
+func newPlainClient(t *testing.T, fake *prometheustest.Server, wrap func(http.Handler) http.Handler) *Client {
 	t.Helper()
 	handler := fake.Handler()
 	if wrap != nil {
 		handler = wrap(handler)
 	}
-	server := tlstest.NewPlatformServer(t, handler)
-	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", Mode: spec.TransportModePlatform, URL: server.URL}, fastOptions)
+	server := tlstest.NewPlainServer(t, handler)
+	client, err := NewClient(tlsconfig.Hop{Name: "prometheus", URL: server.URL}, fastOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +45,7 @@ func newMTLSClient(t *testing.T, fake *prometheustest.Server) *Client {
 	directory := t.TempDir()
 	certFile, keyFile := authority.IssueClient(t).WriteFiles(t, directory, "client")
 	client, err := NewClient(tlsconfig.Hop{
-		Name: "prometheus", Mode: spec.TransportModeMtls, URL: server.URL,
+		Name: "prometheus", TLS: true, URL: server.URL,
 		CertFile: certFile, KeyFile: keyFile, CAFile: tlstest.WriteFile(t, directory, "ca.crt", authority.CertPEM),
 	}, fastOptions)
 	if err != nil {

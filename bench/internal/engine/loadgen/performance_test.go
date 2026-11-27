@@ -29,7 +29,7 @@ func TestSendLagAtTwoThousandRPS(t *testing.T) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		_, _ = io.WriteString(w, `{"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
 	})
-	runSpec := specFor(platformServer(t, handler), platformTLS, false, rate, duration)
+	runSpec := specFor(platformServer(t, handler), plainTLS, false, rate, duration)
 	e := prepare(t, Options{}, runSpec)
 	sink := &collectingSink{}
 	if _, err := runAll(t, e, runSpec, sink); err != nil {

@@ -1,13 +1,13 @@
 package spec
 
-// ModeOf returns the transport mode declared by a target's, upstream's or
-// Prometheus's tls block. It reads the mode through DecodeTLS, so a block that
-// carries settings its mode forbids is an error rather than being silently
-// reduced to its mode.
-func ModeOf(tls Tls) (TransportMode, error) {
+// TransportOf returns how a target's, upstream's or Prometheus's tls block
+// secures its hop, as environment.json records it. It reads the block through
+// DecodeTLS, so a block that carries settings it forbids is an error rather
+// than being silently reduced.
+func TransportOf(tls Tls) (HopTransport, error) {
 	decoded, err := DecodeTLS(tls)
 	if err != nil {
-		return "", err
+		return HopTransport{}, err
 	}
-	return decoded.Mode, nil
+	return decoded.Transport(), nil
 }

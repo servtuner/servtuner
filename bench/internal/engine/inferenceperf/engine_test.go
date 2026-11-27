@@ -65,15 +65,15 @@ func TestRenderedConfigMTLS(t *testing.T) {
 		OutputDir: "/srv/servtuner/engine",
 		CertFile:  "/var/run/servtuner/tls/tls.crt",
 		KeyFile:   "/var/run/servtuner/tls/tls.key",
-	}, loadSpec(t, "runspec-mtls.yaml"))
-	checkGolden(t, "config-mtls.yaml", e.config)
+	}, loadSpec(t, "runspec-client-cert.yaml"))
+	checkGolden(t, "config-client-cert.yaml", e.config)
 }
 
 // TestRenderedConfigSharedPrefix: a shared prefix renders inference-perf's
 // shared_prefix generator, with the question as input_tokens less the prefix
 // and enough prompts per group that none repeats within the run.
 func TestRenderedConfigSharedPrefix(t *testing.T) {
-	runSpec := loadSpec(t, "runspec-platform.yaml")
+	runSpec := loadSpec(t, "runspec-tls-off.yaml")
 	runSpec.Workload.Dataset.SharedPrefix = &spec.SharedPrefix{Tokens: 512, Groups: 4}
 	e := prepared(t, Options{OutputDir: "/srv/servtuner/engine", NumWorkers: 2}, runSpec)
 	checkGolden(t, "config-shared-prefix.yaml", e.config)
@@ -83,10 +83,10 @@ func TestRenderedConfigSharedPrefix(t *testing.T) {
 }
 
 func TestRenderedConfigPlatform(t *testing.T) {
-	e := prepared(t, Options{OutputDir: "/srv/servtuner/engine", NumWorkers: 2}, loadSpec(t, "runspec-platform.yaml"))
-	checkGolden(t, "config-platform.yaml", e.config)
+	e := prepared(t, Options{OutputDir: "/srv/servtuner/engine", NumWorkers: 2}, loadSpec(t, "runspec-tls-off.yaml"))
+	checkGolden(t, "config-tls-off.yaml", e.config)
 	if strings.Contains(string(e.config), "cert_path") {
-		t.Error("platform config must carry no certificate settings")
+		t.Error("a config without TLS must carry no certificate settings")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestPrepareRejectsWhatItCannotRun(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			runSpec := loadSpec(t, "runspec-mtls.yaml")
+			runSpec := loadSpec(t, "runspec-client-cert.yaml")
 			test.change(&runSpec)
 			e := New(Options{
 				OutputDir: t.TempDir(),
@@ -125,43 +125,43 @@ func TestPrepareRejectsWhatItCannotRun(t *testing.T) {
 	}
 }
 
-// TestRenderedConfigTLS: tls mode renders no client certificate settings;
+// TestRenderedConfigTLS: TLS without a client certificate renders no client certificate settings;
 // the server is verified through SSL_CERT_FILE (the combined CA bundle).
 func TestRenderedConfigTLS(t *testing.T) {
-	runSpec := loadSpec(t, "runspec-mtls.yaml")
-	runSpec.Target.Tls = spec.TlsServer{Mode: "tls"}
+	runSpec := loadSpec(t, "runspec-client-cert.yaml")
+	runSpec.Target.Tls = spec.TlsEnabled{Enabled: true}
 	e := prepared(t, Options{OutputDir: "/srv/servtuner/engine", CABundleFile: "/tmp/bench-run/ca-bundle.crt"}, runSpec)
 	if strings.Contains(string(e.config), "cert_path") || strings.Contains(string(e.config), "key_path") {
 		t.Errorf("tls config must carry no client certificate settings:\n%s", e.config)
 	}
 }
 
-func TestPrepareEnforcesTransportMode(t *testing.T) {
-	t.Run("tls takes no client certificate", func(t *testing.T) {
-		runSpec := loadSpec(t, "runspec-mtls.yaml")
-		runSpec.Target.Tls = spec.TlsServer{Mode: "tls"}
+func TestPrepareEnforcesTransport(t *testing.T) {
+	t.Run("a certificate the spec does not name is refused", func(t *testing.T) {
+		runSpec := loadSpec(t, "runspec-client-cert.yaml")
+		runSpec.Target.Tls = spec.TlsEnabled{Enabled: true}
 		err := New(Options{OutputDir: t.TempDir(), CertFile: "/tls/tls.crt", KeyFile: "/tls/tls.key"}).Prepare(context.Background(), runSpec)
-		if err == nil || !strings.Contains(err.Error(), "tls") {
-			t.Fatalf("Prepare error = %v, want a mixed-mode error", err)
+		if err == nil || !strings.Contains(err.Error(), "names no client certificate") {
+			t.Fatalf("Prepare error = %v, want an unrequested-certificate error", err)
 		}
 	})
-	t.Run("mtls needs the client certificate", func(t *testing.T) {
-		err := New(Options{OutputDir: t.TempDir()}).Prepare(context.Background(), loadSpec(t, "runspec-mtls.yaml"))
+	t.Run("a client certificate the spec names must be given", func(t *testing.T) {
+		err := New(Options{OutputDir: t.TempDir()}).Prepare(context.Background(), loadSpec(t, "runspec-client-cert.yaml"))
 		if err == nil || !strings.Contains(err.Error(), "certificate") {
 			t.Fatalf("Prepare error = %v, want a missing-certificate error", err)
 		}
 	})
-	t.Run("platform takes no certificate", func(t *testing.T) {
+	t.Run("tls disabled takes no certificate", func(t *testing.T) {
 		err := New(Options{OutputDir: t.TempDir(), CertFile: "/tls/tls.crt", KeyFile: "/tls/tls.key"}).
-			Prepare(context.Background(), loadSpec(t, "runspec-platform.yaml"))
-		if err == nil || !strings.Contains(err.Error(), "platform") {
-			t.Fatalf("Prepare error = %v, want a mixed-mode error", err)
+			Prepare(context.Background(), loadSpec(t, "runspec-tls-off.yaml"))
+		if err == nil || !strings.Contains(err.Error(), "names no client certificate") {
+			t.Fatalf("Prepare error = %v, want an unrequested-certificate error", err)
 		}
 	})
 }
 
 func TestTokenizerOptionOverridesModelName(t *testing.T) {
-	runSpec := loadSpec(t, "runspec-platform.yaml")
+	runSpec := loadSpec(t, "runspec-tls-off.yaml")
 	runSpec.Engine.Options = spec.EngineOptions{"tokenizer": "/opt/tokenizer"}
 	e := prepared(t, Options{}, runSpec)
 	if !strings.Contains(string(e.config), "pretrained_model_name_or_path: /opt/tokenizer") {
@@ -170,7 +170,7 @@ func TestTokenizerOptionOverridesModelName(t *testing.T) {
 }
 
 func TestPassthroughOptionsAreMergedIntoTheConfig(t *testing.T) {
-	runSpec := loadSpec(t, "runspec-platform.yaml")
+	runSpec := loadSpec(t, "runspec-tls-off.yaml")
 	runSpec.Engine.Options = spec.EngineOptions{"circuit_breakers": []any{map[string]any{
 		"name":     "errors",
 		"metrics":  map[string]any{"matches": []any{"request_latency"}, "rules": []any{"> 5"}},
@@ -181,7 +181,7 @@ func TestPassthroughOptionsAreMergedIntoTheConfig(t *testing.T) {
 }
 
 func TestChatIsRejectedWithAPointerToLoadgen(t *testing.T) {
-	runSpec := loadSpec(t, "runspec-platform.yaml")
+	runSpec := loadSpec(t, "runspec-tls-off.yaml")
 	runSpec.Workload.Api = spec.WorkloadApiChat
 	err := New(Options{OutputDir: t.TempDir()}).Prepare(context.Background(), runSpec)
 	if err == nil || !strings.Contains(err.Error(), "engine.type: loadgen") {
@@ -242,7 +242,7 @@ echo "native stderr line" >&2
 }
 
 func TestRunKeepsNativeOutputAndSetsEnvironment(t *testing.T) {
-	fixture := filepath.Join(testdataDir, "native-platform")
+	fixture := filepath.Join(testdataDir, "native-tls-off")
 	script, record := fakeCLI(t, fixture)
 	outputDir := filepath.Join(t.TempDir(), "native")
 	e := prepared(t, Options{
@@ -252,7 +252,7 @@ func TestRunKeepsNativeOutputAndSetsEnvironment(t *testing.T) {
 		KeyFile:      "/tls/tls.key",
 		CABundleFile: "/tls/combined-ca.pem",
 		Environment:  []string{"PATH=/usr/bin:/bin"},
-	}, loadSpec(t, "runspec-mtls.yaml"))
+	}, loadSpec(t, "runspec-client-cert.yaml"))
 	sink := &collectingSink{}
 	// The recorded fixture has 3 stages; plan matching phases for it.
 	e.phases = fixturePhases()
@@ -295,20 +295,20 @@ func TestRunKeepsNativeOutputAndSetsEnvironment(t *testing.T) {
 }
 
 func TestRunInPlatformModeLeavesTrustAlone(t *testing.T) {
-	script, record := fakeCLI(t, filepath.Join(testdataDir, "native-platform"))
-	e := prepared(t, Options{Executable: script, Environment: []string{"PATH=/usr/bin:/bin"}}, loadSpec(t, "runspec-platform.yaml"))
+	script, record := fakeCLI(t, filepath.Join(testdataDir, "native-tls-off"))
+	e := prepared(t, Options{Executable: script, Environment: []string{"PATH=/usr/bin:/bin"}}, loadSpec(t, "runspec-tls-off.yaml"))
 	e.phases = fixturePhases()
 	if _, err := e.Run(context.Background(), fixturePhases(), &collectingSink{}); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	recorded, _ := os.ReadFile(record)
 	if !strings.Contains(string(recorded), "ssl: unset") {
-		t.Errorf("platform mode must not set SSL_CERT_FILE:\n%s", recorded)
+		t.Errorf("without TLS, SSL_CERT_FILE must not be set:\n%s", recorded)
 	}
 }
 
 func TestRunRejectsChangedPhases(t *testing.T) {
-	e := prepared(t, Options{}, loadSpec(t, "runspec-platform.yaml"))
+	e := prepared(t, Options{}, loadSpec(t, "runspec-tls-off.yaml"))
 	if _, err := e.Run(context.Background(), fixturePhases(), &collectingSink{}); err == nil {
 		t.Fatal("Run accepted phases that differ from the prepared ones")
 	}
@@ -321,7 +321,7 @@ func TestRunReportsCLIFailureButKeepsOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	outputDir := filepath.Join(dir, "native")
-	e := prepared(t, Options{Executable: script, OutputDir: outputDir}, loadSpec(t, "runspec-platform.yaml"))
+	e := prepared(t, Options{Executable: script, OutputDir: outputDir}, loadSpec(t, "runspec-tls-off.yaml"))
 	_, err := e.Run(context.Background(), e.phases, &collectingSink{})
 	if err == nil || !strings.Contains(err.Error(), "exit status 3") {
 		t.Fatalf("Run error = %v, want the CLI's exit status", err)
@@ -344,7 +344,7 @@ func TestEveryPresetListingInferencePerfPassesItsSpecCheck(t *testing.T) {
 			continue
 		}
 		t.Run(preset.Name, func(t *testing.T) {
-			runSpec := loadSpec(t, "runspec-platform.yaml")
+			runSpec := loadSpec(t, "runspec-tls-off.yaml")
 			reference := spec.PresetReference(spec.FormatPresetReference(preset.Name, preset.Version))
 			runSpec.Workload = spec.Workload{Preset: &reference, Streaming: true}
 			expanded, err := spec.ExpandPreset(runSpec)

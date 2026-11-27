@@ -16,12 +16,12 @@ with no API present, for local runs and CI.
 ## CLI
 
 ```
-servtuner run      --spec spec.yaml --out <bundle dir | s3://bucket/prefix> [--run-id ULID]   # s3: written locally, uploaded manifest last; --object-store-tls-mode required
-               [--api-url URL --run-token-file PATH --api-tls-mode mtls|platform
-                --tls-cert-file PATH --tls-key-file PATH]
+servtuner run      --spec spec.yaml --out <bundle dir | s3://bucket/prefix> [--run-id ULID]   # s3: written locally, uploaded manifest last; --object-store-tls required
+               [--api-url URL --run-token-file PATH --api-tls true|false
+                [--tls-cert-file PATH --tls-key-file PATH] [--tls-ca-file PATH]]
                [--shard-index I]   # engine.shards N: 0 (default) leads; 1..N-1 follow, with the leader's --run-id and --out
                [--offline]         # no internet: no public datasheet fallback, AWS prices refused; recorded in environment.json
-servtuner validate --spec spec.yaml [--strict] [--json]  # schema check, TLS mode rules, stage-length warnings; --json prints {valid,name,errors,warnings}
+servtuner validate --spec spec.yaml [--strict] [--json]  # schema check, TLS rules, stage-length warnings; --json prints {valid,name,errors,warnings}
 servtuner analyze  <bundle>          # recompute analysis.json from raw data (quality gate, aggregates with bootstrap CIs, capacity model),
                                  # plus recommendations.json, capacity.json/.csv, capacity_model.json and patches/
 servtuner plan --input plan-request.json --models capacity_model.json... [--out plan.json]   # the capacity planner
@@ -35,7 +35,7 @@ servtuner knobs                      # every vllm serve flag that is a knob (Kno
                                  # description from internal/target/vllm_catalog.json (generated: just vllm-catalog; GET /knobs)
 servtuner vllm-args --knobs <knobs.json>  # the vLLM container args for a knob set, as JSON, from the knob table (the api's deployer)
 servtuner boot-probe --input <boot-probe-request.json> [--secrets-dir DIR]  # a booted vLLM's num_gpu_blocks and c_kv, as a tuningBootResult
-servtuner launcher [--config F] [--listen ADDR --token-file F --tls-mode platform|tls] [--api-key-file F] [--vllm PATH] [--log-dir D]
+servtuner launcher [--config F] [--listen ADDR --token-file F --tls true|false [--client-auth required|optional|none]] [--api-key-file F] [--vllm PATH] [--log-dir D]
                                  # runs vllm serve for the tuning loop on a host outside Kubernetes (internal/launcher);
                                  # flags over a YAML config (--config, $SERVTUNER_LAUNCHER_CONFIG, $XDG_CONFIG_HOME/servtuner/launcher.yaml,
                                  # /etc/servtuner/launcher.yaml), secret files defaulting to $CREDENTIALS_DIRECTORY (deploy/launcher/)
@@ -55,10 +55,11 @@ Contract with the api's runner (the api builds this command line):
   `Authorization: Bearer <token from --run-token-file>` and a body valid against
   `events.schema.json`. A delivery failure is logged and never fails the run:
   the exit status is authoritative.
-- `--api-tls-mode` is required with `--api-url` and never inferred. `mtls` needs
-  `--tls-cert-file`, `--tls-key-file` and an `https://` URL; `platform` needs an
+- `--api-tls` (`true` or `false`) is required with `--api-url` and never
+  inferred. `true` needs an `https://` URL, and presents a client certificate
+  when `--tls-cert-file` and `--tls-key-file` are given; `false` needs an
   `http://` URL and forbids the cert flags. Trust is the system pool, which Go
-  extends from `SSL_CERT_FILE`.
+  extends from `SSL_CERT_FILE`. `--object-store-tls` works the same way.
 - `servtuner validate` and the resolve step of `servtuner run` share one rule set
   (`internal/validate`).
   - Stage length is checked against `max(10 x I, 60s)`, and warmup against
@@ -72,7 +73,7 @@ Contract with the api's runner (the api builds this command line):
 - Engines are registered in `internal/cli/engines.go`. The RunSpec's
   `engine.type` picks one (`loadgen`, `inference-perf`). The hidden flag
   `--engine-override null` selects an engine that offers no load, for tests.
-- Target credentials (the mtls Secret, `target.auth`) are read from the
+- Target credentials (the client certificate Secret, `target.auth`) are read from the
   mounted Secrets only when an engine that talks to the target is built. A
   missing Secret fails the run at resolve with exit 1.
 - With no cluster, the target snapshot is skipped and the reason recorded.
@@ -143,7 +144,7 @@ bench/                       # Go module
                              #   vllm, litellm, bifrost, openaicompatible
     prometheus/              # range queries, retries, /api/v1/targets, optional-catalog probing
       catalogs/*.yaml        # versioned PromQL (embedded with go:embed)
-    tlsconfig/               # mtls | platform | tls; client cert/key (mtls only); trust = system pool + ca.crt
+    tlsconfig/               # TLS on/off, client certificate, server clientAuth policy; trust = system pool + ca.crt
     storage/                 # BundleStore interface; backends: file (default, data dir), s3 (any S3-compatible)
     workload/                # seeded synthetic prompts, chars-per-token calibration, workload hash
     plan/                    # capacity planner over capacity_model.json
@@ -197,26 +198,36 @@ bench/                       # Go module
   releases.
 - Types for the spec and bundle files are **generated** from `../schema/json`.
   Never edit generated files; CI fails if regenerating them changes anything.
-- **Transport security**. Each outbound hop (target, Prometheus,
-  API, object store) has its own mode:
-  - `mtls` (the default): present the client certificate and verify the server.
-  - `platform`: plain `http://`.
-  - `tls` (RunSpec hops only): verify the server and present no client
-    certificate; a private CA comes from `caSecretRef`'s `ca.crt`. The api and
-    object-store flags refuse it: servtuner's own hops stay `mtls` or `platform`.
+- **Transport security**. Each outbound hop (target, Prometheus, API, object
+  store) answers TLS's two questions (RunSpec `tls: {enabled, clientCert,
+  caSecretRef}`, or the `--*-tls` flags):
+  - Is it encrypted? `enabled: true` verifies the server over `https://`;
+    `enabled: false` is plain `http://` (a mesh or an encrypted CNI encrypts
+    it, or it is a local test) and takes no certificate settings.
+  - Client certificate: presented exactly when one is named (`clientCert`),
+    and the run's files must match the spec (`tlsconfig.SpecHop`). A private
+    CA comes from `caSecretRef`'s `ca.crt`.
+  - Servers servtuner runs (the launcher) set `clientAuth`: `required`,
+    `optional` (a certificate that is sent is verified) or `none`
+    (`tlsconfig.ServerConfig`).
 
   Rules:
-  - The mode is never inferred. `servtuner validate` rejects mixing the modes on
-    one connection, and the mode of every hop is written to
-    `environment.json`.
+  - Nothing is inferred. `servtuner validate` rejects mixing TLS and plain
+    settings on one connection, and every hop's `{tls, client_cert}` is
+    written to `environment.json`.
+  - servtuner 0.1 RunSpecs (`servtuner.dev/v1`, `tls.mode`) are rejected with
+    their replacement; bundles 0.1 wrote are upgraded when read
+    (`spec/legacy.go`), never rewritten.
   - Go clients trust the system pool plus `ca.crt`.
   - For the inference-perf child process, `bench` passes `cert_path`/`key_path`
     and writes a combined CA bundle (system plus `ca.crt`) to a temp file. It
     then sets `SSL_CERT_FILE` on the child process only.
   - Skipping verification is never an option.
-  - Each client is tested in every mode it supports. In `mtls` mode it must be
-    refused without a certificate; in `tls` mode it must refuse an untrusted
-    server and be refused by a server that requires a certificate. The tests
+  - Each client is tested with and without TLS and with and without a client
+    certificate: it must refuse an untrusted server, and a server that requires
+    a certificate must refuse it without one. Each server policy is tested
+    against no certificate, a good one and an untrusted one (`optional`
+    refuses the untrusted one). The tests
     use generated certificates and `httptest`, the same pattern as the
     bifrost-benchmarking change.
 - Never write secrets into the bundle or logs. Redact env vars by default, with
@@ -238,7 +249,7 @@ bench/                       # Go module
   so the client doesn't compete with the target.
 - Its ServiceAccount has read-only access to pods, deployments, statefulsets,
   HPAs, nodes and configmaps in the target namespaces.
-- In `mtls` mode, the client certificate Secret (`kubernetes.io/tls`, from
+- With a client certificate, its Secret (`kubernetes.io/tls`, from
   cert-manager or named by the user) is mounted read-only. `bench` builds the
-  CA bundle itself, so it needs no init container. In `platform` mode, nothing
-  is mounted.
+  CA bundle itself, so it needs no init container. Without TLS, nothing is
+  mounted.

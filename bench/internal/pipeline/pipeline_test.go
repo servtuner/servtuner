@@ -279,10 +279,9 @@ func assertSevenStepsReported(t *testing.T, reporter *stepRecorder, terminal spe
 }
 
 func TestEnvironmentRecordsOnlyTheHopsUsed(t *testing.T) {
-	document := readExample(t, "valid", "litellm-target-mtls-prometheus-platform.json")
+	document := readExample(t, "valid", "litellm-target-client-cert-prometheus-tls-off.json")
 	options, store, _ := newOptions(t, document)
-	platform := spec.TransportModePlatform
-	options.APITransport = &platform
+	options.APITransport = &spec.HopTransport{}
 	if result := Execute(context.Background(), options); result.Err != nil {
 		t.Fatal(result.Err)
 	}
@@ -291,10 +290,10 @@ func TestEnvironmentRecordsOnlyTheHopsUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 	transport := environment.Transport
-	// The spec names a platform-mode Prometheus, so that hop is used (and
+	// The spec names a Prometheus without TLS, so that hop is used (and
 	// recorded) even though no server answers in the test; no object store is.
-	if transport.Target != spec.TransportModeMtls || transport.Prometheus == nil || *transport.Prometheus != spec.TransportModePlatform ||
-		transport.Api == nil || *transport.Api != spec.TransportModePlatform || transport.ObjectStore != nil {
+	if transport.Target != (spec.HopTransport{Tls: true, ClientCert: true}) || transport.Prometheus == nil || *transport.Prometheus != (spec.HopTransport{}) ||
+		transport.Api == nil || *transport.Api != (spec.HopTransport{}) || transport.ObjectStore != nil {
 		t.Errorf("transport = %+v", transport)
 	}
 	if environment.Engine.Name != null.Name || environment.TlsRelayUsed {
@@ -303,7 +302,7 @@ func TestEnvironmentRecordsOnlyTheHopsUsed(t *testing.T) {
 }
 
 func TestPhasesAndSummaryFollowTheLoadSection(t *testing.T) {
-	document := readExample(t, "valid", "full-vllm-mtls.json") // warmup 30s, two stages
+	document := readExample(t, "valid", "full-vllm-client-cert.json") // warmup 30s, two stages
 	options, store, _ := newOptions(t, document)
 	if result := Execute(context.Background(), options); result.Err != nil {
 		t.Fatal(result.Err)
@@ -352,11 +351,11 @@ func TestInvalidSpecStillFinalizesAFailedManifest(t *testing.T) {
 }
 
 func TestTransportMixingIsAnInvalidSpec(t *testing.T) {
-	document := bytes.Replace(readExample(t, "valid", "minimal-vllm-mtls.json"), []byte("https://"), []byte("http://"), 1)
+	document := bytes.Replace(readExample(t, "valid", "minimal-vllm-client-cert.json"), []byte("https://"), []byte("http://"), 1)
 	options, _, _ := newOptions(t, document)
 	result := Execute(context.Background(), options)
 	if !errors.Is(result.Err, validate.ErrInvalidSpec) {
-		t.Errorf("mtls with http:// = %v, want ErrInvalidSpec", result.Err)
+		t.Errorf("tls with http:// = %v, want ErrInvalidSpec", result.Err)
 	}
 }
 
@@ -372,7 +371,7 @@ func (f *failingEngine) Run(ctx context.Context, phases []engine.Phase, sink eng
 }
 
 func TestLoadFailureKeepsWhatWasCollectedAndMapsToTheCause(t *testing.T) {
-	options, store, _ := newOptions(t, readExample(t, "valid", "full-vllm-mtls.json"))
+	options, store, _ := newOptions(t, readExample(t, "valid", "full-vllm-client-cert.json"))
 	options.NewEngine = func(spec.RunSpec, engine.Inputs) (engine.Engine, error) {
 		return &failingEngine{Engine: *null.New(fixedNow), err: engine.ErrTargetUnreachable}, nil
 	}
@@ -399,7 +398,7 @@ func TestLoadFailureKeepsWhatWasCollectedAndMapsToTheCause(t *testing.T) {
 }
 
 func TestBundleWriteFailureIsReportedAndStillTriesTheManifest(t *testing.T) {
-	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-mtls.json"))
+	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-client-cert.json"))
 	store.failOn = bundle.SummaryJSON
 	result := Execute(context.Background(), options)
 	if !errors.Is(result.Err, bundle.ErrWrite) {
@@ -412,7 +411,7 @@ func TestBundleWriteFailureIsReportedAndStillTriesTheManifest(t *testing.T) {
 }
 
 func TestManifestFailureIsReported(t *testing.T) {
-	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-mtls.json"))
+	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-client-cert.json"))
 	store.failOn = bundle.ManifestJSON
 	result := Execute(context.Background(), options)
 	if !errors.Is(result.Err, bundle.ErrWrite) || result.Status != spec.RunStatusFailed || result.Failure == nil {
@@ -421,7 +420,7 @@ func TestManifestFailureIsReported(t *testing.T) {
 }
 
 func TestCancelledRunStillWritesAFailedManifest(t *testing.T) {
-	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-mtls.json"))
+	options, store, _ := newOptions(t, readExample(t, "valid", "minimal-vllm-client-cert.json"))
 	ctx, cancel := context.WithCancel(context.Background())
 	options.NewEngine = func(spec.RunSpec, engine.Inputs) (engine.Engine, error) {
 		cancel() // the signal arrives while the run is starting

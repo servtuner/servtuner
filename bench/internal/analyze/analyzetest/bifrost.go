@@ -69,10 +69,10 @@ type BifrostTarget struct {
 
 func (b *BifrostTarget) targetDocument() map[string]any {
 	return map[string]any{
-		"type": "bifrost", "endpoint": "http://bifrost.invalid:8080/v1", "model": "mock/mock-model", "tls": map[string]any{"mode": "platform"},
+		"type": "bifrost", "endpoint": "http://bifrost.invalid:8080/v1", "model": "mock/mock-model", "tls": map[string]any{"enabled": false},
 		"workload": map[string]any{"namespace": bifrostNamespace, "selector": map[string]any{"app": "bifrost"}},
 		"upstreams": []any{map[string]any{
-			"name": "mock", "endpoint": "http://mock.invalid:8000/v1", "tls": map[string]any{"mode": "platform"},
+			"name": "mock", "endpoint": "http://mock.invalid:8000/v1", "tls": map[string]any{"enabled": false},
 			"workload": map[string]any{"namespace": upstreamNamespace, "selector": map[string]any{"app": "mock"}},
 		}},
 	}

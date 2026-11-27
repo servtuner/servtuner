@@ -104,11 +104,11 @@ RUNNERS = ("subprocess", "kubernetes")
 # The label the Kubernetes runner puts on a run's Job and pod (api kubernetes_runner.RUN_ID_LABEL).
 RUN_ID_LABEL = "servtuner.dev/run-id"
 # The client-certificate Secret the mtls example RunSpec names for its target
-# (schema/examples/runspec/valid/minimal-vllm-mtls.json).
+# (schema/examples/runspec/valid/minimal-vllm-client-cert.json).
 EXAMPLE_TARGET_CLIENT_SECRET = "servtuner-client"
 # Real load against the mock, and against servtuner's Bifrost routing to the mock.
 LOAD_RUNSPECS = (
-    REPOSITORY / "deploy" / "mocks" / "examples" / "mock-direct-platform.json",
+    REPOSITORY / "deploy" / "mocks" / "examples" / "mock-direct-tls-off.json",
     REPOSITORY / "deploy" / "mocks" / "examples" / "bifrost-to-mock.json",
 )
 # Each engine's ceiling against the mock.

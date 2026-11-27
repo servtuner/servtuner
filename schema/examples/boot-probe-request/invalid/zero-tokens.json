@@ -1,5 +1,5 @@
 {
-  "target": {"type": "vllm", "endpoint": "http://qwen.servtuner-tune-qwen.svc:8000/v1", "model": "m", "tls": {"mode": "platform"}},
+  "target": {"type": "vllm", "endpoint": "http://qwen.servtuner-tune-qwen.svc:8000/v1", "model": "m", "tls": {"enabled": false}},
   "knobs": {"vllm.tensor_parallel_size": 2},
   "tokens_per_request": 0
 }

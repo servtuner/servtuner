@@ -110,7 +110,7 @@ func TestValidateAcceptsYAML(t *testing.T) {
 }
 
 func TestValidateShortStageIsAWarningUnlessStrict(t *testing.T) {
-	minimal := filepath.Join(examplesRoot, "valid", "minimal-vllm-mtls.json") // one 30s stage
+	minimal := filepath.Join(examplesRoot, "valid", "minimal-vllm-client-cert.json") // one 30s stage
 	result := run("validate", "--spec", minimal)
 	if result.code != ExitOK || !strings.Contains(result.stderr, "warning: load.stages[0].duration 30s is shorter than the minimum 1m0s") {
 		t.Errorf("exit %d, stderr %q", result.code, result.stderr)
@@ -123,17 +123,17 @@ func TestValidateShortStageIsAWarningUnlessStrict(t *testing.T) {
 // TestValidateListsEveryTransportProblem: both hops of the litellm example are
 // broken at once and both are reported.
 func TestValidateListsEveryTransportProblem(t *testing.T) {
-	original, err := os.ReadFile(filepath.Join(examplesRoot, "valid", "litellm-target-mtls-prometheus-platform.json"))
+	original, err := os.ReadFile(filepath.Join(examplesRoot, "valid", "litellm-target-client-cert-prometheus-tls-off.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	broken := bytes.Replace(original, []byte(`"https://vllm`), []byte(`"http://vllm`), 1)          // mtls with http://
-	broken = bytes.Replace(broken, []byte(`"http://prometheus`), []byte(`"https://prometheus`), 1) // platform with https://
+	broken := bytes.Replace(original, []byte(`"https://vllm`), []byte(`"http://vllm`), 1)          // tls with http://
+	broken = bytes.Replace(broken, []byte(`"http://prometheus`), []byte(`"https://prometheus`), 1) // no tls with https://
 	result := run("validate", "--spec", writeSpec(t, broken))
 	if result.code != ExitInvalidSpec {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
 	}
-	for _, want := range []string{"2 problem(s)", "target: mode mtls needs an https:// url", "prometheus: mode platform needs an http:// url"} {
+	for _, want := range []string{"2 problem(s)", "target: tls enabled needs an https:// url", "prometheus: tls disabled needs an http:// url"} {
 		if !strings.Contains(result.stderr, want) {
 			t.Errorf("stderr lacks %q:\n%s", want, result.stderr)
 		}
@@ -153,7 +153,7 @@ func TestValidateListsEverySchemaViolation(t *testing.T) {
 }
 
 func TestValidateRejectsUrlsWithoutHost(t *testing.T) {
-	original, err := os.ReadFile(filepath.Join(examplesRoot, "valid", "litellm-target-mtls-prometheus-platform.json"))
+	original, err := os.ReadFile(filepath.Join(examplesRoot, "valid", "litellm-target-client-cert-prometheus-tls-off.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,9 +165,10 @@ func TestValidateRejectsUrlsWithoutHost(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsPlatformWithSecretRefAndMissingFile(t *testing.T) {
-	if result := run("validate", "--spec", filepath.Join(examplesRoot, "invalid", "tls-platform-with-secret-ref.json")); result.code != ExitInvalidSpec {
-		t.Errorf("exit %d", result.code)
+func TestValidateRejectsDisabledTLSWithACertificateAndMissingFile(t *testing.T) {
+	// The stderr check keeps a renamed fixture from passing as a missing file.
+	if result := run("validate", "--spec", filepath.Join(examplesRoot, "invalid", "tls-disabled-with-client-cert.json")); result.code != ExitInvalidSpec || !strings.Contains(result.stderr, "target") {
+		t.Errorf("exit %d, stderr %q", result.code, result.stderr)
 	}
 	if result := run("validate", "--spec", filepath.Join(t.TempDir(), "absent.json")); result.code != ExitInvalidSpec {
 		t.Errorf("missing file exit %d", result.code)
@@ -190,7 +191,7 @@ func readBundleFile(t *testing.T, dir, name string) []byte {
 
 func TestRunWithNullEngineWritesAValidBundle(t *testing.T) {
 	out := bundleDir(t)
-	specFile := filepath.Join(examplesRoot, "valid", "full-vllm-mtls.json")
+	specFile := filepath.Join(examplesRoot, "valid", "full-vllm-client-cert.json")
 	result := run("run", "--spec", specFile, "--out", out, "--run-id", testRunID, "--engine-override", "null")
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
@@ -256,7 +257,7 @@ func TestRunWithoutOutUsesTheDataDirectory(t *testing.T) {
 
 func TestRunWithoutTheTargetSecretFailsWithAFailedBundle(t *testing.T) {
 	out := bundleDir(t)
-	// The fixture's target is mtls and names a Secret that is not mounted here,
+	// The fixture's target names a client certificate Secret that is not mounted here,
 	// so the real engine cannot be built: the run fails at resolve, and the
 	// bundle still records why.
 	result := run("run", "--spec", yamlFixture, "--out", out)
@@ -293,25 +294,25 @@ func TestBadFlagsExitTwo(t *testing.T) {
 	token := tlstest.WriteFile(t, t.TempDir(), "token", []byte("t\n"))
 	base := []string{"run", "--spec", yamlFixture, "--out", bundleDir(t), "--engine-override", "null"}
 	cases := map[string][]string{
-		"unknown command":             {"frobnicate"},
-		"unknown flag":                {"run", "--spec", yamlFixture, "--nope"},
-		"missing spec":                {"run", "--out", bundleDir(t)},
-		"unreadable spec":             {"run", "--spec", filepath.Join(t.TempDir(), "absent.yaml"), "--engine-override", "null"},
-		"bad run id":                  append(slices.Clone(base), "--run-id", "not-a-ulid"),
-		"unknown engine override":     append(slices.Clone(base), "--engine-override", "loadgen"),
-		"s3 output":                   {"run", "--spec", yamlFixture, "--out", "s3://bucket/prefix", "--engine-override", "null"},
-		"api url without mode":        append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token),
-		"api url without token":       append(slices.Clone(base), "--api-url", "http://api:8080", "--api-tls-mode", "platform"),
-		"unknown api mode":            append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls-mode", "plain"),
-		"tls api mode (RunSpec only)": append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls-mode", "tls"),
-		"mtls with http url":          append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls-mode", "mtls", "--tls-cert-file", token, "--tls-key-file", token),
-		"mtls without cert":           append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls-mode", "mtls"),
-		"platform with https url":     append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls-mode", "platform"),
-		"platform with cert flags":    append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls-mode", "platform", "--tls-cert-file", token),
-		"api flags without api url":   append(slices.Clone(base), "--api-tls-mode", "platform"),
-		"ca file without api url":     append(slices.Clone(base), "--tls-ca-file", token),
-		"platform with ca file":       append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls-mode", "platform", "--tls-ca-file", token),
-		"token file missing":          append(slices.Clone(base), "--api-url", "http://api:8080", "--api-tls-mode", "platform", "--run-token-file", filepath.Join(t.TempDir(), "absent")),
+		"unknown command":           {"frobnicate"},
+		"unknown flag":              {"run", "--spec", yamlFixture, "--nope"},
+		"missing spec":              {"run", "--out", bundleDir(t)},
+		"unreadable spec":           {"run", "--spec", filepath.Join(t.TempDir(), "absent.yaml"), "--engine-override", "null"},
+		"bad run id":                append(slices.Clone(base), "--run-id", "not-a-ulid"),
+		"unknown engine override":   append(slices.Clone(base), "--engine-override", "loadgen"),
+		"s3 output":                 {"run", "--spec", yamlFixture, "--out", "s3://bucket/prefix", "--engine-override", "null"},
+		"api url without --api-tls": append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token),
+		"api url without token":     append(slices.Clone(base), "--api-url", "http://api:8080", "--api-tls", "false"),
+		"--api-tls not a boolean":   append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls", "plain"),
+		"0.1 mode name":             append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls", "mtls"),
+		"tls with http url":         append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls", "true", "--tls-cert-file", token, "--tls-key-file", token),
+		"cert without key":          append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls", "true", "--tls-cert-file", token),
+		"no tls with https url":     append(slices.Clone(base), "--api-url", "https://api:8443", "--run-token-file", token, "--api-tls", "false"),
+		"no tls with cert flags":    append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls", "false", "--tls-cert-file", token),
+		"api flags without api url": append(slices.Clone(base), "--api-tls", "false"),
+		"ca file without api url":   append(slices.Clone(base), "--tls-ca-file", token),
+		"no tls with ca file":       append(slices.Clone(base), "--api-url", "http://api:8080", "--run-token-file", token, "--api-tls", "false", "--tls-ca-file", token),
+		"token file missing":        append(slices.Clone(base), "--api-url", "http://api:8080", "--api-tls", "false", "--run-token-file", filepath.Join(t.TempDir(), "absent")),
 	}
 	for name, args := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -363,19 +364,19 @@ func (e *eventLog) check(t *testing.T) {
 	}
 }
 
-func TestRunPostsEventsInPlatformMode(t *testing.T) {
+func TestRunPostsEventsWithoutTLS(t *testing.T) {
 	received := &eventLog{}
-	server := tlstest.NewPlatformServer(t, received.handler())
+	server := tlstest.NewPlainServer(t, received.handler())
 	token := tlstest.WriteFile(t, t.TempDir(), "token", []byte("secret-token\n"))
 	out := bundleDir(t)
 	result := run("run", "--spec", yamlFixture, "--out", out, "--run-id", testRunID, "--engine-override", "null",
-		"--api-url", server.URL, "--run-token-file", token, "--api-tls-mode", "platform")
+		"--api-url", server.URL, "--run-token-file", token, "--api-tls", "false")
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
 	}
 	received.check(t)
 	environment, err := spec.Parse[spec.Environment](spec.SchemaEnvironment, readBundleFile(t, out, bundle.EnvironmentJSON))
-	if err != nil || environment.Transport.Api == nil || *environment.Transport.Api != spec.TransportModePlatform {
+	if err != nil || environment.Transport.Api == nil || *environment.Transport.Api != (spec.HopTransport{}) {
 		t.Errorf("environment transport = %+v, %v", environment.Transport, err)
 	}
 	if strings.Contains(result.stderr, "secret-token") || strings.Contains(result.stdout, "secret-token") {
@@ -383,7 +384,7 @@ func TestRunPostsEventsInPlatformMode(t *testing.T) {
 	}
 }
 
-func TestRunPostsEventsInMTLSMode(t *testing.T) {
+func TestRunPostsEventsWithAClientCertificate(t *testing.T) {
 	received := &eventLog{}
 	authority := tlstest.NewAuthority(t)
 	server := tlstest.NewMTLSServer(t, authority, authority, received.handler())
@@ -395,21 +396,21 @@ func TestRunPostsEventsInMTLSMode(t *testing.T) {
 	// SSL_CERT_FILE is how the pod's combined CA bundle reaches Go clients.
 	result := runSubprocess(t, []string{"SSL_CERT_FILE=" + caFile},
 		"run", "--spec", yamlFixture, "--out", out, "--run-id", testRunID, "--engine-override", "null",
-		"--api-url", server.URL, "--run-token-file", token, "--api-tls-mode", "mtls",
+		"--api-url", server.URL, "--run-token-file", token, "--api-tls", "true",
 		"--tls-cert-file", certFile, "--tls-key-file", keyFile)
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
 	}
 	received.check(t)
 	environment, err := spec.Parse[spec.Environment](spec.SchemaEnvironment, readBundleFile(t, out, bundle.EnvironmentJSON))
-	if err != nil || environment.Transport.Api == nil || *environment.Transport.Api != spec.TransportModeMtls {
+	if err != nil || environment.Transport.Api == nil || *environment.Transport.Api != (spec.HopTransport{Tls: true, ClientCert: true}) {
 		t.Errorf("environment transport = %+v, %v", environment.Transport, err)
 	}
 }
 
 // A Job pod trusts the private CA through --tls-ca-file, which adds to the
 // system pool instead of replacing it the way SSL_CERT_FILE does.
-func TestRunPostsEventsInMTLSModeWithACAFile(t *testing.T) {
+func TestRunPostsEventsWithAClientCertificateAndACAFile(t *testing.T) {
 	received := &eventLog{}
 	authority := tlstest.NewAuthority(t)
 	server := tlstest.NewMTLSServer(t, authority, authority, received.handler())
@@ -418,7 +419,7 @@ func TestRunPostsEventsInMTLSModeWithACAFile(t *testing.T) {
 	caFile := tlstest.WriteFile(t, directory, "ca.crt", authority.CertPEM)
 	token := tlstest.WriteFile(t, directory, "token", []byte("secret-token\n"))
 	result := run("run", "--spec", yamlFixture, "--out", bundleDir(t), "--run-id", testRunID, "--engine-override", "null",
-		"--api-url", server.URL, "--run-token-file", token, "--api-tls-mode", "mtls",
+		"--api-url", server.URL, "--run-token-file", token, "--api-tls", "true",
 		"--tls-cert-file", certFile, "--tls-key-file", keyFile, "--tls-ca-file", caFile)
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
@@ -437,7 +438,7 @@ func TestRunSurvivesEventDeliveryFailure(t *testing.T) {
 	token := tlstest.WriteFile(t, directory, "token", []byte("secret-token\n"))
 	// Without SSL_CERT_FILE the private CA is not trusted, so every POST fails.
 	result := run("run", "--spec", yamlFixture, "--out", bundleDir(t), "--engine-override", "null",
-		"--api-url", server.URL, "--run-token-file", token, "--api-tls-mode", "mtls",
+		"--api-url", server.URL, "--run-token-file", token, "--api-tls", "true",
 		"--tls-cert-file", certFile, "--tls-key-file", keyFile)
 	if result.code != ExitOK {
 		t.Fatalf("exit %d, stderr %q", result.code, result.stderr)
@@ -459,7 +460,7 @@ func TestControlCharactersInTheTokenFileExitTwoWithoutEchoingIt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			token := tlstest.WriteFile(t, t.TempDir(), "token", []byte(content))
 			result := run("run", "--spec", yamlFixture, "--out", bundleDir(t), "--engine-override", "null",
-				"--api-url", "http://api:8080", "--api-tls-mode", "platform", "--run-token-file", token)
+				"--api-url", "http://api:8080", "--api-tls", "false", "--run-token-file", token)
 			if result.code != ExitInvalidSpec {
 				t.Errorf("exit %d, stderr %q", result.code, result.stderr)
 			}

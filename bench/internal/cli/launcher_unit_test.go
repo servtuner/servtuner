@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/servtuner/servtuner/bench/internal/launcher"
+	"github.com/servtuner/servtuner/bench/internal/tlstest"
 )
 
 // The systemd units users install and the example config; they must keep naming
@@ -24,8 +25,8 @@ func TestTheExampleConfigLoads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.TLSMode != "platform" || config.Listen == "" {
-		t.Errorf("the example sets the listener and the TLS mode: %+v", config)
+	if config.TLS != "false" || config.Listen == "" {
+		t.Errorf("the example sets the listener and tls: %+v", config)
 	}
 }
 
@@ -74,9 +75,9 @@ func checkUnitFlags(t *testing.T, unit string) {
 			t.Errorf("%s passes --%s, which servtuner launcher does not have", unit, name)
 		}
 	}
-	// The token and TLS mode come from flags, or from the config file the unit names.
+	// The token and tls come from flags, or from the config file the unit names.
 	if !used["config"] {
-		for _, required := range []string{"token-file", "tls-mode"} {
+		for _, required := range []string{"token-file", "tls"} {
 			if !used[required] {
 				t.Errorf("%s passes neither --config nor the required --%s", unit, required)
 			}
@@ -87,7 +88,7 @@ func checkUnitFlags(t *testing.T, unit string) {
 func TestLauncherFlagsWinOverTheConfigFile(t *testing.T) {
 	directory := t.TempDir()
 	path := directory + "/launcher.yaml"
-	if err := os.WriteFile(path, []byte("listen: 127.0.0.1:9999\ntls_mode: platform\ntoken_file: /from/file\nvllm: /opt/vllm/bin/vllm\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("listen: 127.0.0.1:9999\ntls: false\ntoken_file: /from/file\nvllm: /opt/vllm/bin/vllm\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
@@ -105,15 +106,62 @@ func TestLauncherFlagsWinOverTheConfigFile(t *testing.T) {
 	}
 }
 
-func TestLauncherNeedsATokenAndATLSMode(t *testing.T) {
+func TestLauncherNeedsATokenAndTLS(t *testing.T) {
 	t.Setenv("CREDENTIALS_DIRECTORY", "")
 	t.Setenv("SERVTUNER_LAUNCHER_CONFIG", "")
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	command := newLauncherCommand(streams{out: io.Discard, err: io.Discard})
-	if err := command.ParseFlags([]string{"--tls-mode", "platform"}); err != nil {
+	if err := command.ParseFlags([]string{"--tls", "false"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := launcherConfig(command); err == nil || !strings.Contains(err.Error(), "LoadCredential=launcher-token") {
 		t.Errorf("no token: got %v", err)
+	}
+}
+
+func TestLauncherTLSSettings(t *testing.T) {
+	authority := tlstest.NewAuthority(t)
+	directory := t.TempDir()
+	cert, key := authority.IssueServer(t).WriteFiles(t, directory, "server")
+	ca := tlstest.WriteFile(t, directory, "ca.crt", authority.CertPEM)
+	good := map[string]launcher.Config{
+		"plain":                {TLS: "false"},
+		"tls, no client certs": {TLS: "true", ClientAuth: "none", TLSCertFile: cert, TLSKeyFile: key},
+		"tls, optional certs":  {TLS: "true", ClientAuth: "optional", TLSCertFile: cert, TLSKeyFile: key, TLSClientCAFile: ca},
+		"tls, required certs":  {TLS: "true", ClientAuth: "required", TLSCertFile: cert, TLSKeyFile: key, TLSClientCAFile: ca},
+	}
+	for name, config := range good {
+		if _, err := launcherTLS(config); err != nil {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	bad := map[string]struct {
+		config launcher.Config
+		want   string
+	}{
+		"plain with a certificate":   {launcher.Config{TLS: "false", TLSCertFile: cert, TLSKeyFile: key}, "plain HTTP"},
+		"plain with client_auth":     {launcher.Config{TLS: "false", ClientAuth: "none"}, "plain HTTP"},
+		"tls without client_auth":    {launcher.Config{TLS: "true", TLSCertFile: cert, TLSKeyFile: key}, "client_auth"},
+		"required without client CA": {launcher.Config{TLS: "true", ClientAuth: "required", TLSCertFile: cert, TLSKeyFile: key}, "CA"},
+		"tls not a boolean":          {launcher.Config{TLS: "yes"}, "true or false"},
+		"0.1 platform":               {launcher.Config{TLS: "platform"}, "tls false"},
+	}
+	for name, c := range bad {
+		if _, err := launcherTLS(c.config); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error %v, want it to mention %q", name, err, c.want)
+		}
+	}
+}
+
+func TestLauncherConfigNamesTheReplacementOfTLSMode(t *testing.T) {
+	directory := t.TempDir()
+	for mode, want := range map[string]string{"platform": "tls: false", "tls": "client_auth"} {
+		path := directory + "/" + mode + ".yaml"
+		if err := os.WriteFile(path, []byte("tls_mode: "+mode+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := launcher.LoadConfig(path); err == nil || !strings.Contains(err.Error(), "servtuner 0.2") || !strings.Contains(err.Error(), want) {
+			t.Errorf("tls_mode %s: error %v, want it to name %q", mode, err, want)
+		}
 	}
 }

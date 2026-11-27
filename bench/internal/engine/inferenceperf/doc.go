@@ -32,7 +32,7 @@
 //	load.pacing constant | poisson          load.type constant | poisson
 //	load.stages[i].rate / duration          load.stages[i+offset].rate / duration (whole seconds)
 //	load.warmup                             one extra leading stage at the first stage's rate
-//	mtls: tls files                         server.cert_path / server.key_path
+//	tls.clientCert: its files               server.cert_path / server.key_path
 //
 // Rejected at Prepare: workload.api chat and embeddings (the random data
 // generator is completion-only; use engine.type loadgen for chat), pacing
@@ -62,15 +62,15 @@
 //
 // # Transport security
 //
-// In mtls mode the config carries server.cert_path and server.key_path.
+// With a client certificate the config carries server.cert_path and server.key_path.
 // inference-perf has no CA option: its aiohttp client verifies the server
 // against the system trust store, which Python's ssl module extends from the
 // SSL_CERT_FILE environment variable. bench therefore sets SSL_CERT_FILE, on
 // the child process only, to the combined system-plus-private-CA bundle
-// (Options.CABundleFile). Verification is never skipped. In platform mode the
-// config has no certificate settings and SSL_CERT_FILE is not set. In tls mode
+// (Options.CABundleFile). Verification is never skipped. Without TLS the
+// config has no certificate settings and SSL_CERT_FILE is not set. With TLS and no client certificate
 // the config has no certificate settings either, and SSL_CERT_FILE is
-// set when the hop has a private CA (caSecretRef), as in mtls mode.
+// set when the hop has a private CA (caSecretRef), as with a client certificate.
 //
 // # Tokenizer
 //

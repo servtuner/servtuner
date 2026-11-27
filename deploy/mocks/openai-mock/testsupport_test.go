@@ -141,9 +141,9 @@ func startMockWithMetrics(t *testing.T, cfg Config) (address, metricsAddress str
 	return listener.Addr().String(), metricsAddress
 }
 
-func platformConfig() Config {
+func plainConfig() Config {
 	cfg := defaultConfig()
-	cfg.TLSMode = tlsModePlatform
+	cfg.TLS = tlsOff
 	cfg.TimeToFirstToken = 0
 	cfg.InterTokenLatency = 0
 	return cfg

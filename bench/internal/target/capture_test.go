@@ -134,8 +134,8 @@ func TestKnobsOfWorkloadsThatDisagreeAreAbsent(t *testing.T) {
 
 func TestRefsFromRunSpec(t *testing.T) {
 	selector := &spec.WorkloadSelector{Namespace: "ns", Selector: spec.WorkloadSelectorSelector{"app": "x"}}
-	platform := spec.Tls(spec.TlsPlatform{Mode: "platform"})
-	mtls := spec.Tls(spec.TlsMtls{Mode: "mtls", SecretRef: spec.SecretRef{Name: "servtuner-client"}})
+	plain := spec.Tls(spec.TlsDisabled{})
+	mtls := spec.Tls(spec.TlsEnabled{Enabled: true, ClientCert: &spec.TlsClientCert{SecretRef: spec.SecretRef{Name: "servtuner-client"}}})
 	vllm := spec.TargetTypeVllm
 	endpoint := "https://vllm.invalid:8000/v1"
 	runTarget := spec.Target{
@@ -143,7 +143,7 @@ func TestRefsFromRunSpec(t *testing.T) {
 		Endpoint: "http://bifrost.invalid:8080/v1",
 		Workload: selector,
 		Upstreams: []spec.Upstream{
-			{Name: "mock", Workload: selector, Tls: platform},
+			{Name: "mock", Workload: selector, Tls: plain},
 			{Name: "model", Type: &vllm, Endpoint: &endpoint, Tls: mtls},
 		},
 	}
@@ -174,8 +174,8 @@ func TestRefsFromRunSpec(t *testing.T) {
 	if len(asked) != 1 || asked[0].Name != "model" {
 		t.Fatalf("the client is built only for the upstream with an endpoint: %+v", asked)
 	}
-	if mode, err := spec.ModeOf(asked[0].Tls); err != nil || mode != spec.TransportModeMtls {
-		t.Errorf("the client must be built from the upstream's own tls, got mode %v, %v", mode, err)
+	if transport, err := spec.TransportOf(asked[0].Tls); err != nil || transport != (spec.HopTransport{Tls: true, ClientCert: true}) {
+		t.Errorf("the client must be built from the upstream's own tls, got %+v, %v", transport, err)
 	}
 	if upstreams[0].Endpoint != nil || upstreams[1].Endpoint == nil || upstreams[1].Endpoint.Client != client ||
 		upstreams[1].Endpoint.BaseURL != endpoint || upstreams[1].Endpoint.Authorization != "" {

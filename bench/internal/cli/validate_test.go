@@ -9,12 +9,12 @@ import (
 )
 
 func TestValidateJSONReportsProblemsAndWarnings(t *testing.T) {
-	valid := run("validate", "--json", "--spec", "../../../schema/examples/runspec/valid/off-cluster-vllm-platform.json")
+	valid := run("validate", "--json", "--spec", "../../../schema/examples/runspec/valid/off-cluster-vllm-tls-off.json")
 	if valid.code != ExitOK || !strings.Contains(valid.stdout, `"valid":true`) {
 		t.Fatalf("exit %d: %s", valid.code, valid.stdout)
 	}
 	bad := filepath.Join(t.TempDir(), "bad.json")
-	if err := os.WriteFile(bad, []byte(`{"apiVersion":"servtuner.dev/v1","kind":"RunSpec","name":"x"}`), 0o644); err != nil {
+	if err := os.WriteFile(bad, []byte(`{"apiVersion":"servtuner.dev/v2","kind":"RunSpec","name":"x"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	invalid := run("validate", "--json", "--spec", bad)
