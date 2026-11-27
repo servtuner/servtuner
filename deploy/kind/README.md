@@ -1,19 +1,19 @@
 # kind / dev cluster manifests
 
 `cluster-issuer.yaml` creates a self-signed CA chain (`servtuner-selfsigned` -> CA certificate -> `servtuner-ca` ClusterIssuer)
-for `tls.mode: mtls` with `tls.source: cert-manager`. Use it with `--set tls.certManager.issuerRef.name=servtuner-ca`.
+for `tls.enabled: true` with `tls.source: cert-manager`. Use it with `--set tls.certManager.issuerRef.name=servtuner-ca`.
 
 It is **NOT applied automatically** by anything in this repository. On a shared cluster, review it and
 apply it yourself (`kubectl apply -f deploy/kind/cluster-issuer.yaml`). cert-manager must already be installed.
 
 ## End to end
 
-- `e2e-values.yaml`: the chart values shared by `just e2e-mtls` and `just e2e-platform` (`e2e/cluster.py`).
+- `e2e-values.yaml`: the chart values shared by `just e2e-mutual-tls` and `just e2e-tls-off` (`e2e/cluster.py`).
   The script adds the mode, the issuer, the ingress host (`SERVTUNER_E2E_HOST`, default
   `servtuner-e2e-<mode>.localtest.me`), the base path and the image tags.
 - `e2e/cluster.py` runs only on the kube context `SERVTUNER_KUBE_CONTEXT` (default `kind-kind`), installs into
-  its own namespace `servtuner-e2e-<mode>`, and removes that namespace on exit (`--keep` skips this). In `mtls`
-  mode the `servtuner-ca` ClusterIssuer above must already be Ready; the script checks and never applies it.
+  its own namespace `servtuner-e2e-<mode>`, and removes that namespace on exit (`--keep` skips this). With
+  `mutual-tls` the `servtuner-ca` ClusterIssuer above must already be Ready; the script checks and never applies it.
 - `kind-up.sh` (`just kind-up`, CI only) creates a fresh cluster from `kind-config.yaml` with cert-manager,
   CloudNativePG, ingress-nginx and the ClusterIssuer. It refuses to run if a cluster of that name exists.
 

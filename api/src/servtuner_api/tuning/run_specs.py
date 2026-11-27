@@ -29,7 +29,7 @@ def build_run_spec(
     the proposal's knobs and ladder, and the labels servtuner propose classifies runs by."""
     config_id = str(proposed["config_id"])
     spec: dict[str, Any] = {
-        "apiVersion": "servtuner.dev/v1",
+        "apiVersion": "servtuner.dev/v2",
         "kind": "RunSpec",
         "name": f"tune-{session_id[-6:].lower()}-{config_id}-{repeat}",
         "experiment": experiment,

@@ -1,5 +1,5 @@
-# Values for `just e2e-mtls` / `just e2e-platform` (e2e/cluster.py). The script adds what depends on
-# the mode or the run: tls.mode, the issuer, ingress.host, frontend.basePath and the image tags.
+# Values for `just e2e-mutual-tls` / `just e2e-tls-off` (e2e/cluster.py). The script adds what depends on
+# the setup or the run: tls.enabled, the issuer, ingress.host, frontend.basePath and the image tags.
 # The api runs bench itself; `--runner kubernetes` layers e2e-jobs-values.yaml to run Jobs instead.
 runner: subprocess
 

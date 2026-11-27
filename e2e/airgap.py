@@ -78,7 +78,7 @@ server = "http://{REGISTRY}"
 """
 
 SITE_VALUES = {
-    "tls": {"mode": "platform"},
+    "tls": {"enabled": False},
     "runner": "kubernetes",
     "bench": {
         "targetAntiAffinity": "preferred",
@@ -319,7 +319,7 @@ def install(deploy: Path) -> None:
         MOCK_NAMESPACE,
         "--create-namespace",
         "--set",
-        "tls.mode=platform",
+        "tls.enabled=false",
         "--set",
         f"image.repository={REGISTRY}/servtuner/servtuner-mock",
         "--set",
@@ -356,14 +356,14 @@ def install(deploy: Path) -> None:
 
 def priced_spec(name: str, rates: list[int]) -> dict[str, Any]:
     return {
-        "apiVersion": "servtuner.dev/v1",
+        "apiVersion": "servtuner.dev/v2",
         "kind": "RunSpec",
         "name": name,
         "target": {
             "type": "openai-compatible",
             "endpoint": f"http://openai-mock.{MOCK_NAMESPACE}.svc:8000/v1",
             "model": "mock-model",
-            "tls": {"mode": "platform"},
+            "tls": {"enabled": False},
             "hardware": {
                 "host": "test-node",
                 "accelerator": "mock-gpu",
@@ -388,7 +388,7 @@ def priced_spec(name: str, rates: list[int]) -> dict[str, Any]:
         "slos": {"ttft_p95": "500ms"},
         "prometheus": {
             "url": "http://kps-prometheus.monitoring.svc:9090",
-            "tls": {"mode": "platform"},
+            "tls": {"enabled": False},
         },
         "analysis": {
             "infra_pricing": {

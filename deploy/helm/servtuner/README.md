@@ -8,11 +8,11 @@ Render tests: `deploy/helm/test.sh` (offline; contacts no cluster). Values are d
 the frontend, and the api path (prefix stripped) goes to the api. The api path is `<basePath>/api` by default (for
 example `/servtuner/api`), so the image's relative `config.json` default (`api`, resolved against the base URI) reaches it
 under any context path, including one a proxy adds with `X-Forwarded-Prefix`; `config.json` is not overridden. Setting
-`frontend.apiBaseUrl`, or an explicit `ingress.apiPath` (never `/`), writes `config.json` from the chart. When the ingress -> api hop is
-`mtls`, the api Ingress uses backend mTLS: `backend-protocol: HTTPS`, `proxy-ssl-secret` is the chart's ingress
+`frontend.apiBaseUrl`, or an explicit `ingress.apiPath` (never `/`), writes `config.json` from the chart. When the ingress -> api hop uses
+TLS, the api Ingress uses backend TLS: `backend-protocol: HTTPS`, `proxy-ssl-secret` is the chart's ingress
 certificate Secret (it must carry `ca.crt`; with `tls.source: secret` that is your responsibility),
-`proxy-ssl-verify: "on"`, and `proxy-ssl-name` is the api Service's `<name>.<namespace>.svc` certificate SAN. In
-`platform` it is plain HTTP. No snippet annotations are used. The api certificate also carries the SAN
+`proxy-ssl-verify: "on"`, and `proxy-ssl-name` is the api Service's `<name>.<namespace>.svc` certificate SAN. Without
+TLS it is plain HTTP. No snippet annotations are used. The api certificate also carries the SAN
 `localhost`, because api settings give the SubprocessRunner's bench `https://localhost:<port>`; with `tls.source: secret`
 your api certificate must include `localhost` too while the SubprocessRunner is used. `ingress.annotations` may not
 contain `backend-protocol` or `proxy-ssl-*` (the chart owns them), and an explicit `ingress.apiPath` may not equal or
@@ -50,7 +50,7 @@ when `subprocess.secrets` is set under another runner.
     `auth.forwardHeader.userHeader: X-Auth-Request-User`.
   - Client certificates: let the ingress verify them and pass the subject DN in the user header.
 - **Gateway API** (`gateway.*`; ingress-nginx is retired): HTTPRoutes attached to
-  `gateway.parentRefs`, for `gateway.hostname`, in place of the Ingresses. In `mtls`, Envoy
+  `gateway.parentRefs`, for `gateway.hostname`, in place of the Ingresses. With TLS, Envoy
   Gateway's `Backend` presents the chart's ingress certificate to the api and a `BackendTLSPolicy`
   checks the api's name (install Envoy Gateway with `enableBackend`). Forward-header auth goes through
   Envoy's external authorization: `gateway.envoy.extAuth` renders a `SecurityPolicy` whose
@@ -85,7 +85,7 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_RUN_SECRETS_DIR` | where a subprocess run or a target check gets the Secrets it names, as files for `servtuner run --secrets-dir`; deleted when the run or check ends. The chart mounts a memory-backed `emptyDir` there | path; default `<data dir>/run-secrets` | api |
 | `SERVTUNER_RUNNER` | runner implementation. The api's own default is `subprocess` (dev, single node, CI); the chart sets `kubernetes` | `subprocess`, `kubernetes` | api |
 | `SERVTUNER_BENCH_BINARY` | path to the `servtuner` binary; required for the `subprocess` runner | path | api (runner) |
-| `SERVTUNER_API_URL` | URL bench uses to reach the api. Subprocess runner: default `https://localhost:<port>` (`http://` in `platform`). Kubernetes runner: required; the chart sets the api Service, `<scheme>://<fullname>-api.<namespace>.svc:<port>` | URL | api (runner) |
+| `SERVTUNER_API_URL` | URL bench uses to reach the api. Subprocess runner: default `https://localhost:<port>` (`http://` without TLS). Kubernetes runner: required; the chart sets the api Service, `<scheme>://<fullname>-api.<namespace>.svc:<port>` | URL | api (runner) |
 | `SERVTUNER_ENGINE_OVERRIDE` | **dev and e2e only, never set by the chart.** Passed to bench as `--engine-override`, so a run needs no real load engine | `null` | api (runner) |
 | `SERVTUNER_RUNS_NAMESPACE` | namespace for bench Jobs, ConfigMaps, Secrets | namespace name (release namespace by default) | api |
 | `SERVTUNER_BENCH_SERVICE_ACCOUNT` | ServiceAccount for bench Jobs | name | api (runner) |
@@ -125,17 +125,19 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_S3_PRESIGN` | download links (`storage.s3.presign`) | `true`: `GET /runs/{id}/files/{path}` answers 307 to a 5-minute presigned GET (SigV4); `false` (default): the api streams the file | api |
 | `SERVTUNER_S3_CREDENTIALS_SECRET`, `_ACCESS_KEY_KEY`, `_SECRET_KEY_KEY` | the Secret (in the runs namespace) and the two keys bench Jobs read `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from, by reference; credentials source `secret` only | Secret name, key names | api (runner) |
 | `SERVTUNER_S3_CREDENTIALS_SOURCE` | credential source | `secret` (keys in `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`), `ambient` (default credential chain) | api, bench |
-| `SERVTUNER_TLS_MODE` | default transport mode | `mtls`, `platform` | api |
-| `SERVTUNER_TLS_HOP_BENCH_API`, `_BENCH_PROMETHEUS`, `_INGRESS_API`, `_OBJECT_STORE`, `_POSTGRES` | effective mode of each hop, never inferred | `mtls`, `platform` | api; runner passes bench's hops to Jobs |
-| `SERVTUNER_TLS_CERT_FILE`, `SERVTUNER_TLS_KEY_FILE` | api certificate and key (mounted `kubernetes.io/tls` Secret) | path; set only when an mtls hop needs it | api |
-| `SERVTUNER_TLS_CLIENT_CA_FILE` | private CA the api listener verifies client certificates against (never the combined bundle, which admits public CAs). Default: `ca.crt` beside `SERVTUNER_TLS_CERT_FILE`. The chart sets it when the ingress/bench-api hops are mtls, pointing at the `ca.crt` of the CA Secret (`tls.caSecretRef`, else the api certificate Secret) | path; mtls only | api |
+| `SERVTUNER_TLS_ENABLED` | whether hops use TLS: each hop's default, never inferred | `true`, `false` | api |
+| `SERVTUNER_TLS_CLIENT_AUTH` | the api listener's client-certificate policy (`ingressApi`, `benchApi`); bench presents its certificate unless it is `none` | `required` (default), `optional`, `none` | api; runner |
+| `SERVTUNER_TLS_HOP_BENCH_API_ENABLED`, `_BENCH_PROMETHEUS_ENABLED`, `_INGRESS_API_ENABLED`, `_OBJECT_STORE_ENABLED`, `_POSTGRES_ENABLED` | whether each hop uses TLS | `true`, `false` | api; runner passes bench's hops to Jobs |
+| `SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_CLIENT_CERT`, `_OBJECT_STORE_CLIENT_CERT`, `_POSTGRES_CLIENT_CERT` | whether servtuner presents its client certificate to a server it does not run; `true` by default with TLS | `true`, `false` | api; runner |
+| `SERVTUNER_TLS_CERT_FILE`, `SERVTUNER_TLS_KEY_FILE` | api certificate and key (mounted `kubernetes.io/tls` Secret) | path; set only when a hop uses the api's certificate | api |
+| `SERVTUNER_TLS_CLIENT_CA_FILE` | private CA the api listener verifies client certificates against (never the combined bundle, which admits public CAs). Default: `ca.crt` beside `SERVTUNER_TLS_CERT_FILE`. The chart sets it when the api listener checks client certificates (TLS, and `tls.clientAuth` not `none`), pointing at the `ca.crt` of the CA Secret (`tls.caSecretRef`, else the api certificate Secret) | path; only when client certificates are checked | api |
 | `SERVTUNER_TLS_BENCH_SECRET` | name of the bench client-certificate Secret, in the runs namespace | Secret name; set only when needed | api (runner) |
-| `SERVTUNER_TLS_CA_SECRET` | Secret in the runs namespace whose `ca.crt` verifies the api for bench (`servtuner run --tls-ca-file`): `tls.caSecretRef`, else the bench Secret (cert-manager writes the issuing CA into it). With `tls.caSecretRef` and a separate runs namespace, that Secret must exist in the runs namespace too | Secret name; bench-api hop `mtls` only | api (runner) |
+| `SERVTUNER_TLS_CA_SECRET` | Secret in the runs namespace whose `ca.crt` verifies the api for bench (`servtuner run --tls-ca-file`): `tls.caSecretRef`, else the bench Secret (cert-manager writes the issuing CA into it). With `tls.caSecretRef` and a separate runs namespace, that Secret must exist in the runs namespace too | Secret name; only when the bench-api hop uses TLS | api (runner) |
 | `POD_NAMESPACE` | the api pod's namespace (downward API), for the RWO pod affinity to the api pod | namespace | api (runner) |
-| `SSL_CERT_FILE` | combined system + private CA bundle built by the init container | `/etc/servtuner/ca/bundle.crt`; set only when some hop is mtls | api (standard) |
+| `SSL_CERT_FILE` | combined system + private CA bundle built by the init container | `/etc/servtuner/ca/bundle.crt`; set only when some hop uses TLS | api (standard) |
 | `SERVTUNER_DATABASE_HOST`, `_PORT`, `_NAME`, `_USER` | Postgres connection | strings | api |
 | `SERVTUNER_DATABASE_SSLMODE` | Postgres TLS | `verify-full` (client cert), `disable` | api |
-| `SERVTUNER_DATABASE_PASSWORD` | database password; set only when the postgres hop is `platform` | from a Secret | api |
+| `SERVTUNER_DATABASE_PASSWORD` | database password; set only when the postgres hop presents no client certificate (without TLS, or with `tls.hops.postgres.clientCert: false`) | from a Secret | api |
 
 ### Request headers
 

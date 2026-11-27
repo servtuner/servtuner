@@ -1,4 +1,4 @@
-# Self-signed CA chain for servtuner's mtls mode on a dev cluster. Requires cert-manager.
+# Self-signed CA chain for servtuner's TLS on a dev cluster. Requires cert-manager.
 # NOT applied automatically: review it, then `kubectl apply -f` it yourself.
 # A bare self-signed issuer does not put ca.crt in issued Secrets, so the standard pattern is used:
 # self-signed issuer -> CA certificate -> CA issuer, and servtuner's tls.certManager.issuerRef points at the CA issuer.

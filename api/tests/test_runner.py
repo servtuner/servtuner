@@ -14,7 +14,7 @@ from servtuner_api.runner import (
     shard_count,
 )
 from servtuner_api.secret_store import FileSecretStore, SecretStore
-from servtuner_api.settings.models import TransportMode
+from servtuner_api.settings.models import HopTls
 from tests.support.waiting import wait_until
 
 # Records its argv and the token it was handed, then exits as BENCH_EXIT_CODE says.
@@ -35,10 +35,14 @@ exit "${BENCH_EXIT_CODE:-0}"
 """
 RUN_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
+PLAIN = HopTls(enabled=False, client_cert=False)
+TLS_ONLY = HopTls(enabled=True, client_cert=False)
+MUTUAL = HopTls(enabled=True, client_cert=True)
+
 
 def make_runner(
     tmp_path: Path,
-    mode: TransportMode,
+    hop: HopTls,
     engine_override: str | None = None,
     secret_store: SecretStore | None = None,
 ) -> SubprocessRunner:
@@ -47,15 +51,14 @@ def make_runner(
     bench.chmod(bench.stat().st_mode | stat.S_IXUSR)
     data_dir = tmp_path / "data"
     data_dir.mkdir(exist_ok=True)
-    is_mtls = mode is TransportMode.MTLS
     return SubprocessRunner(
         SubprocessRunnerConfig(
             bench_binary=bench,
             data_dir=data_dir,
-            api_url="https://api.example.invalid" if is_mtls else "http://api.example.invalid",
-            api_tls_mode=mode,
-            tls_cert_file=Path("/certs/tls.crt") if is_mtls else None,
-            tls_key_file=Path("/certs/tls.key") if is_mtls else None,
+            api_url="https://api.example.invalid" if hop.enabled else "http://api.example.invalid",
+            api_hop=hop,
+            tls_cert_file=Path("/certs/tls.crt") if hop.client_cert else None,
+            tls_key_file=Path("/certs/tls.key") if hop.client_cert else None,
             engine_override=engine_override,
             run_secrets_dir=tmp_path / "run-secrets",
             mounted_secrets_dir=tmp_path / "mounted",
@@ -70,9 +73,9 @@ def run_to_completion(runner: SubprocessRunner) -> tuple[str, RunnerState]:
     return handle.reference, runner.status(handle).state
 
 
-@pytest.mark.parametrize("mode", list(TransportMode))
-def test_command_line_follows_the_contract(tmp_path: Path, mode: TransportMode) -> None:
-    runner = make_runner(tmp_path, mode)
+@pytest.mark.parametrize("hop", [PLAIN, TLS_ONLY, MUTUAL])
+def test_command_line_follows_the_contract(tmp_path: Path, hop: HopTls) -> None:
+    runner = make_runner(tmp_path, hop)
     run_to_completion(runner)
     argv = (tmp_path / "data" / "argv.txt").read_text().split()
     data_dir = tmp_path / "data"
@@ -81,35 +84,33 @@ def test_command_line_follows_the_contract(tmp_path: Path, mode: TransportMode) 
         "--out", str(data_dir / "runs" / RUN_ID), "--run-id", RUN_ID,
         "--api-url", runner._config.api_url,
         "--run-token-file", str(data_dir / "tokens" / RUN_ID),
-        "--api-tls-mode", mode.value,
+        "--api-tls", "true" if hop.enabled else "false",
     ]  # fmt: skip
-    if mode is TransportMode.MTLS:
+    if hop.client_cert:
         expected += ["--tls-cert-file", "/certs/tls.crt", "--tls-key-file", "/certs/tls.key"]
     assert argv == expected
 
 
 def test_engine_override_is_passed_only_when_set(tmp_path: Path) -> None:
     spec_path, token_path = tmp_path / "spec", tmp_path / "token"
-    without = make_runner(tmp_path, TransportMode.PLATFORM).build_command(
+    without = make_runner(tmp_path, PLAIN).build_command(RUN_ID, spec_path, token_path)
+    with_override = make_runner(tmp_path, PLAIN, engine_override="null").build_command(
         RUN_ID, spec_path, token_path
     )
-    with_override = make_runner(
-        tmp_path, TransportMode.PLATFORM, engine_override="null"
-    ).build_command(RUN_ID, spec_path, token_path)
     assert "--engine-override" not in without
     position = with_override.index("--engine-override")
     assert with_override[position : position + 2] == ["--engine-override", "null"]
 
 
 def test_an_offline_install_runs_bench_offline(tmp_path: Path) -> None:
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     assert "--offline" not in runner.build_command(RUN_ID, tmp_path / "spec", tmp_path / "token")
     runner._config = dataclasses.replace(runner._config, offline=True)
     assert "--offline" in runner.build_command(RUN_ID, tmp_path / "spec", tmp_path / "token")
 
 
 def test_spec_is_written_verbatim_and_token_is_private(tmp_path: Path) -> None:
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     run_to_completion(runner)
     assert (tmp_path / "data" / "specs" / RUN_ID).read_bytes() == b'{"spec": true}'
     assert (tmp_path / "data" / "token-seen.txt").read_text() == "secret-token"
@@ -119,7 +120,7 @@ def test_spec_is_written_verbatim_and_token_is_private(tmp_path: Path) -> None:
 
 
 def test_exit_code_decides_the_final_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     assert run_to_completion(runner)[1] is RunnerState.SUCCEEDED
     monkeypatch.setenv("BENCH_EXIT_CODE", "3")
     handle = runner.launch(LaunchRequest(RUN_ID, b"{}", "t"))
@@ -130,7 +131,7 @@ def test_exit_code_decides_the_final_state(tmp_path: Path, monkeypatch: pytest.M
 
 def test_logs_and_cancel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BENCH_SLEEP", "30")
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     handle = runner.launch(LaunchRequest(RUN_ID, b"{}", "t"))
     wait_until(lambda: "bench says hello" in list(runner.logs(handle)), "bench to log")
     assert runner.status(handle).state is RunnerState.RUNNING
@@ -139,10 +140,10 @@ def test_logs_and_cancel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_unknown_handle_is_failed(tmp_path: Path) -> None:
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     handle = runner.launch(LaunchRequest(RUN_ID, b"{}", "t"))
     wait_until(lambda: runner.status(handle).is_final, "bench to exit")
-    restarted = make_runner(tmp_path, TransportMode.PLATFORM)
+    restarted = make_runner(tmp_path, PLAIN)
     assert restarted.status(handle).state is RunnerState.FAILED
 
 
@@ -159,7 +160,7 @@ def test_a_sharded_run_starts_every_shard_and_the_leader_decides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("FOLLOWER_SLEEP", "30")
-    runner = make_runner(tmp_path, TransportMode.PLATFORM)
+    runner = make_runner(tmp_path, PLAIN)
     handle = runner.launch(LaunchRequest(RUN_ID, SHARDED_SPEC, "t"))
     argv_all = tmp_path / "data" / "argv-all.txt"
     wait_until(
@@ -191,7 +192,7 @@ def test_a_runs_secrets_are_materialized_privately_and_removed(tmp_path: Path) -
     store.put("vllm-key", {"token": "sk-from-the-store"}, "01TARGET")
     (tmp_path / "mounted" / "chart-mounted").mkdir(parents=True)
     (tmp_path / "mounted" / "chart-mounted" / "token").write_text("from-the-chart")
-    runner = make_runner(tmp_path, TransportMode.PLATFORM, secret_store=store)
+    runner = make_runner(tmp_path, PLAIN, secret_store=store)
 
     handle = runner.launch(LaunchRequest(RUN_ID, SPEC_WITH_SECRETS, "t"))
     wait_until(lambda: runner.status(handle).is_final, "bench to exit")
@@ -207,6 +208,6 @@ def test_a_runs_secrets_are_materialized_privately_and_removed(tmp_path: Path) -
 
 
 def test_a_run_naming_no_secret_gets_no_secrets_dir(tmp_path: Path) -> None:
-    runner = make_runner(tmp_path, TransportMode.PLATFORM, secret_store=FileSecretStore(tmp_path))
+    runner = make_runner(tmp_path, PLAIN, secret_store=FileSecretStore(tmp_path))
     run_to_completion(runner)
     assert "--secrets-dir" not in (tmp_path / "data" / "argv.txt").read_text()

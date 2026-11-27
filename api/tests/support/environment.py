@@ -3,12 +3,12 @@
 from pathlib import Path
 
 
-def platform_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
-    """A valid all-``platform`` configuration; tests override single names."""
+def plain_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
+    """A valid configuration without TLS on any hop; tests override single names."""
     bench_binary = tmp_path / "bench"
     bench_binary.touch()
     env = {
-        "SERVTUNER_TLS_MODE": "platform",
+        "SERVTUNER_TLS_ENABLED": "false",
         "SERVTUNER_DATABASE_HOST": "db.example.invalid",
         "SERVTUNER_DATABASE_NAME": "servtuner",
         "SERVTUNER_DATABASE_USER": "servtuner",

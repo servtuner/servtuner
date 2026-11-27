@@ -42,7 +42,7 @@ BASE: dict[str, Any] = {
 PLAIN = ManagedTargetSpec.model_validate(BASE)
 TLS = ManagedTargetSpec.model_validate(
     BASE
-    | {"transport": {"mode": "tls", "issuer": {"kind": "ClusterIssuer", "name": "servtuner-ca"}}}
+    | {"transport": {"enabled": True, "issuer": {"kind": "ClusterIssuer", "name": "servtuner-ca"}}}
 )
 
 
@@ -52,7 +52,7 @@ def deployer(cluster: FakeCluster, tmp_path: Path, view: TargetCheckView | None 
         render_knobs=lambda knobs: list(KNOB_ARGS),
         checker=FakeChecker(view or check_view("ok")),
         store=FileSecretStore(tmp_path / "store"),
-        prometheus={"url": "http://prometheus.example:9090", "tls": {"mode": "platform"}},
+        prometheus={"url": "http://prometheus.example:9090", "tls": {"enabled": False}},
     )
 
 
@@ -305,7 +305,7 @@ def test_deploy_checks_its_secrets_before_applying(tmp_path: Path) -> None:
     cluster = FakeCluster()
     cluster.secrets.clear()
     user_tls = ManagedTargetSpec.model_validate(
-        BASE | {"transport": {"mode": "tls", "secret": "qwen-cert"}}
+        BASE | {"transport": {"enabled": True, "secret": "qwen-cert"}}
     )
     cluster.secrets[(NAMESPACE, "qwen-cert")] = {"tls.crt": "c", "tls.key": "k"}
     with pytest.raises(DeployInputError) as caught:

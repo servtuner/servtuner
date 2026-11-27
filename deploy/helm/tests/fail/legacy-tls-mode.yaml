@@ -1,0 +1,3 @@
+# expect: tls.mode "mtls" was replaced in servtuner 0.2
+tls: {mode: mtls}
+storage: {file: {pvc: {create: true}}}

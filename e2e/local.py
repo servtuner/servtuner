@@ -1,6 +1,6 @@
 """Local end to end, no cluster: Postgres (container) + servtuner-api + the real bench binary.
 
-    PYTHONPATH=api uv run --project api python e2e/local.py mtls|platform
+    PYTHONPATH=api uv run --project api python e2e/local.py mutual-tls|tls-off
 
 Proves, on this machine, that one RunSpec posted to the api is launched through the
 SubprocessRunner, run by bench (null engine), reported back through the events
@@ -22,6 +22,7 @@ from pathlib import Path
 import httpx2
 from common import (
     REPOSITORY,
+    Security,
     auth_environment,
     check,
     check_manifest_succeeded,
@@ -38,7 +39,6 @@ from testcontainers.community.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 
 from servtuner_api.datadir import run_bundle_dir
-from servtuner_api.settings.models import TransportMode
 from tests.support.certs import LOOPBACK, CertificateAuthority, create_authority
 from tests.support.postgres_tls import (
     DATABASE_NAME,
@@ -68,12 +68,12 @@ def build_bench(output: Path) -> Path:
 
 def start_postgres(
     stack: ExitStack,
-    mode: TransportMode,
+    mode: Security,
     scratch: Path,
     authority: CertificateAuthority,
 ) -> dict[str, str]:
     """Database environment for the api; the container is stopped when ``stack`` closes."""
-    if mode is TransportMode.MTLS:
+    if mode is Security.MUTUAL_TLS:
         mount = scratch / "pg-mount"
         mount.mkdir()
         container: DockerContainer = stack.enter_context(tls_postgres_container(authority, mount))
@@ -107,7 +107,7 @@ def start_api(stack: ExitStack, environment: dict[str, str], log_file: Path) -> 
     stack.callback(stop_process, api)
 
 
-def run_e2e(mode: TransportMode) -> None:
+def run_e2e(mode: Security) -> None:
     with scratch_directory() as scratch_name, ExitStack() as stack:
         scratch = Path(scratch_name)
         data_dir = scratch / "data"
@@ -120,10 +120,10 @@ def run_e2e(mode: TransportMode) -> None:
             "SERVTUNER_BENCH_BINARY": str(bench_binary),
             "SERVTUNER_DATA_DIR": str(data_dir),
             "SERVTUNER_API_PORT": str(port),
-            "SERVTUNER_TLS_MODE": mode.value,
-        } | auth_environment(scratch, is_cookie_secure=mode is TransportMode.MTLS)
+            "SERVTUNER_TLS_ENABLED": mode.tls_flag,
+        } | auth_environment(scratch, is_cookie_secure=mode is Security.MUTUAL_TLS)
         client_options: dict[str, object] = {"base_url": f"http://localhost:{port}"}
-        if mode is TransportMode.MTLS:
+        if mode is Security.MUTUAL_TLS:
             # The api's own certificate is also bench's client certificate and its Postgres
             # client certificate (CN = database user): api/CLAUDE.md "SubprocessRunner".
             api_certificate = authority.issue(DATABASE_USER)
@@ -151,7 +151,7 @@ def run_e2e(mode: TransportMode) -> None:
                     "the api to serve /healthz",
                     lambda: probe.get("/healthz").is_success,
                 )
-            if mode is TransportMode.MTLS:
+            if mode is Security.MUTUAL_TLS:
                 refuse_without_client_certificate(f"https://localhost:{port}", authority.cert_file)
             with httpx2.Client(**client_options) as client:  # type: ignore[arg-type]
                 create_first_admin(client)
@@ -179,5 +179,5 @@ def check_local_bundle(data_dir: Path, run_id: str) -> None:
 
 
 if __name__ == "__main__":
-    run_e2e(TransportMode(sys.argv[1]))
+    run_e2e(Security(sys.argv[1]))
     print("e2e-local passed", flush=True)

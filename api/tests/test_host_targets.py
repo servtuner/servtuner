@@ -101,7 +101,7 @@ def deployer(tmp_path: Path, launcher: FakeLauncher, view: Any = None) -> Launch
         store=store,
         prometheus={
             "url": "http://kps-prometheus.monitoring.svc:9090",
-            "tls": {"mode": "platform"},
+            "tls": {"enabled": False},
         },
         transport=httpx2.MockTransport(launcher.handle),
     )
@@ -118,7 +118,7 @@ def test_the_run_target_selects_the_hosts_series_and_names_its_key() -> None:
             "pod": "vllm-lan",
             "node": "vllm-lan-gpu",
         },
-        "tls": {"mode": "platform"},
+        "tls": {"enabled": False},
         "auth": {"secretRef": {"name": "vllm-key", "key": "token"}},
     }
 

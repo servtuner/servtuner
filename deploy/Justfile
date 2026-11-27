@@ -26,7 +26,7 @@ test-mock:
 
 # helm lint cannot simulate CRDs, so lint renders Postgres as external (see ci/lint-overlay.yaml).
 lint-chart:
-    for values in helm/servtuner/ci/mtls-cert-manager.yaml helm/servtuner/ci/mtls-secret.yaml helm/servtuner/ci/platform.yaml helm/servtuner/ci/s3-separate-namespace.yaml; do KUBECONFIG=/dev/null helm lint helm/servtuner -f "$values" -f helm/servtuner/ci/lint-overlay.yaml; done
+    for values in helm/servtuner/ci/mutual-tls-cert-manager.yaml helm/servtuner/ci/mutual-tls-secret.yaml helm/servtuner/ci/tls-off.yaml helm/servtuner/ci/tls-server-only.yaml helm/servtuner/ci/s3-separate-namespace.yaml; do KUBECONFIG=/dev/null helm lint helm/servtuner -f "$values" -f helm/servtuner/ci/lint-overlay.yaml; done
 
 # Offline render tests: pass cases for each tls mode and every failure case. Contacts no cluster.
 test-chart:

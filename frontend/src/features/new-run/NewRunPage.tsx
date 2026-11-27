@@ -7,7 +7,6 @@ import {
   List,
   Loader,
   NumberInput,
-  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
@@ -31,7 +30,8 @@ import {
 } from "../../api/hooks";
 import { runLabelFilter } from "../managed-targets/summary";
 import { STARTER_SPEC, starterForManagedTarget, withRunDefaults } from "./starter";
-import { tlsBlock, type TlsMode } from "../../api/tls";
+import { tlsBlock, tlsChoice } from "../../api/tls";
+import { TlsFields } from "../../components/TlsFields";
 import { TARGET_LABEL, TargetPicker, type Change } from "./TargetPicker";
 import { WorkloadPicker } from "./WorkloadPicker";
 import { FIELD_GRID_STYLE } from "../../components/layout";
@@ -182,7 +182,6 @@ function SpecForm({
     const value = get(document, path);
     return value === undefined || value === null ? "" : String(value);
   };
-  const tlsMode = text(["target", "tls", "mode"]) || "mtls";
   return (
     <Stack gap="lg">
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
@@ -218,40 +217,10 @@ function SpecForm({
           onChange={(e) => edit(["target", "model"], e.currentTarget.value)}
         />
       </SimpleGrid>
-      <Group align="end">
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Transport
-          </Text>
-          <SegmentedControl
-            value={tlsMode}
-            onChange={(value) =>
-              edit(["target", "tls"], tlsBlock(value as TlsMode, value === "mtls" ? "servtuner-client" : ""))
-            }
-            data={[
-              { value: "mtls", label: "mTLS" },
-              { value: "tls", label: "TLS" },
-              { value: "platform", label: "Platform (plain on the wire)" },
-            ]}
-          />
-        </Stack>
-        {tlsMode === "mtls" && (
-          <TextInput
-            label="Client certificate Secret"
-            description="A kubernetes.io/tls Secret, by name only"
-            value={text(["target", "tls", "secretRef", "name"])}
-            onChange={(e) => edit(["target", "tls", "secretRef", "name"], e.currentTarget.value)}
-          />
-        )}
-        {tlsMode === "tls" && (
-          <TextInput
-            label="CA Secret"
-            description="Optional: a Secret whose ca.crt signed the server. No client certificate is sent."
-            value={text(["target", "tls", "caSecretRef", "name"])}
-            onChange={(e) => edit(["target", "tls"], tlsBlock("tls", e.currentTarget.value.trim()))}
-          />
-        )}
-      </Group>
+      <TlsFields
+        value={tlsChoice(get(document, ["target", "tls"]))}
+        onChange={(choice) => edit(["target", "tls"], tlsBlock(choice))}
+      />
       <Title order={4}>Workload</Title>
       <WorkloadPicker
         workload={get(document, ["workload"]) as { preset?: string; streaming?: boolean } | undefined}

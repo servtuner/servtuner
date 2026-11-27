@@ -1,4 +1,4 @@
 # expect: global.imageRegistry is set but postgres.cnpg.imageName is empty
-tls: {mode: platform}
+tls: {enabled: false}
 storage: {file: {pvc: {create: true}}}
 global: {imageRegistry: registry.example.internal:5000}

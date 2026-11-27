@@ -1,4 +1,4 @@
 # expect: needs storage.file.pvc.accessMode=ReadWriteMany
 namespaces: {runs: servtuner-runs}
-tls: {mode: platform}
+tls: {enabled: false}
 storage: {file: {pvc: {create: false, existingClaim: my-data, accessMode: ReadWriteOnce}}}

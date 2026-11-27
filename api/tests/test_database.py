@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 
 from servtuner_api.database import Base, build_database_url
 from servtuner_api.settings.models import Settings
-from tests.support.environment import platform_env
+from tests.support.environment import plain_env
 from tests.test_settings import mtls_env
 
 
@@ -23,7 +23,7 @@ def test_migrations_create_every_table_and_match_the_models(migrated_engine: Eng
 
 
 def test_platform_url_is_sslmode_disable_with_a_password(tmp_path: Path) -> None:
-    settings = Settings.from_env(platform_env(tmp_path))
+    settings = Settings.from_env(plain_env(tmp_path))
     url = build_database_url(settings.database, settings.tls)
     assert dict(url.query) == {"sslmode": "disable"}
     assert url.password == "not-a-real-password"

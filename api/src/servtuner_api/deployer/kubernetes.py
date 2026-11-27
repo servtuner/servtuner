@@ -69,7 +69,8 @@ class Deployer(BootProbes):
             # the scrape would fail and the deploy would only time out.
             raise DeployInputError(
                 [
-                    "transport tls needs the podmonitor monitor (the Prometheus Operator): the "
+                    "transport with TLS needs the podmonitor monitor (the Prometheus Operator): "
+                    "the "
                     "community chart's servtuner-targets job cannot verify the target's certificate"
                 ]
             )

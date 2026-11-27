@@ -18,9 +18,8 @@ from servtuner_api.settings.models import (
     ChecksumMode,
     CredentialsSource,
     S3Settings,
-    TlsSettings,
-    TransportMode,
 )
+from tests.support.tls import plain_tls
 
 TOKEN = "pod-identity-token"
 seen: dict[str, str] = {}
@@ -111,10 +110,8 @@ def test_ambient_credentials_come_from_the_container_credentials_endpoint(
         checksum_mode=ChecksumMode.WHEN_REQUIRED,
         credentials_source=CredentialsSource.AMBIENT,
     )
-    tls = TlsSettings(
-        hops={}, cert_file=None, key_file=None, ca_bundle_file=None, client_ca_file=None
-    )
-    store = S3BundleStore(settings, TransportMode.PLATFORM, tls)
+    tls = plain_tls()
+    store = S3BundleStore(settings, tls)
     assert store.list_files("01ARZ3NDEKTSV4RRFFQ69G5FAV") == []
     assert "Credential=ASIAPODIDENTITY/" in seen["authorization"]
     assert seen["token"] == "pod-session-token"
@@ -148,8 +145,6 @@ def test_ambient_with_no_credentials_fails_at_startup(
         checksum_mode=ChecksumMode.WHEN_REQUIRED,
         credentials_source=CredentialsSource.AMBIENT,
     )
-    tls = TlsSettings(
-        hops={}, cert_file=None, key_file=None, ca_bundle_file=None, client_ca_file=None
-    )
+    tls = plain_tls()
     with pytest.raises(MissingCredentialsError, match="no AWS credentials resolved"):
-        S3BundleStore(settings, TransportMode.PLATFORM, tls)
+        S3BundleStore(settings, tls)

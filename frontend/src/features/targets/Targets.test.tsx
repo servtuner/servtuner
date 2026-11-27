@@ -20,7 +20,7 @@ const saved: SavedTarget = {
     type: "vllm",
     endpoint: "http://vllm.example:8080/v1",
     model: "tiny",
-    tls: { mode: "platform" },
+    tls: { enabled: false },
     metrics: { namespace: "servtuner-external", pod: "vllm-lan", node: "vllm-lan-gpu", job: "servtuner-external" },
     upstreams: [],
   } as SavedTarget["target"],
@@ -28,7 +28,7 @@ const saved: SavedTarget = {
     type: "vllm",
     endpoint: "http://vllm.example:8080/v1",
     model: "tiny",
-    tls: { mode: "platform" },
+    tls: { enabled: false },
     metrics: { namespace: "servtuner-external", pod: "vllm-lan", node: "vllm-lan-gpu", job: "servtuner-external" },
     upstreams: [],
   } as SavedTarget["target"],
@@ -102,7 +102,7 @@ describe("targets", () => {
         type: "vllm",
         endpoint: "http://litellm.example:4000/v1",
         model: "gpt-4o-mini",
-        tls: { mode: "platform" },
+        tls: { enabled: false },
       },
       pricing: null,
     });
@@ -124,13 +124,17 @@ describe("targets", () => {
     await userEvent.type(screen.getByLabelText(/^Name/), "vllm-tls");
     await userEvent.type(screen.getByLabelText(/^Endpoint/), "https://vllm.example:8000/v1");
     await userEvent.type(screen.getByLabelText(/^Model/), "tiny");
-    await userEvent.click(screen.getByText("TLS", { exact: true }));
-    expect(screen.queryByLabelText(/Client certificate Secret/)).not.toBeInTheDocument();
+    // A new target starts as plain HTTP, with no certificate fields until TLS is on.
+    const tls = screen.getByRole("switch");
+    expect(tls).not.toBeChecked();
+    expect(screen.queryByLabelText(/^CA Secret/)).not.toBeInTheDocument();
+    await userEvent.click(tls);
+    // With no client certificate named, none is presented.
     await userEvent.type(screen.getByLabelText(/^CA Secret/), "vllm-ca");
     await userEvent.click(screen.getByRole("button", { name: "Save target" }));
 
     await screen.findByRole("heading", { name: "vllm-lan" });
-    expect(created?.target.tls).toEqual({ mode: "tls", caSecretRef: { name: "vllm-ca" } });
+    expect(created?.target.tls).toEqual({ enabled: true, caSecretRef: { name: "vllm-ca" } });
   });
 
   it("sets a key write-only, clears the field, and shows only the masked preview", async () => {

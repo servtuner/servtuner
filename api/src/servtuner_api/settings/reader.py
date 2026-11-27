@@ -68,18 +68,22 @@ from servtuner_api.settings.env import (
     ENV_TLS_BENCH_SECRET,
     ENV_TLS_CA_SECRET,
     ENV_TLS_CERT_FILE,
+    ENV_TLS_CLIENT_AUTH,
     ENV_TLS_CLIENT_CA_FILE,
+    ENV_TLS_ENABLED,
     ENV_TLS_KEY_FILE,
-    ENV_TLS_MODE,
     ENV_TUNING_MONITOR,
     ENV_TUNING_NAMESPACES,
+    LEGACY_ENV_TLS_MODE,
     NULL_ENGINE,
     PEM_CERTIFICATE_MARKER,
     RUN_SECRETS_DIR_NAME,
     STORED_SECRETS_DIR_NAME,
     hop_env_name,
+    legacy_hop_env_name,
 )
 from servtuner_api.settings.models import (
+    API_LISTENER_HOPS,
     DEFAULT_API_PORT,
     DEFAULT_BENCH_CPU,
     DEFAULT_BENCH_JOB_TTL_SECONDS,
@@ -95,17 +99,19 @@ from servtuner_api.settings.models import (
     DEFAULT_SESSION_ABSOLUTE_SECONDS,
     DEFAULT_SESSION_IDLE_SECONDS,
     MIN_S3_PART_SIZE_MIB,
-    SSLMODE_FOR_MODE,
+    SSLMODE_FOR_TLS,
     AntiAffinity,
     AuthMode,
     AuthSettings,
     ChecksumMode,
+    ClientAuth,
     ConfigError,
     CredentialsSource,
     DatabaseSettings,
     DatabaseSslMode,
     ForwardHeaderSettings,
     Hop,
+    HopTls,
     KubernetesRunnerSettings,
     LoginMethod,
     Provisioning,
@@ -116,7 +122,6 @@ from servtuner_api.settings.models import (
     Settings,
     StorageBackend,
     TlsSettings,
-    TransportMode,
 )
 
 
@@ -237,15 +242,16 @@ class SettingsReader:
 
     def _read_s3(self, tls: TlsSettings) -> S3Settings:
         endpoint = self._env.get(ENV_S3_ENDPOINT) or None
-        if tls.mode_of(Hop.OBJECT_STORE) is TransportMode.MTLS:
-            self._check_mtls_files(tls, [Hop.OBJECT_STORE])
+        if tls.uses_tls(Hop.OBJECT_STORE):
+            if tls.presents_cert(Hop.OBJECT_STORE):
+                self._check_certificate_files(tls, [Hop.OBJECT_STORE])
             if endpoint is not None and not endpoint.startswith("https://"):
                 self._problems.append(
-                    f"{ENV_S3_ENDPOINT}={endpoint}: the object-store hop is mtls, so it must be https://"
+                    f"{ENV_S3_ENDPOINT}={endpoint}: the object-store hop uses TLS, so it must be https://"
                 )
         elif endpoint is None or not endpoint.startswith("http://"):
             self._problems.append(
-                f"{hop_env_name(Hop.OBJECT_STORE)}=platform needs an http:// {ENV_S3_ENDPOINT}"
+                f"{hop_env_name(Hop.OBJECT_STORE)}=false needs an http:// {ENV_S3_ENDPOINT}"
             )
         source = self._optional_choice(ENV_S3_CREDENTIALS_SOURCE, CredentialsSource)
         if source is None:
@@ -298,9 +304,16 @@ class SettingsReader:
         namespace = self._required(ENV_RUNS_NAMESPACE)
         node_pinned = self._boolean(ENV_STORAGE_NODE_PINNED, default=False)
         is_file = backend is StorageBackend.FILE
-        # bench presents a client certificate on each mtls hop it opens.
-        api_mtls = tls.mode_of(Hop.BENCH_API) is TransportMode.MTLS or (
-            backend is StorageBackend.S3 and tls.mode_of(Hop.OBJECT_STORE) is TransportMode.MTLS
+        # bench's client certificate is mounted when a hop it opens presents one; the private CA
+        # that verifies the api (and an object store with a client certificate) when it uses TLS.
+        on_s3 = backend is StorageBackend.S3
+        bench_presents_cert = (
+            tls.presents_cert(Hop.BENCH_API)
+            or tls.presents_cert(Hop.BENCH_PROMETHEUS)
+            or (on_s3 and tls.presents_cert(Hop.OBJECT_STORE))
+        )
+        bench_verifies_private_ca = tls.uses_tls(Hop.BENCH_API) or (
+            on_s3 and tls.presents_cert(Hop.OBJECT_STORE)
         )
         return KubernetesRunnerSettings(
             namespace=namespace,
@@ -325,8 +338,8 @@ class SettingsReader:
             node_pinned=node_pinned,
             api_component_label=self._label(ENV_API_COMPONENT_LABEL, required=node_pinned),
             api_namespace=self._env.get(ENV_POD_NAMESPACE) or namespace,
-            bench_tls_secret=self._required(ENV_TLS_BENCH_SECRET) if api_mtls else None,
-            ca_secret=self._required(ENV_TLS_CA_SECRET) if api_mtls else None,
+            bench_tls_secret=self._required(ENV_TLS_BENCH_SECRET) if bench_presents_cert else None,
+            ca_secret=self._required(ENV_TLS_CA_SECRET) if bench_verifies_private_ca else None,
             s3_credentials=self._s3_credentials_secret() if backend is StorageBackend.S3 else None,
         )
 
@@ -371,15 +384,38 @@ class SettingsReader:
     def _api_url(self, port: int, tls: TlsSettings) -> str:
         if self._env.get(ENV_API_URL):
             return self._env[ENV_API_URL].rstrip("/")
-        scheme = "https" if tls.mode_of(Hop.BENCH_API) is TransportMode.MTLS else "http"
+        scheme = "https" if tls.uses_tls(Hop.BENCH_API) else "http"
         return f"{scheme}://localhost:{port}"
 
     def _read_tls(self) -> TlsSettings:
-        default_mode = self._choice(ENV_TLS_MODE, TransportMode, TransportMode.MTLS)
-        hops = {hop: self._choice(hop_env_name(hop), TransportMode, default_mode) for hop in Hop}
+        self._refuse_legacy_tls()
+        default_enabled = self._boolean(ENV_TLS_ENABLED, default=True)
+        client_auth = self._choice(ENV_TLS_CLIENT_AUTH, ClientAuth, ClientAuth.REQUIRED)
+        hops: dict[Hop, HopTls] = {}
+        for hop in Hop:
+            enabled = self._boolean(hop_env_name(hop), default=default_enabled)
+            if hop in API_LISTENER_HOPS:
+                # The api's own listener: a client presents its certificate when the policy
+                # asks for one.
+                if self._env.get(hop_env_name(hop, "CLIENT_CERT")):
+                    self._problems.append(
+                        f"{hop_env_name(hop, 'CLIENT_CERT')}: this hop follows "
+                        f"{ENV_TLS_CLIENT_AUTH}, the api listener's policy"
+                    )
+                client_cert = enabled and client_auth is not ClientAuth.NONE
+            else:
+                client_cert = enabled and self._boolean(
+                    hop_env_name(hop, "CLIENT_CERT"), default=True
+                )
+                if not enabled and self._env.get(hop_env_name(hop, "CLIENT_CERT")) == "true":
+                    self._problems.append(
+                        f"{hop_env_name(hop, 'CLIENT_CERT')}=true needs {hop_env_name(hop)}=true"
+                    )
+            hops[hop] = HopTls(enabled=enabled, client_cert=client_cert)
         cert_file = self._optional_path(ENV_TLS_CERT_FILE)
         tls = TlsSettings(
             hops=hops,
+            client_auth=client_auth,
             cert_file=cert_file,
             key_file=self._optional_path(ENV_TLS_KEY_FILE),
             ca_bundle_file=self._optional_path(ENV_CA_BUNDLE_FILE),
@@ -389,24 +425,43 @@ class SettingsReader:
         self._check_tls(tls)
         return tls
 
+    def _refuse_legacy_tls(self) -> None:
+        replacement = (
+            f"{ENV_TLS_ENABLED} (true or false), {ENV_TLS_CLIENT_AUTH} and the "
+            "SERVTUNER_TLS_HOP_<HOP>_ENABLED and _CLIENT_CERT overrides"
+        )
+        for name in [LEGACY_ENV_TLS_MODE, *(legacy_hop_env_name(hop) for hop in Hop)]:
+            if self._env.get(name):
+                self._problems.append(
+                    f"{name}={self._env[name]!r} was replaced in servtuner 0.2 by {replacement}"
+                )
+
     def _check_tls(self, tls: TlsSettings) -> None:
         # The api has one listener, so the two hops that reach it cannot differ.
-        if tls.mode_of(Hop.BENCH_API) is not tls.mode_of(Hop.INGRESS_API):
+        if tls.uses_tls(Hop.BENCH_API) is not tls.uses_tls(Hop.INGRESS_API):
             self._problems.append(
                 f"{hop_env_name(Hop.BENCH_API)} and {hop_env_name(Hop.INGRESS_API)} "
                 "must match: the api serves both on one listener"
             )
         if (tls.cert_file is None) != (tls.key_file is None):
             self._problems.append(f"{ENV_TLS_CERT_FILE} and {ENV_TLS_KEY_FILE} go together")
-        needing_certificate = [
-            hop for hop in (Hop.INGRESS_API, Hop.POSTGRES) if tls.mode_of(hop) is TransportMode.MTLS
+        # The api's certificate: served on its listener, presented to Postgres.
+        needing_certificate = [hop for hop in (Hop.INGRESS_API,) if tls.uses_tls(hop)] + [
+            hop for hop in (Hop.POSTGRES,) if tls.presents_cert(hop)
         ]
         if needing_certificate:
-            self._check_mtls_files(tls, needing_certificate)
-        if tls.mode_of(Hop.INGRESS_API) is TransportMode.MTLS:
+            self._check_certificate_files(tls, needing_certificate)
+        if tls.uses_tls(Hop.INGRESS_API) and tls.client_auth is not ClientAuth.NONE:
             self._check_client_ca(tls.client_ca_file)
-        elif tls.cert_file is not None:
-            self._problems.append(f"{ENV_TLS_CERT_FILE} is set but no api hop is mtls")
+        uses_certificate = (
+            tls.uses_tls(Hop.INGRESS_API)
+            or tls.presents_cert(Hop.POSTGRES)
+            or tls.presents_cert(Hop.OBJECT_STORE)
+        )
+        if tls.cert_file is not None and not uses_certificate:
+            self._problems.append(
+                f"{ENV_TLS_CERT_FILE} is set but no hop uses the api's certificate"
+            )
 
     def _check_client_ca(self, client_ca_file: Path | None) -> None:
         # The combined SSL_CERT_FILE bundle includes public CAs, so using it here
@@ -418,32 +473,43 @@ class SettingsReader:
                 f"{ENV_TLS_CLIENT_CA_FILE}={client_ca_file}: holds no certificates"
             )
 
-    def _check_mtls_files(self, tls: TlsSettings, hops: list[Hop]) -> None:
-        names = ", ".join(hop_env_name(hop) for hop in hops)
+    def _check_certificate_files(self, tls: TlsSettings, hops: list[Hop]) -> None:
+        names = ", ".join(hop.value for hop in hops)
         for env_name, path in (
             (ENV_TLS_CERT_FILE, tls.cert_file),
             (ENV_TLS_KEY_FILE, tls.key_file),
             (ENV_CA_BUNDLE_FILE, tls.ca_bundle_file),
         ):
             if path is None:
-                self._problems.append(f"{env_name} is required because {names} is mtls")
+                self._problems.append(f"{env_name} is required because the {names} hop uses it")
             elif not path.is_file():
                 self._problems.append(f"{env_name}={path}: no such file")
 
     def _read_database(self, tls: TlsSettings) -> DatabaseSettings:
-        mode = tls.mode_of(Hop.POSTGRES)
+        uses_tls = tls.uses_tls(Hop.POSTGRES)
         sslmode = self._optional_choice(ENV_DATABASE_SSLMODE, DatabaseSslMode)
         if sslmode is None:
             self._problems.append(f"{ENV_DATABASE_SSLMODE} is required (never inferred)")
-            sslmode = SSLMODE_FOR_MODE[mode]
-        elif sslmode is not SSLMODE_FOR_MODE[mode]:
+            sslmode = SSLMODE_FOR_TLS[uses_tls]
+        elif sslmode is not SSLMODE_FOR_TLS[uses_tls]:
             self._problems.append(
-                f"{ENV_DATABASE_SSLMODE}={sslmode} contradicts {hop_env_name(Hop.POSTGRES)}={mode}"
+                f"{ENV_DATABASE_SSLMODE}={sslmode} contradicts "
+                f"{hop_env_name(Hop.POSTGRES)}={str(uses_tls).lower()}"
             )
+        if uses_tls and not tls.presents_cert(Hop.POSTGRES):
+            # Without a client certificate the server is still verified, against SSL_CERT_FILE.
+            ca_bundle = tls.ca_bundle_file
+            if ca_bundle is None:
+                self._problems.append(
+                    f"{ENV_CA_BUNDLE_FILE} is required because the postgres hop uses TLS"
+                )
+            elif not ca_bundle.is_file():
+                self._problems.append(f"{ENV_CA_BUNDLE_FILE}={ca_bundle}: no such file")
         password = self._env.get(ENV_DATABASE_PASSWORD) or None
-        if password is not None and mode is TransportMode.MTLS:
+        if password is not None and tls.presents_cert(Hop.POSTGRES):
             self._problems.append(
-                f"{ENV_DATABASE_PASSWORD} is set but the postgres hop is mtls (certificate auth)"
+                f"{ENV_DATABASE_PASSWORD} is set but the postgres hop presents a client "
+                "certificate (certificate auth)"
             )
         return DatabaseSettings(
             host=self._required(ENV_DATABASE_HOST),

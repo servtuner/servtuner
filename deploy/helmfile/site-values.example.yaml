@@ -1,7 +1,8 @@
 # The site's values for the servtuner chart: copy to deploy/site-values.yaml and edit.
 # Every value of deploy/helm/servtuner/values.yaml may be set here; these are the ones every site decides.
 tls:
-  mode: mtls                     # mtls (default) or platform: deploy/helm/servtuner/values.yaml
+  enabled: true                  # TLS on every hop (false: plain HTTP); deploy/helm/servtuner/values.yaml
+  clientAuth: required           # the api listener: required, optional or none
   source: cert-manager
   certManager:
     issuerRef: {kind: ClusterIssuer, name: <your-issuer>}

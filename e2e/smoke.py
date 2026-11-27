@@ -3,7 +3,7 @@
     PYTHONPATH=api uv run --project api python e2e/smoke.py      (or: just e2e-smoke)
 
 Starts Postgres (container), servtuner-api with the SubprocessRunner and bench's
-null engine in platform mode, and the Vite dev server proxying /api to it,
+null engine without TLS, and the Vite dev server proxying /api to it,
 then runs `npx playwright test` in frontend/. Everything is torn down on exit.
 One transport mode is enough here: the browser never talks to the api
 directly (nginx or the dev proxy does), and both modes are covered by
@@ -22,6 +22,7 @@ from common import (
     E2E_ADMIN_PASSWORD,
     E2E_ADMIN_USERNAME,
     REPOSITORY,
+    Security,
     auth_environment,
     create_first_admin,
     scratch_directory,
@@ -30,7 +31,6 @@ from common import (
 )
 from local import build_bench, free_port, start_api, start_postgres
 
-from servtuner_api.settings.models import TransportMode
 from tests.support.certs import LOOPBACK, create_authority
 
 FRONTEND = REPOSITORY / "frontend"
@@ -78,12 +78,12 @@ def main() -> int:
             "SERVTUNER_BENCH_BINARY": str(build_bench(scratch)),
             "SERVTUNER_DATA_DIR": str(scratch / "data"),
             "SERVTUNER_API_PORT": str(api_port),
-            "SERVTUNER_TLS_MODE": TransportMode.PLATFORM.value,
+            "SERVTUNER_TLS_ENABLED": Security.TLS_OFF.tls_flag,
             # Lets the smoke store a managed target; nothing is deployed (no Kubernetes runner).
             "SERVTUNER_TUNING_NAMESPACES": SMOKE_TUNING_NAMESPACE,
         } | auth_environment(scratch, is_cookie_secure=False)
         authority = create_authority(scratch / "pki")
-        environment |= start_postgres(stack, TransportMode.PLATFORM, scratch, authority)
+        environment |= start_postgres(stack, Security.TLS_OFF, scratch, authority)
         start_api(stack, environment, scratch / "api.log")
         api_url = f"http://{LOOPBACK}:{api_port}"
         frontend_url = f"http://{LOOPBACK}:{frontend_port}/"

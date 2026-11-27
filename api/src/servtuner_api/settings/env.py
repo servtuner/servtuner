@@ -56,7 +56,16 @@ ENV_AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID"
 ENV_AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
 
 
-ENV_TLS_MODE = "SERVTUNER_TLS_MODE"
+# Whether hops use TLS ("true" or "false"); each hop can override it.
+ENV_TLS_ENABLED = "SERVTUNER_TLS_ENABLED"
+
+
+# The api listener's client-certificate policy: required, optional or none.
+ENV_TLS_CLIENT_AUTH = "SERVTUNER_TLS_CLIENT_AUTH"
+
+
+# servtuner 0.1's names, refused with their replacement.
+LEGACY_ENV_TLS_MODE = "SERVTUNER_TLS_MODE"
 
 
 ENV_TLS_CERT_FILE = "SERVTUNER_TLS_CERT_FILE"
@@ -232,5 +241,12 @@ ENV_AUTH_FORWARD_EMAIL_HEADER = "SERVTUNER_AUTH_FORWARD_EMAIL_HEADER"
 ENV_AUTH_FORWARD_PROVISIONING = "SERVTUNER_AUTH_FORWARD_PROVISIONING"
 
 
-def hop_env_name(hop: Hop) -> str:
+def hop_env_name(hop: Hop, setting: str = "ENABLED") -> str:
+    """A hop's override: SERVTUNER_TLS_HOP_<HOP>_ENABLED, or _CLIENT_CERT for a hop to a server
+    servtuner does not run."""
+    return f"SERVTUNER_TLS_HOP_{hop.name}_{setting}"
+
+
+def legacy_hop_env_name(hop: Hop) -> str:
+    """servtuner 0.1's per-hop mode, refused with its replacement."""
     return f"SERVTUNER_TLS_HOP_{hop.name}"

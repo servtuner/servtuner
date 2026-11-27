@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 from servtuner_api.database import RunRow
 from servtuner_api.datadir import run_bundle_dir
 from servtuner_api.errors import ForeignStoreError
-from servtuner_api.settings.models import S3Settings, TlsSettings, TransportMode
+from servtuner_api.settings.models import Hop, S3Settings, TlsSettings
 
 MANIFEST_FILE = "manifest.json"
 SUMMARY_FILE = "summary.json"
@@ -149,12 +149,11 @@ class S3BundleStore:
     def __init__(
         self,
         settings: S3Settings,
-        object_store_mode: TransportMode,
         tls: TlsSettings,
         client: Any = None,
     ) -> None:
         self._settings = settings
-        self._client: Any = client or _s3_client(settings, object_store_mode, tls)
+        self._client: Any = client or _s3_client(settings, tls)
 
     name = DEFAULT_STORE_NAME
 
@@ -227,7 +226,7 @@ def _is_missing(error: ClientError) -> bool:
     return code in {"NoSuchKey", "404", "NotFound"}
 
 
-def _s3_client(settings: S3Settings, object_store_mode: TransportMode, tls: TlsSettings) -> Any:
+def _s3_client(settings: S3Settings, tls: TlsSettings) -> Any:
     """A boto3 client for the store, with the object-store hop's TLS."""
     options: dict[str, Any] = {
         "s3": {"addressing_style": "path" if settings.force_path_style else "auto"},
@@ -237,10 +236,11 @@ def _s3_client(settings: S3Settings, object_store_mode: TransportMode, tls: TlsS
         "response_checksum_validation": settings.checksum_mode.value,
     }
     verify: str | bool = True
-    if object_store_mode is TransportMode.MTLS and settings.endpoint is not None:
-        assert tls.cert_file is not None and tls.key_file is not None  # Settings require them
-        options["client_cert"] = (str(tls.cert_file), str(tls.key_file))
+    if tls.uses_tls(Hop.OBJECT_STORE) and settings.endpoint is not None:
         verify = str(tls.ca_bundle_file) if tls.ca_bundle_file else True
+        if tls.presents_cert(Hop.OBJECT_STORE):
+            assert tls.cert_file is not None and tls.key_file is not None  # Settings require them
+            options["client_cert"] = (str(tls.cert_file), str(tls.key_file))
     # Static keys from the chart's Secret with source secret; None leaves the
     # SDK's default chain (Pod Identity, IRSA, an instance role) to find them.
     session = boto3.session.Session(

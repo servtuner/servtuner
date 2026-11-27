@@ -60,9 +60,9 @@ Generated outputs are checked in, and CI fails if they're stale:
   `const`, `required` and `additionalProperties`, and avoid 2020-12-only
   keywords (`$dynamicRef`, `prefixItems`, `unevaluated*`).
 - Keep schemas simple enough for every generator. Avoid `oneOf` cleverness and
-  use `type` discriminators. The TLS rules (`mtls`, `platform` and `tls`, no mixing)
-  are expressed as a discriminated object, so every language enforces them
-  identically.
+  use `type` discriminators. The TLS rules (TLS on or off, no certificate settings
+  without TLS) are expressed as a discriminated object, so every language enforces
+  them identically.
 
 ## Conventions
 
@@ -73,15 +73,15 @@ Generated outputs are checked in, and CI fails if they're stale:
 - **Field names** are stable once published (`apiVersion`, `secretRef`,
   `input_tokens`, `ttft_p95`, `optional_catalogs`). Units go in names that
   carry a number (`send_lag_seconds`, `size_bytes`).
-- **TLS is a `oneOf` of three closed objects**, discriminated by `mode`:
-  `{mode: mtls, secretRef: {name}}` (secretRef required), `{mode: platform}`
-  (nothing else allowed) and `{mode: tls, …}` (verify the server, present no
-  client certificate; `tlsServer`). `tls` is required wherever it
-  appears (`target`, `prometheus`): the mode is never inferred, so a missing
-  `tls` is an error, not a default of `mtls`. Which URL scheme goes with which
-  mode (`mtls` with `http://`) is a cross-field rule that `servtuner validate`
-  enforces; the schema only checks the endpoint starts with `http://` or
-  `https://`.
+- **TLS is a `oneOf` of two closed objects**, discriminated by `enabled`:
+  `{enabled: false}` (nothing else allowed) and `{enabled: true, clientCert?:
+  {secretRef}, caSecretRef?}`. `tls` is required wherever it appears (`target`,
+  `upstreams[]`, `prometheus`): it is never inferred, so a missing `tls` is an
+  error, not a default. Which URL scheme goes with TLS (`https://`) is a
+  cross-field rule that `servtuner validate` enforces; the schema only checks
+  the endpoint starts with `http://` or `https://`. servtuner 0.1's
+  `servtuner.dev/v1` with `tls.mode` is refused on input and upgraded when read
+  from stored data (bench `spec/legacy.go`, api `legacy.py`).
 - **Optional means absent, never `null`.** Defaults are declared with
   `default` and applied by each generated type (Go on unmarshal, pydantic on
   validate). An optional object that is absent stays absent (no defaults are
@@ -184,13 +184,13 @@ and `api/tests/test_schema_conformance.py`.
 
 go-jsonschema v0.24.1:
 - **`oneOf` becomes `interface{}`** (the `Tls` type). The variants are still
-  generated (`TlsMtls`, `TlsPlatform`), and `spec.DecodeTLS` picks one by
-  `mode`, and refuses a lossy decode (extra keys such as `skipVerify`, or a
-  `secretRef` on `platform`). Unmarshalling the document does not enforce the
+  generated (`TlsDisabled`, `TlsEnabled`), and `spec.DecodeTLS` picks one by
+  `enabled`, and refuses a lossy decode (extra keys such as `skipVerify`, or a
+  `clientCert` with `enabled: false`). Unmarshalling the document does not enforce the
   TLS rule; schema validation does, so use `spec.ParseRunSpec`. Do not replace
   this with a hybrid "object with both properties plus oneOf": Go gets a
   struct, but datamodel-code-generator then merges the properties into each
-  variant and lets `platform` carry a `secretRef`.
+  variant and lets `enabled: false` carry a `clientCert`.
 - **Multi-type properties** (`knobValue`: string, number or boolean) become
   `interface{}` with no validation. The knob value type is checked by the
   schema validator only.

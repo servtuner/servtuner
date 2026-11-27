@@ -83,12 +83,12 @@ class Runner(Protocol):
     from its id.
 - `SubprocessRunner` runs the same `servtuner run …` command locally, writing to a
   local bundle directory. It is meant for development, a single-node install,
-  or CI. In `mtls` mode it reuses the api's own certificate as bench's client
-  certificate; the Kubernetes runner uses `SERVTUNER_TLS_BENCH_SECRET`, and trusts
+  or CI. When bench presents a client certificate to the api, it reuses the
+  api's own certificate; the Kubernetes runner uses `SERVTUNER_TLS_BENCH_SECRET`, and trusts
   the api through `--tls-ca-file` with the `ca.crt` of `SERVTUNER_TLS_CA_SECRET`.
   `SERVTUNER_ENGINE_OVERRIDE=null` (dev and e2e only, never set by the chart) makes it
   pass `--engine-override null`, so a run needs no real load engine. `just
-  e2e-local-mtls` and `just e2e-local-platform` use it (`e2e/local.py`).
+  e2e-local-mutual-tls` and `just e2e-local-tls-off` use it (`e2e/local.py`).
 
 - **Sharded runs** (`engine.shards` N > 1): the Kubernetes runner
   makes the Job `Indexed` with N completions and parallelism, passes
@@ -265,12 +265,17 @@ POST/DELETE /users/{id}/identities, DELETE /users/{id}/sessions, GET /audit   us
   re-run is a new run with the same spec hash.
 - Secrets are only referenced by name. Run tokens are scoped to a single run
   and expire.
-- **Transport security per hop**. Each hop is `mtls` (the default)
-  or `platform`, set in config and never inferred:
-  - The API serves either mTLS (requiring client certs from bench and the
-    ingress) or plain HTTP.
-  - To Postgres it uses `verify-full` with a client cert, or `sslmode=disable`.
-  - To the object store it uses mTLS, or plain HTTP.
+- **Transport security per hop**. Each hop has TLS on or off and, for hops to
+  servers servtuner does not run, a client certificate or not; set in config
+  (`SERVTUNER_TLS_*`) and never inferred:
+  - The API serves TLS with `clientAuth` `required` (the default), `optional`
+    or `none`, or plain HTTP. bench presents its certificate unless it is `none`.
+  - To Postgres it uses `verify-full` with or without a client cert (a password
+    then), or `sslmode=disable`.
+  - To the object store it uses TLS, with or without a client cert, or plain HTTP.
+  - servtuner 0.1's `SERVTUNER_TLS_MODE` and per-hop modes are refused with their
+    replacement; stored 0.1 data is upgraded when read (`legacy.py`) or by
+    migration 0002.
 
   Rules:
   - Certificates are read from mounted `kubernetes.io/tls` Secret files, and
@@ -281,10 +286,11 @@ POST/DELETE /users/{id}/identities, DELETE /users/{id}/sessions, GET /audit   us
     beside `SERVTUNER_TLS_CERT_FILE`), never the combined bundle, which would
     admit any publicly issued certificate.
   - The per-run token for bench is required in both modes.
-  - The `KubernetesJobRunner` passes each hop's mode and Secret names through
+  - The `KubernetesJobRunner` passes each hop's TLS and Secret names through
     to the Job.
-  - Tests cover both modes, and rejecting a client with no certificate in
-    `mtls` mode.
+  - Tests cover TLS on and off and each `clientAuth`: a client with no
+    certificate is refused under `required`, accepted under `optional` and
+    `none`, and an untrusted certificate is refused under `optional`.
 - RBAC: the API's ServiceAccount can manage Jobs, ConfigMaps and Secrets **only
   in the bench namespace**.
 - Tests use a fake Runner and a temporary Postgres (testcontainers). The

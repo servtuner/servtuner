@@ -66,7 +66,7 @@ def test_create_defaults_to_plain_http_and_derives_the_run_target(client: TestCl
     created = client.post("/managed-targets", json=QWEN)
     assert created.status_code == 201, created.text
     target = created.json()
-    assert target["spec"]["transport"] == {"mode": "platform"}
+    assert target["spec"]["transport"] == {"enabled": False}
     assert target["run_target"] == {
         "type": "vllm",
         "endpoint": "http://qwen.servtuner-tune-qwen.svc:8000/v1",
@@ -75,7 +75,7 @@ def test_create_defaults_to_plain_http_and_derives_the_run_target(client: TestCl
             "namespace": "servtuner-tune-qwen",
             "selector": {"servtuner.dev/managed-target": "qwen"},
         },
-        "tls": {"mode": "platform"},
+        "tls": {"enabled": False},
         "upstreams": [],
     }
     assert target["run_labels"] == {"servtuner.managed-target": target["id"].lower()}
@@ -85,16 +85,18 @@ def test_create_defaults_to_plain_http_and_derives_the_run_target(client: TestCl
 
 def test_tls_uses_the_targets_own_certificate_and_a_ca_copy_for_bench(client: TestClient) -> None:
     body = with_spec(
-        transport={"mode": "tls", "issuer": {"kind": "ClusterIssuer", "name": "servtuner-ca"}},
+        transport={"enabled": True, "issuer": {"kind": "ClusterIssuer", "name": "servtuner-ca"}},
         served_model_name="qwen",
     )
     target = client.post("/managed-targets", json=body).json()
     assert target["run_target"]["endpoint"] == "https://qwen.servtuner-tune-qwen.svc:8000/v1"
     assert target["run_target"]["model"] == "qwen"
     assert target["run_target"]["tls"] == {
-        "mode": "tls",
+        "enabled": True,
         "caSecretRef": {"name": "servtuner-managed-qwen-ca"},
     }
+    # Client certificates are not offered yet: the policy is none, in the spec's own shape.
+    assert target["spec"]["transport"]["client_auth"] == "none"
 
 
 @pytest.mark.parametrize(
@@ -108,7 +110,17 @@ def test_tls_uses_the_targets_own_certificate_and_a_ca_copy_for_bench(client: Te
         ({"spec": {**QWEN["spec"], "gpus": 9}}, "gpus"),
         ({"spec": {**QWEN["spec"], "memory": "lots"}}, "memory"),
         ({"spec": {**QWEN["spec"], "transport": {"mode": "mtls"}}}, "transport"),
-        ({"spec": {**QWEN["spec"], "transport": {"mode": "tls"}}}, "exactly one certificate"),
+        ({"spec": {**QWEN["spec"], "transport": {"enabled": True}}}, "exactly one certificate"),
+        (
+            {
+                "spec": {
+                    **QWEN["spec"],
+                    "transport": {"enabled": True, "client_auth": "required", "secret": "c"},
+                }
+            },
+            "client_auth",
+        ),
+        ({"spec": {**QWEN["spec"], "transport": {"enabled": False, "secret": "c"}}}, "transport"),
         ({"spec": {**QWEN["spec"], "hf_token": {"name": "hf", "key": "t", "value": "x"}}}, "value"),
     ],
 )

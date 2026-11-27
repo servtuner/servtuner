@@ -1,12 +1,13 @@
 """Cluster end to end: the chart on a Kubernetes cluster, in one transport mode.
 
-    PYTHONPATH=api uv run --project api python e2e/cluster.py mtls|platform --image-tag TAG
+    PYTHONPATH=api uv run --project api python e2e/cluster.py mutual-tls|tls-off --image-tag TAG
         [--runner subprocess|kubernetes] [--load] [--keep]
 
 Builds the api and frontend images, loads them into the kind cluster, installs the chart into a
 fresh namespace ``servtuner-e2e-<mode>`` and drives it through the ingress: a run is created through
 the api, polled to ``succeeded``, its bundle is found in the api pod, and the UI is shown to list
-it. In ``mtls`` mode it also shows that the api refuses a connection without a client certificate.
+it. With ``mutual-tls`` it also shows that the api refuses a connection without a client
+certificate.
 With ``--runner kubernetes`` bench runs as a Job (namespace suffix ``-jobs``), and the run must be
 seen to have been a Job that completed.
 The local counterpart (no cluster) is ``e2e/local.py``; the run exercise is shared in ``common.py``.
@@ -17,7 +18,8 @@ Safety, because the cluster may be shared:
 - It applies no manifest itself, only `kubectl create namespace` and `helm install`. The chart,
   through helm, creates the cluster-scoped ClusterRole and ClusterRoleBinding
   ``<release>-bench-nodes``; cleanup checks that they are gone after `helm uninstall` and deletes
-  exactly those two names if not. The ``servtuner-ca`` ClusterIssuer (mtls) must already exist:
+  exactly those two names if not. The ``servtuner-ca`` ClusterIssuer (mutual-tls) must already
+  exist:
   apply deploy/kind/cluster-issuer.yaml yourself.
 - Every run builds images under its own tag (``<--image-tag>-<nonce>``) and removes exactly those
   tags from every kind node and from local docker on exit.
@@ -47,6 +49,7 @@ import httpx2
 from common import (
     EXAMPLE_FOR_MODE,
     REPOSITORY,
+    Security,
     check,
     check_manifest_succeeded,
     client_context,
@@ -74,7 +77,6 @@ from tuning import (
 )
 
 from servtuner_api.datadir import run_bundle_dir
-from servtuner_api.settings.models import TransportMode
 from tests.support.certs import LOOPBACK
 from tests.support.specs import example_bytes
 
@@ -103,7 +105,7 @@ VLLM_KEY_SECRET = "servtuner-host-vllm-key"
 RUNNERS = ("subprocess", "kubernetes")
 # The label the Kubernetes runner puts on a run's Job and pod (api kubernetes_runner.RUN_ID_LABEL).
 RUN_ID_LABEL = "servtuner.dev/run-id"
-# The client-certificate Secret the mtls example RunSpec names for its target
+# The client-certificate Secret the mutual-tls example RunSpec names for its target
 # (schema/examples/runspec/valid/minimal-vllm-client-cert.json).
 EXAMPLE_TARGET_CLIENT_SECRET = "servtuner-client"
 # Real load against the mock, and against servtuner's Bifrost routing to the mock.
@@ -162,7 +164,7 @@ class Deployment:
     """
 
     context: str
-    mode: TransportMode
+    mode: Security
     image_tag: str
     keep: bool
     # Real load runs instead of the null engine (--load).
@@ -173,7 +175,7 @@ class Deployment:
     runner: str = "subprocess"
     # RunSpecs to run instead of LOAD_RUNSPECS with --load (--runspec).
     runspecs: tuple[Path, ...] = ()
-    # A tuning session on the mock as a managed vLLM (--tuning; Job runner, platform).
+    # A tuning session on the mock as a managed vLLM (--tuning; Job runner, tls-off).
     tuning: bool = False
     # A tuning session on a real GPU host through its launcher (--tuning-host).
     tuning_host: bool = False
@@ -294,7 +296,7 @@ def require_context(deployment: Deployment) -> None:
 
 
 def require_cluster_issuer(deployment: Deployment) -> None:
-    if deployment.mode is not TransportMode.MTLS:
+    if deployment.mode is not Security.MUTUAL_TLS:
         return
     ready = run_command(
         [
@@ -424,7 +426,6 @@ def install_chart(
     deployment: Deployment, stack: ExitStack, extra_values: tuple[Path, ...] = ()
 ) -> None:
     settings = {
-        "tls.mode": deployment.mode.value,
         "ingress.host": deployment.host,
         "frontend.basePath": UI_BASE_PATH,
         # The images just built and loaded, not the published ones the chart defaults to.
@@ -438,10 +439,12 @@ def install_chart(
         settings["bench.image.tag"] = deployment.image_tag
     if deployment.tuning:
         settings["rbac.tuning.namespaces[0]"] = deployment.target_namespace
-    if deployment.mode is TransportMode.MTLS:
+    if deployment.mode is Security.MUTUAL_TLS:
         settings["tls.certManager.issuerRef.name"] = CLUSTER_ISSUER
     # --set-string: a host or tag with a comma or a number-like value cannot inject or be coerced.
     set_arguments = [f"--set-string={key}={value}" for key, value in settings.items()]
+    # tls.enabled must reach the chart as a boolean, so it is the one plain --set.
+    set_arguments.append(f"--set=tls.enabled={deployment.mode.tls_flag}")
     if not deployment.keep:
         # Registered first, so it runs even if the install itself half-succeeded.
         stack.callback(uninstall_chart, deployment)
@@ -621,7 +624,7 @@ def gateway_service(deployment: Deployment) -> str:
 
 
 def check_backend_hostname_is_verified(deployment: Deployment, api: httpx2.Client) -> None:
-    """mtls through the gateway: a wrong hostname in the BackendTLSPolicy must break the hop, so
+    """Mutual TLS through the gateway: a wrong BackendTLSPolicy hostname must break the hop, so
     the api's certificate is checked by name and not only by CA. The policy is restored after.
     """
     policy = f"backendtlspolicy/{deployment.release}-api"
@@ -638,7 +641,9 @@ def check_backend_hostname_is_verified(deployment: Deployment, api: httpx2.Clien
             lambda: api.get("/healthz").status_code >= 500,
             ROUTE_TIMEOUT_SECONDS,
         )
-        print("ok   mtls: a BackendTLSPolicy hostname the api's certificate lacks breaks the hop")
+        print(
+            "ok   mutual-tls: a BackendTLSPolicy hostname the api certificate lacks breaks the hop"
+        )
     finally:
         set_hostname(right)
     wait_for(
@@ -693,10 +698,10 @@ def check_bundle_in_pod(deployment: Deployment, run_id: str) -> None:
 
 def provide_example_secrets(deployment: Deployment, scratch: Path) -> None:
     """A Job mounts every Secret its RunSpec names, and the runner refuses a run whose Secret is
-    missing. The mtls example names a target client certificate; supply one, as an operator would,
-    by copying bench's own certificate. It lives in this run's namespace and goes with it.
+    missing. The mutual-tls example names a target client certificate; supply one, as an operator
+    would, by copying bench's own certificate. It lives in this run's namespace and goes with it.
     """
-    if not (deployment.runs_jobs and deployment.mode is TransportMode.MTLS):
+    if not (deployment.runs_jobs and deployment.mode is Security.MUTUAL_TLS):
         return
     source = f"{deployment.release}-bench-tls"
     cert = secret_file(deployment, source, "tls.crt", scratch / "client.crt")
@@ -923,7 +928,7 @@ def check_ui_lists_run(
     )
 
 
-# --- 6. mtls: the api refuses an anonymous client -----------------------------------------------
+# --- 6. mutual-tls: the api refuses an anonymous client ----------------------------------------
 
 
 def secret_file(deployment: Deployment, secret: str, key: str, destination: Path) -> Path:
@@ -962,7 +967,7 @@ def check_api_refuses_anonymous_client(
     ) as client:
         check(
             client.get("/healthz").is_success,
-            "mtls: the ingress's client certificate is accepted",
+            "mutual-tls: the ingress's client certificate is accepted",
         )
 
 
@@ -1144,7 +1149,7 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
                     ROUTE_TIMEOUT_SECONDS,
                 )
 
-                if deployment.gateway and mode is TransportMode.MTLS:
+                if deployment.gateway and mode is Security.MUTUAL_TLS:
                     check_backend_hostname_is_verified(deployment, api)
                 if deployment.forward_header:
                     step(
@@ -1271,11 +1276,11 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
             step(7, "check the UI lists the run")
             check_ui_lists_run(deployment, ui, api_path, run_id)
 
-        step(8, "mtls: a direct connection without a client certificate is refused")
-        if mode is TransportMode.MTLS:
+        step(8, "mutual-tls: a direct connection without a client certificate is refused")
+        if mode is Security.MUTUAL_TLS:
             check_api_refuses_anonymous_client(deployment, stack, scratch)
         else:
-            print("skipped: platform mode has no client certificates")
+            print("skipped: tls-off has no client certificates")
     except BaseException:
         print_diagnostics(deployment)
         raise
@@ -1296,7 +1301,7 @@ def ignore_signals_during_cleanup() -> None:
 
 def parse_arguments(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0] if __doc__ else None)
-    parser.add_argument("mode", choices=[mode.value for mode in TransportMode])
+    parser.add_argument("mode", choices=[mode.value for mode in Security])
     parser.add_argument(
         "--image-tag",
         required=True,
@@ -1328,13 +1333,13 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--tuning",
         action="store_true",
-        help="tune the mock as a managed vLLM (needs --runner kubernetes, platform)",
+        help="tune the mock as a managed vLLM (needs --runner kubernetes, tls-off)",
     )
     parser.add_argument(
         "--tuning-host",
         action="store_true",
         help="tune a GPU host's vLLM through servtuner launcher (needs --runner kubernetes, "
-        "platform, and the SERVTUNER_E2E_* host variables)",
+        "tls-off, and the SERVTUNER_E2E_* host variables)",
     )
     parser.add_argument(
         "--ui",
@@ -1345,7 +1350,7 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--forward-header",
         action="store_true",
-        help="forward-header auth behind ingress-nginx and a stub auth service " "(platform mode)",
+        help="forward-header auth behind ingress-nginx and a stub auth service " "(tls-off)",
     )
     parser.add_argument(
         "--gateway",
@@ -1364,7 +1369,7 @@ def main(argv: list[str]) -> int:
     arguments = parse_arguments(argv)
     deployment = Deployment(
         context=os.environ.get(CONTEXT_ENV, DEFAULT_CONTEXT),
-        mode=TransportMode(arguments.mode),
+        mode=Security(arguments.mode),
         # A tag per run, so cleanup removes exactly what this run loaded and never a shared tag.
         image_tag=f"{arguments.image_tag}-{secrets.token_hex(4)}",
         keep=arguments.keep,
@@ -1385,20 +1390,20 @@ def main(argv: list[str]) -> int:
         print(f"e2e-cluster: --tuning-host needs {', '.join(missing)}", file=sys.stderr)
         return 2
     if (deployment.tuning or deployment.tuning_host) and (
-        deployment.runner != "kubernetes" or deployment.mode is not TransportMode.PLATFORM
+        deployment.runner != "kubernetes" or deployment.mode is not Security.TLS_OFF
     ):
         # The deployer needs the Job runner; kind's Prometheus cannot verify a tls target.
         print(
-            "e2e-cluster: --tuning needs --runner kubernetes and platform mode",
+            "e2e-cluster: --tuning needs --runner kubernetes and tls-off",
             file=sys.stderr,
         )
         return 2
     if deployment.forward_header and (
-        deployment.mode is not TransportMode.PLATFORM or deployment.tuning or deployment.tuning_host
+        deployment.mode is not Security.TLS_OFF or deployment.tuning or deployment.tuning_host
     ):
         # The NetworkPolicy probe speaks plain HTTP to the api; tuning runs need no auth variant.
         print(
-            "e2e-cluster: --forward-header needs platform mode, without --tuning",
+            "e2e-cluster: --forward-header needs tls-off, without --tuning",
             file=sys.stderr,
         )
         return 2

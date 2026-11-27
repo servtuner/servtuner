@@ -28,15 +28,17 @@ just test
 ```
 
 For changes to the UI or the api's run flow, also run `just e2e-smoke`. For
-chart changes, `just e2e-platform` or `just e2e-mtls` on a kind cluster.
+chart changes, `just e2e-tls-off` or `just e2e-mutual-tls` on a kind cluster.
 
 ## Rules the review checks
 
 - **Change the schema, not generated code.** Edit `schema/json/` (or the api's
   models for the OpenAPI document), then run `just gen` and commit the result.
-- **Every transport mode is tested.** A connection is `mtls` (the default),
-  `platform`, or, for benchmark hops only, `tls`. A new client or server is
-  tested in every mode it supports, and there is never a skip-verify option.
+- **Every TLS setting is tested.** A connection has TLS on or off, and a client
+  certificate or not; a server servtuner runs requires client certificates,
+  verifies them if sent, or asks for none (`clientAuth`). A new client or server
+  is tested in each combination it supports, and there is never a skip-verify
+  option.
 - **No secrets in runs or values.** RunSpecs and chart values name Kubernetes
   Secrets; they never hold a credential. Captured env vars and headers are
   redacted.

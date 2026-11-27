@@ -61,6 +61,7 @@ from servtuner_api.runner import (
     ObjectStoreClient,
     output_arguments,
     shards_in,
+    tls_flag,
 )
 from servtuner_api.secret_store import secret_names_in
 from servtuner_api.settings.env import (
@@ -74,7 +75,7 @@ from servtuner_api.settings.env import (
     ENV_S3_REGION,
     NULL_ENGINE,
 )
-from servtuner_api.settings.models import AntiAffinity, TransportMode
+from servtuner_api.settings.models import AntiAffinity
 
 
 class JobBuilder:
@@ -94,7 +95,7 @@ class JobBuilder:
                 str(run_bundle_dir(config.data_dir, run_id)),
                 config.s3,
                 ObjectStoreClient(
-                    config.object_store_mode,
+                    config.object_store_hop,
                     str(BENCH_TLS_DIR / "tls.crt"),
                     str(BENCH_TLS_DIR / "tls.key"),
                     str(CA_DIR / "ca.crt"),
@@ -106,8 +107,8 @@ class JobBuilder:
             config.api_url,
             "--run-token-file",
             str(TOKEN_DIR / TOKEN_KEY),
-            "--api-tls-mode",
-            config.api_tls_mode.value,
+            "--api-tls",
+            tls_flag(config.api_hop.enabled),
         ]
         if config.engine_override == NULL_ENGINE:
             args += ["--engine-override", NULL_ENGINE]
@@ -116,14 +117,15 @@ class JobBuilder:
         if shards > 1:
             # Kubernetes expands $(VAR) from the container's env (_env).
             args += [SHARD_INDEX_FLAG, f"$({COMPLETION_INDEX_ENV})"]
-        if config.api_tls_mode is TransportMode.MTLS:
+        if config.api_hop.enabled:
+            # The private CA that signed the api's certificate.
+            args += ["--tls-ca-file", str(CA_DIR / "ca.crt")]
+        if config.api_hop.client_cert:
             args += [
                 "--tls-cert-file",
                 str(BENCH_TLS_DIR / "tls.crt"),
                 "--tls-key-file",
                 str(BENCH_TLS_DIR / "tls.key"),
-                "--tls-ca-file",
-                str(CA_DIR / "ca.crt"),
             ]
         return args
 

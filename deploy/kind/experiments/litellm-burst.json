@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "litellm-burst",
   "experiment": "litellm-burst",
@@ -20,7 +20,7 @@
       }
     },
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -61,7 +61,7 @@
   "prometheus": {
     "url": "http://127.0.0.1:19090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "slos": {

@@ -1,0 +1,3 @@
+# expect: tls.enabled must be true or false
+tls: {enabled: "yes"}
+storage: {file: {pvc: {create: true}}}

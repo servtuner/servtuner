@@ -317,7 +317,7 @@ function KubernetesFields({
           value={state.transport}
           onChange={(value) => update({ transport: value as CertificateSource })}
           data={[
-            { value: "platform", label: "Plain HTTP" },
+            { value: "plain", label: "Plain HTTP" },
             { value: "issuer", label: "TLS from a cert-manager ClusterIssuer" },
             { value: "secret", label: "TLS from a Secret" },
           ]}

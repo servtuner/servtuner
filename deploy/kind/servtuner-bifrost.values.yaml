@@ -77,7 +77,7 @@ bifrost:
           models: ["mock-model"]
       network_config:
         # No /v1: the OpenAI provider appends /v1/chat/completions and /v1/completions itself.
-        # Plain HTTP, so the mock must be installed with tls.mode=platform.
+        # Plain HTTP, so the mock must be installed with tls.enabled=false.
         base_url: http://openai-mock.servtuner-mock.svc:8000
         # Required: the mock's Service IP is a private address, which Bifrost refuses to dial otherwise.
         allow_private_network: true

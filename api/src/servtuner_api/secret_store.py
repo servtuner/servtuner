@@ -47,7 +47,7 @@ SECRET_REF_KEYS = frozenset({"secretRef", "caSecretRef"})
 def secret_names_in(spec: object) -> list[str]:
     """Every Secret a RunSpec (or a part of one) names, sorted and once each.
 
-    A name is any ``secretRef`` (credentials, mtls client certificates) or
+    A name is any ``secretRef`` (credentials, client certificates) or
     ``caSecretRef`` (a tls hop's private CA).
     """
     found: set[str] = set()

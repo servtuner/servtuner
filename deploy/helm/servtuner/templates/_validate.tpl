@@ -1,6 +1,6 @@
 {{/*
 All value validation lives here and is included once, from validate.yaml. Errors are
-collected so one render reports every contradiction. Transport modes never mix on a
+collected so one render reports every contradiction. TLS and plain settings never mix on a
 connection and are never inferred.
 */}}
 {{- define "servtuner.validate" -}}
@@ -9,45 +9,80 @@ connection and are never inferred.
 {{- $root := . -}}
 {{- $tls := $values.tls -}}
 
-{{- /* tls.mode, tls.source, tls.hops.* */ -}}
-{{- if not (has $tls.mode (list "mtls" "platform")) -}}
-  {{- $errors = append $errors (printf "tls.mode %q is unknown; use mtls or platform" $tls.mode) -}}
+{{- /* tls.enabled, tls.clientAuth, tls.source, tls.hops.* */ -}}
+{{- $tlsValid := true -}}
+{{- if hasKey $tls "mode" -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors (printf "tls.mode %q was replaced in servtuner 0.2: set tls.enabled (true or false) and tls.clientAuth (required, optional or none)" (toString $tls.mode)) -}}
+{{- end -}}
+{{- if not (kindIs "bool" $tls.enabled) -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors (printf "tls.enabled must be true or false, not %q" (toString $tls.enabled)) -}}
+{{- end -}}
+{{- if not (has $tls.clientAuth (list "required" "optional" "none")) -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors (printf "tls.clientAuth %q is unknown; use required, optional or none" (toString $tls.clientAuth)) -}}
 {{- end -}}
 {{- if not (has $tls.source (list "cert-manager" "secret")) -}}
+  {{- $tlsValid = false -}}
   {{- $errors = append $errors (printf "tls.source %q is unknown; use cert-manager or secret" $tls.source) -}}
 {{- end -}}
-{{- range $hop, $mode := $tls.hops -}}
-  {{- if not (has $mode (list "" "mtls" "platform")) -}}
-    {{- $errors = append $errors (printf "tls.hops.%s %q is unknown; use mtls, platform, or empty to inherit tls.mode" $hop $mode) -}}
+{{- $listener := include "servtuner.apiListenerHops" $root | fromJsonArray -}}
+{{- range $hop, $setting := $tls.hops -}}
+  {{- if kindIs "string" $setting -}}
+    {{- $tlsValid = false -}}
+    {{- $errors = append $errors (printf "tls.hops.%s %q was replaced in servtuner 0.2: use {enabled: true|false}%s" $hop $setting (ternary "" ", with clientCert: true|false" (has $hop $listener))) -}}
+  {{- else if not (kindIs "map" $setting) -}}
+    {{- $tlsValid = false -}}
+    {{- $errors = append $errors (printf "tls.hops.%s must be a map: {enabled, clientCert}" $hop) -}}
+  {{- else -}}
+    {{- range $key, $value := $setting -}}
+      {{- if not (has $key (list "enabled" "clientCert")) -}}
+        {{- $tlsValid = false -}}
+        {{- $errors = append $errors (printf "tls.hops.%s.%s is unknown; a hop takes enabled and clientCert" $hop $key) -}}
+      {{- else if not (kindIs "bool" $value) -}}
+        {{- $tlsValid = false -}}
+        {{- $errors = append $errors (printf "tls.hops.%s.%s must be true or false" $hop $key) -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if and (hasKey $setting "clientCert") (has $hop $listener) -}}
+      {{- $tlsValid = false -}}
+      {{- $errors = append $errors (printf "tls.hops.%s.clientCert: this hop reaches the api's own listener, so tls.clientAuth decides" $hop) -}}
+    {{- end -}}
   {{- end -}}
 {{- end -}}
 
-{{- if and (has $tls.mode (list "mtls" "platform")) (has $tls.source (list "cert-manager" "secret")) -}}
-  {{- /* The api has one listener, so its two inbound hops must agree. */ -}}
-  {{- if ne (include "servtuner.hopMode" (dict "root" $root "hop" "benchApi")) (include "servtuner.hopMode" (dict "root" $root "hop" "ingressApi")) -}}
-    {{- $errors = append $errors "tls.hops.benchApi and tls.hops.ingressApi must be the same mode: the api has a single listener" -}}
-  {{- end -}}
-
-  {{- /* Cert Secrets set for a role no mtls hop uses (for example platform with Secrets). */ -}}
-  {{- range $role, $secretName := $tls.secrets -}}
-    {{- if and $secretName (not (include "servtuner.roleNeeded" (dict "root" $root "role" $role))) -}}
-      {{- $errors = append $errors (printf "tls.secrets.%s is set but no mtls hop uses it (platform mode must not carry certificate Secrets)" $role) -}}
+{{- if $tlsValid -}}
+  {{- range $hop, $setting := $tls.hops -}}
+    {{- if and (eq (toString (get $setting "clientCert")) "true") (not (include "servtuner.hopTls" (dict "root" $root "hop" $hop))) -}}
+      {{- $errors = append $errors (printf "tls.hops.%s.clientCert is true but the hop does not use TLS" $hop) -}}
     {{- end -}}
   {{- end -}}
-  {{- if and $tls.caSecretRef (not (include "servtuner.anyMtls" $root)) -}}
-    {{- $errors = append $errors "tls.caSecretRef is set but every hop is platform (platform mode must not carry certificate Secrets)" -}}
+  {{- /* The api has one listener, so its two inbound hops must agree. */ -}}
+  {{- if ne (include "servtuner.hopTls" (dict "root" $root "hop" "benchApi")) (include "servtuner.hopTls" (dict "root" $root "hop" "ingressApi")) -}}
+    {{- $errors = append $errors "tls.hops.benchApi.enabled and tls.hops.ingressApi.enabled must agree: the api has a single listener" -}}
   {{- end -}}
 
-  {{- /* mtls hops need certificates from the chosen source. */ -}}
+  {{- /* Cert Secrets set for a role no hop uses (for example with TLS off). */ -}}
+  {{- range $role, $secretName := $tls.secrets -}}
+    {{- if and $secretName (not (include "servtuner.roleNeeded" (dict "root" $root "role" $role))) -}}
+      {{- $errors = append $errors (printf "tls.secrets.%s is set but no hop uses it (a hop without TLS must not carry certificate Secrets)" $role) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if and $tls.caSecretRef (not (include "servtuner.anyTls" $root)) -}}
+    {{- $errors = append $errors "tls.caSecretRef is set but no hop uses TLS (a hop without TLS must not carry certificate Secrets)" -}}
+  {{- end -}}
+
+  {{- /* Hops with TLS need certificates from the chosen source. */ -}}
   {{- if eq $tls.source "secret" -}}
     {{- range $role := list "api" "bench" "ingress" "postgres" "postgresReplication" -}}
       {{- if and (include "servtuner.roleNeeded" (dict "root" $root "role" $role)) (not (get $tls.secrets $role)) -}}
-        {{- $errors = append $errors (printf "tls.source is secret and a mtls hop needs tls.secrets.%s, which is empty" $role) -}}
+        {{- $errors = append $errors (printf "tls.source is secret and a hop with TLS needs tls.secrets.%s, which is empty" $role) -}}
       {{- end -}}
     {{- end -}}
-  {{- else if include "servtuner.anyMtls" $root -}}
+  {{- else if include "servtuner.anyTls" $root -}}
     {{- if not $tls.certManager.issuerRef.name -}}
-      {{- $errors = append $errors "tls.source is cert-manager and a hop is mtls, so tls.certManager.issuerRef.name is required" -}}
+      {{- $errors = append $errors "tls.source is cert-manager and a hop uses TLS, so tls.certManager.issuerRef.name is required" -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
@@ -160,8 +195,8 @@ connection and are never inferred.
   {{- if not ($root.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") -}}
     {{- $errors = append $errors "gateway.enabled but gateway.networking.k8s.io/v1 is not available: install a Gateway API implementation (Envoy Gateway)" -}}
   {{- end -}}
-  {{- if and (eq (include "servtuner.hopMode" (dict "root" $root "hop" "ingressApi")) "mtls") (not ($root.Capabilities.APIVersions.Has "gateway.envoyproxy.io/v1alpha1")) -}}
-    {{- $errors = append $errors "gateway.enabled in mtls needs Envoy Gateway's gateway.envoyproxy.io/v1alpha1 (Backend carries the gateway's client certificate)" -}}
+  {{- if and (include "servtuner.hopTls" (dict "root" $root "hop" "ingressApi")) (not ($root.Capabilities.APIVersions.Has "gateway.envoyproxy.io/v1alpha1")) -}}
+    {{- $errors = append $errors "gateway.enabled with TLS to the api needs Envoy Gateway's gateway.envoyproxy.io/v1alpha1 (its Backend carries the TLS settings and the gateway's client certificate)" -}}
   {{- end -}}
   {{- with $gateway.envoy.extAuth -}}
   {{- if and .enabled (or (not .service.name) (not .service.port)) -}}

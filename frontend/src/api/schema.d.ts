@@ -3559,7 +3559,7 @@ export interface components {
             /** Tolerations */
             tolerations?: components["schemas"]["ManagedTargetCreate_Toleration"][];
             /** Transport */
-            transport?: components["schemas"]["PlatformTransport"] | components["schemas"]["ManagedTargetCreate_TlsTransport"];
+            transport?: components["schemas"]["PlainTransport"] | components["schemas"]["ManagedTargetCreate_TlsTransport"];
         };
         /**
          * ModelCache
@@ -3625,17 +3625,24 @@ export interface components {
         };
         /**
          * TlsTransport
-         * @description Server-authenticated TLS with the target's own certificate: from a
-         *     cert-manager issuer, or a kubernetes.io/tls Secret only this target uses.
+         * @description vLLM serves TLS with the target's own certificate: from a cert-manager issuer, or a
+         *     kubernetes.io/tls Secret only this target uses. Client certificates are not offered yet
+         *     (client_auth is none), so the shape can take them later without changing.
          */
         ManagedTargetCreate_TlsTransport: {
+            /**
+             * Client Auth
+             * @default none
+             * @constant
+             */
+            client_auth: "none";
+            /**
+             * Enabled
+             * @constant
+             */
+            enabled: true;
             /** @default null */
             issuer: components["schemas"]["IssuerRef"] | null;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            mode: "tls";
             /**
              * Secret
              * @default null
@@ -3754,7 +3761,7 @@ export interface components {
             /** Tolerations */
             tolerations?: components["schemas"]["Toleration"][];
             /** Transport */
-            transport?: components["schemas"]["PlatformTransport"] | components["schemas"]["TlsTransport"];
+            transport?: components["schemas"]["PlainTransport"] | components["schemas"]["TlsTransport"];
         };
         /** ManualTokenPrices */
         ManualTokenPrices: {
@@ -4134,6 +4141,19 @@ export interface components {
          * @enum {string}
          */
         Placement: "kubernetes" | "host";
+        /**
+         * PlainTransport
+         * @description Plain HTTP (the default): no TLS from vLLM. Use it where a mesh or an encrypted network
+         *     encrypts the hop, or for local testing.
+         */
+        PlainTransport: {
+            /**
+             * Enabled
+             * @default false
+             * @constant
+             */
+            enabled: false;
+        };
         /** Plan */
         Plan: {
             /** Analyzer Version */
@@ -4344,17 +4364,6 @@ export interface components {
             working_set_bytes: number;
             /** Working Set Bytes Low */
             working_set_bytes_low?: number | null;
-        };
-        /**
-         * PlatformTransport
-         * @description Plain HTTP (the default): the platform is trusted with the hop.
-         */
-        PlatformTransport: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            mode: "platform";
         };
         /** Pod */
         Pod: {
@@ -6438,16 +6447,23 @@ export interface components {
         };
         /**
          * TlsTransport
-         * @description Server-authenticated TLS with the target's own certificate: from a
-         *     cert-manager issuer, or a kubernetes.io/tls Secret only this target uses.
+         * @description vLLM serves TLS with the target's own certificate: from a cert-manager issuer, or a
+         *     kubernetes.io/tls Secret only this target uses. Client certificates are not offered yet
+         *     (client_auth is none), so the shape can take them later without changing.
          */
         TlsTransport: {
-            issuer?: components["schemas"]["IssuerRef"] | null;
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Client Auth
+             * @default none
+             * @constant
              */
-            mode: "tls";
+            client_auth: "none";
+            /**
+             * Enabled
+             * @constant
+             */
+            enabled: true;
+            issuer?: components["schemas"]["IssuerRef"] | null;
             /** Secret */
             secret?: string | null;
         };

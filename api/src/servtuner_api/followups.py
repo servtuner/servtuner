@@ -7,6 +7,7 @@ import re
 from servtuner_api.bundles import BundleStore, bundle_key
 from servtuner_api.database import RunRow
 from servtuner_api.errors import FollowupError
+from servtuner_api.legacy import upgrade_legacy_run_spec
 from servtuner_api.models import Recommendations
 from servtuner_api.models.generated.bundle.recommendations_schema import Recommendation
 
@@ -39,7 +40,8 @@ def followup_document(
         raise FollowupError(
             f"{recommendation_id} is not a knob change with a value: there is nothing to run"
         )
-    document = json.loads(run.spec_raw)
+    # A run created by servtuner 0.1 kept its v1 RunSpec: the follow-up is written as v2.
+    document = upgrade_legacy_run_spec(json.loads(run.spec_raw))
     if not isinstance(document, dict):
         raise FollowupError(f"run {run.id}'s RunSpec is not an object")
     knob = recommendation.subject.name

@@ -20,9 +20,8 @@ from servtuner_api.settings.models import (
     ChecksumMode,
     CredentialsSource,
     S3Settings,
-    TlsSettings,
-    TransportMode,
 )
+from tests.support.tls import plain_tls
 
 ACCESS_KEY = "servtunertestaccess"
 SECRET_KEY = "servtunertestsecret0123"
@@ -37,9 +36,7 @@ SEAWEED_IDENTITIES = {
         }
     ]
 }
-PLAIN_TLS = TlsSettings(
-    hops={}, cert_file=None, key_file=None, ca_bundle_file=None, client_ca_file=None
-)
+PLAIN_TLS = plain_tls()
 
 
 def rustfs() -> DockerContainer:
@@ -124,7 +121,7 @@ def store_for(endpoint: str, *, presign: bool = False) -> S3BundleStore:
         access_key_id=ACCESS_KEY,
         secret_access_key=SECRET_KEY,
     )
-    return S3BundleStore(settings, TransportMode.PLATFORM, PLAIN_TLS)
+    return S3BundleStore(settings, PLAIN_TLS)
 
 
 def test_reads_what_bench_uploaded(endpoint: str) -> None:

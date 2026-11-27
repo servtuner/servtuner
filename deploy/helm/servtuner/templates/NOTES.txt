@@ -21,9 +21,9 @@ User auth: auth.mode={{ .Values.auth.mode }}{{ if eq .Values.auth.mode "local" }
 NetworkPolicies limit who reaches the api; they need a CNI that enforces NetworkPolicy.
 {{- end }}
 
-Transport security: tls.mode={{ .Values.tls.mode }}, source={{ .Values.tls.source }}
+Transport security: tls.enabled={{ .Values.tls.enabled }}, clientAuth={{ .Values.tls.clientAuth }}, source={{ .Values.tls.source }}
 {{- range $hop := keys .Values.tls.hops | sortAlpha }}
-  {{ $hop }}: {{ include "servtuner.hopMode" (dict "root" $ "hop" $hop) }}
+  {{ $hop }}: {{ ternary "TLS" "no TLS" (eq (include "servtuner.hopTls" (dict "root" $ "hop" $hop)) "true") }}{{ if include "servtuner.hopClientCert" (dict "root" $ "hop" $hop) }}, client certificate{{ end }}
 {{- end }}
 {{- if include "servtuner.isNodePinned" . }}
 

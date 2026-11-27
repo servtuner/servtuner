@@ -1,0 +1,3 @@
+# expect: tls.hops.benchApi.clientCert: this hop reaches the api's own listener
+tls: {enabled: true, hops: {benchApi: {clientCert: false}}, source: cert-manager, certManager: {issuerRef: {name: x}}}
+storage: {file: {pvc: {create: true}}}

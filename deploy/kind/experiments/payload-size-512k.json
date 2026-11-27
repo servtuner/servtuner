@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "bifrost-payload-512k",
   "target": {
@@ -24,12 +24,12 @@
           }
         },
         "tls": {
-          "mode": "platform"
+          "enabled": false
         }
       }
     ],
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -70,7 +70,7 @@
   "prometheus": {
     "url": "http://kps-prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "slos": {

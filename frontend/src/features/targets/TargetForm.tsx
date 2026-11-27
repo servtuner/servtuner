@@ -15,7 +15,8 @@ import {
 import { useState } from "react";
 import type { SavedTarget, TargetCreate } from "../../api/types";
 import { FIELD_GRID_STYLE } from "../../components/layout";
-import { tlsBlock, type TlsMode } from "../../api/tls";
+import { type TlsChoice, tlsBlock, tlsChoice } from "../../api/tls";
+import { TlsFields } from "../../components/TlsFields";
 import { PricingSection } from "./PricingSection";
 import { type PricingFields, pricingBody, pricingError, pricingFields } from "./pricing";
 
@@ -35,9 +36,7 @@ interface FormState {
   type: string;
   endpoint: string;
   model: string;
-  tlsMode: TlsMode;
-  /** mtls: the client certificate Secret; tls: the optional private CA Secret. */
-  tlsSecret: string;
+  tls: TlsChoice;
   location: Location;
   namespace: string;
   selector: string;
@@ -51,7 +50,6 @@ const DEFAULT_JOB = "servtuner-external";
 
 function initialState(existing: SavedTarget | undefined): FormState {
   const target = (existing?.target ?? {}) as Record<string, unknown>;
-  const tls = (target.tls ?? {}) as { mode?: string; secretRef?: { name?: string }; caSecretRef?: { name?: string } };
   const workload = target.workload as { namespace?: string; selector?: Record<string, string> } | undefined;
   const metrics = target.metrics as { namespace?: string; pod?: string; node?: string; job?: string } | undefined;
   return {
@@ -60,8 +58,8 @@ function initialState(existing: SavedTarget | undefined): FormState {
     type: (target.type as string | undefined) ?? "vllm",
     endpoint: (target.endpoint as string | undefined) ?? "",
     model: (target.model as string | undefined) ?? "",
-    tlsMode: tls.mode === "mtls" || tls.mode === "tls" ? tls.mode : "platform",
-    tlsSecret: tls.secretRef?.name ?? tls.caSecretRef?.name ?? "",
+    // A new target starts as plain HTTP, as it always has; switching TLS on is one click.
+    tls: existing ? tlsChoice(target.tls) : { enabled: false, clientCertSecret: "", caSecret: "" },
     location: workload ? "workload" : metrics ? "metrics" : "none",
     namespace: workload?.namespace ?? metrics?.namespace ?? "",
     selector: Object.entries(workload?.selector ?? {})
@@ -93,7 +91,7 @@ function toBody(state: FormState, existing: SavedTarget | undefined, pricing: Pr
     type: state.type,
     endpoint: state.endpoint.trim(),
     model: state.model.trim(),
-    tls: tlsBlock(state.tlsMode, state.tlsSecret.trim()),
+    tls: tlsBlock(state.tls),
   };
   if (state.location === "workload") {
     target.workload = { namespace: state.namespace.trim(), selector: parseSelector(state.selector) };
@@ -166,37 +164,7 @@ export function TargetForm({
           <TextInput label="Endpoint" placeholder="http://vllm.llm.svc:8000/v1" required {...field("endpoint")} />
           <TextInput label="Model" description="As the server lists it in /v1/models" required {...field("model")} />
         </SimpleGrid>
-        <Group align="end">
-          <Stack gap={4}>
-            <Text size="sm" fw={500}>
-              Transport
-            </Text>
-            <SegmentedControl
-              value={state.tlsMode}
-              onChange={(value) => set("tlsMode")(value as FormState["tlsMode"])}
-              data={[
-                { value: "platform", label: "Platform (plain on the wire)" },
-                { value: "tls", label: "TLS" },
-                { value: "mtls", label: "mTLS" },
-              ]}
-            />
-          </Stack>
-          {state.tlsMode === "mtls" && (
-            <TextInput
-              label="Client certificate Secret"
-              description="A kubernetes.io/tls Secret, by name only"
-              required
-              {...field("tlsSecret")}
-            />
-          )}
-          {state.tlsMode === "tls" && (
-            <TextInput
-              label="CA Secret"
-              description="Optional: a Secret whose ca.crt signed the server. No client certificate is sent."
-              {...field("tlsSecret")}
-            />
-          )}
-        </Group>
+        <TlsFields value={state.tls} onChange={set("tls")} />
         <Title order={5}>Where Prometheus finds its metrics</Title>
         <SegmentedControl
           value={state.location}
