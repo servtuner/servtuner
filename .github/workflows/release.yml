@@ -208,6 +208,13 @@ jobs:
         uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: ${{ steps.cosign-version.outputs.version }}
+      # cosign reads Docker's credentials; helm 4 keeps its registry login to itself.
+      - if: env.PUBLISH == 'true'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - if: env.PUBLISH == 'true'
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
