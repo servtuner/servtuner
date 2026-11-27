@@ -121,7 +121,7 @@ finalizes the bundle with whatever was collected and the error.
 - **The hop to the target** (loadgen and the TLS relay) ignores
   `HTTPS_PROXY`/`NO_PROXY`. A proxy in that path would add its own latency
   and connection behaviour to every measurement.
-- **servtuner's own hops** (Prometheus, the api, object store) use clients
+- **servtuner's own connections** (Prometheus, the api, object store) use clients
   cloned from Go's default transport. They honour the proxy environment
   variables, as any cluster client would.
 

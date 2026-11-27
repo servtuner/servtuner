@@ -1,5 +1,5 @@
 {{- /* Optional ingress-nginx routing. Two Ingresses, because backend-protocol is one annotation per
-       Ingress: the UI is plain HTTP, the api hop follows its transport mode. */ -}}
+       Ingress: the UI is plain HTTP, the api connection follows tls.connections.ingressApi. */ -}}
 {{- /* Why the api wins over the UI under the same base path: the api Ingress uses rewrite-target, which
        makes ingress-nginx treat every path on this host as a regex, and it emits locations longest path
        first, with nginx taking the first regex match. The api path (<uiPath>/api, or an explicit longer
@@ -7,7 +7,7 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullname := include "servtuner.fullname" . }}
 {{- $ingress := .Values.ingress }}
-{{- $apiTls := include "servtuner.hopTls" (dict "root" . "hop" "ingressApi") }}
+{{- $apiTls := include "servtuner.connectionTls" (dict "root" . "connection" "ingressApi") }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

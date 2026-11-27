@@ -1,0 +1,4 @@
+# expect: tls.hops was replaced in servtuner 0.2: set tls.connections.<name>: true|false
+tls: {enabled: false, hops: {postgres: {clientCert: false}}}
+storage: {file: {pvc: {create: true}}}
+postgres: {auth: password}

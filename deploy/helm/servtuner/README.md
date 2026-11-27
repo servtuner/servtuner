@@ -8,7 +8,7 @@ Render tests: `deploy/helm/test.sh` (offline; contacts no cluster). Values are d
 the frontend, and the api path (prefix stripped) goes to the api. The api path is `<basePath>/api` by default (for
 example `/servtuner/api`), so the image's relative `config.json` default (`api`, resolved against the base URI) reaches it
 under any context path, including one a proxy adds with `X-Forwarded-Prefix`; `config.json` is not overridden. Setting
-`frontend.apiBaseUrl`, or an explicit `ingress.apiPath` (never `/`), writes `config.json` from the chart. When the ingress -> api hop uses
+`frontend.apiBaseUrl`, or an explicit `ingress.apiPath` (never `/`), writes `config.json` from the chart. When the ingress -> api connection uses
 TLS, the api Ingress uses backend TLS: `backend-protocol: HTTPS`, `proxy-ssl-secret` is the chart's ingress
 certificate Secret (it must carry `ca.crt`; with `tls.source: secret` that is your responsibility),
 `proxy-ssl-verify: "on"`, and `proxy-ssl-name` is the api Service's `<name>.<namespace>.svc` certificate SAN. Without
@@ -125,19 +125,19 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_S3_PRESIGN` | download links (`storage.s3.presign`) | `true`: `GET /runs/{id}/files/{path}` answers 307 to a 5-minute presigned GET (SigV4); `false` (default): the api streams the file | api |
 | `SERVTUNER_S3_CREDENTIALS_SECRET`, `_ACCESS_KEY_KEY`, `_SECRET_KEY_KEY` | the Secret (in the runs namespace) and the two keys bench Jobs read `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from, by reference; credentials source `secret` only | Secret name, key names | api (runner) |
 | `SERVTUNER_S3_CREDENTIALS_SOURCE` | credential source | `secret` (keys in `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`), `ambient` (default credential chain) | api, bench |
-| `SERVTUNER_TLS_ENABLED` | whether hops use TLS: each hop's default, never inferred | `true`, `false` | api |
+| `SERVTUNER_TLS_ENABLED` | whether connections use TLS: each connection's default, never inferred | `true`, `false` | api |
 | `SERVTUNER_TLS_CLIENT_AUTH` | the api listener's client-certificate policy (`ingressApi`, `benchApi`); bench presents its certificate unless it is `none` | `required` (default), `optional`, `none` | api; runner |
-| `SERVTUNER_TLS_HOP_BENCH_API_ENABLED`, `_BENCH_PROMETHEUS_ENABLED`, `_INGRESS_API_ENABLED`, `_OBJECT_STORE_ENABLED`, `_POSTGRES_ENABLED` | whether each hop uses TLS | `true`, `false` | api; runner passes bench's hops to Jobs |
-| `SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_CLIENT_CERT`, `_OBJECT_STORE_CLIENT_CERT`, `_POSTGRES_CLIENT_CERT` | whether servtuner presents its client certificate to a server it does not run; `true` by default with TLS | `true`, `false` | api; runner |
-| `SERVTUNER_TLS_CERT_FILE`, `SERVTUNER_TLS_KEY_FILE` | api certificate and key (mounted `kubernetes.io/tls` Secret) | path; set only when a hop uses the api's certificate | api |
+| `SERVTUNER_TLS_CONNECTION_BENCH_API`, `_BENCH_PROMETHEUS`, `_INGRESS_API`, `_OBJECT_STORE`, `_POSTGRES` | whether each connection uses TLS, overriding `SERVTUNER_TLS_ENABLED`. With TLS, each component presents its one certificate; the server decides whether to ask for it | `true`, `false` | api; runner passes bench's connections to Jobs |
+| `SERVTUNER_TLS_CERT_FILE`, `SERVTUNER_TLS_KEY_FILE` | api certificate and key (mounted `kubernetes.io/tls` Secret) | path; set only when a connection uses the api's certificate | api |
 | `SERVTUNER_TLS_CLIENT_CA_FILE` | private CA the api listener verifies client certificates against (never the combined bundle, which admits public CAs). Default: `ca.crt` beside `SERVTUNER_TLS_CERT_FILE`. The chart sets it when the api listener checks client certificates (TLS, and `tls.clientAuth` not `none`), pointing at the `ca.crt` of the CA Secret (`tls.caSecretRef`, else the api certificate Secret) | path; only when client certificates are checked | api |
 | `SERVTUNER_TLS_BENCH_SECRET` | name of the bench client-certificate Secret, in the runs namespace | Secret name; set only when needed | api (runner) |
-| `SERVTUNER_TLS_CA_SECRET` | Secret in the runs namespace whose `ca.crt` verifies the api for bench (`servtuner run --tls-ca-file`): `tls.caSecretRef`, else the bench Secret (cert-manager writes the issuing CA into it). With `tls.caSecretRef` and a separate runs namespace, that Secret must exist in the runs namespace too | Secret name; only when the bench-api hop uses TLS | api (runner) |
+| `SERVTUNER_TLS_CA_SECRET` | Secret in the runs namespace whose `ca.crt` verifies the api for bench (`servtuner run --tls-ca-file`): `tls.caSecretRef`, else the bench Secret (cert-manager writes the issuing CA into it). With `tls.caSecretRef` and a separate runs namespace, that Secret must exist in the runs namespace too | Secret name; only when the bench-api connection uses TLS | api (runner) |
 | `POD_NAMESPACE` | the api pod's namespace (downward API), for the RWO pod affinity to the api pod | namespace | api (runner) |
-| `SSL_CERT_FILE` | combined system + private CA bundle built by the init container | `/etc/servtuner/ca/bundle.crt`; set only when some hop uses TLS | api (standard) |
+| `SSL_CERT_FILE` | combined system + private CA bundle built by the init container | `/etc/servtuner/ca/bundle.crt`; set only when some connection uses TLS | api (standard) |
 | `SERVTUNER_DATABASE_HOST`, `_PORT`, `_NAME`, `_USER` | Postgres connection | strings | api |
-| `SERVTUNER_DATABASE_SSLMODE` | Postgres TLS | `verify-full` (client cert), `disable` | api |
-| `SERVTUNER_DATABASE_PASSWORD` | database password; set only when the postgres hop presents no client certificate (without TLS, or with `tls.hops.postgres.clientCert: false`) | from a Secret | api |
+| `SERVTUNER_DATABASE_SSLMODE` | Postgres TLS; must agree with the postgres connection | `verify-full`, `disable` | api |
+| `SERVTUNER_DATABASE_AUTH` | how the api signs in to Postgres (chart `postgres.auth`): its client certificate, whose CN is the user (needs TLS), or a password | `certificate` (default), `password` | api |
+| `SERVTUNER_DATABASE_PASSWORD` | database password; set only with `SERVTUNER_DATABASE_AUTH=password` | from a Secret | api |
 
 ### Request headers
 

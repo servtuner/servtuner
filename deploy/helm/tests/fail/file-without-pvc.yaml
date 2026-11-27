@@ -1,3 +1,4 @@
 # expect: storage.backend is file but there is no PVC
 tls: {enabled: false}
 storage: {file: {pvc: {create: false, existingClaim: ""}}}
+postgres: {auth: password}

@@ -35,7 +35,7 @@ from servtuner_api.secret_store import FileSecretStore, KubernetesSecretStore, S
 from servtuner_api.service import RunService
 from servtuner_api.settings.models import (
     ConfigError,
-    Hop,
+    Connection,
     RunnerKind,
     SecretStoreKind,
     Settings,
@@ -72,18 +72,16 @@ def build_secret_store(settings: Settings) -> SecretStore | None:
 def default_prometheus(settings: Settings) -> dict[str, Any] | None:
     """The Prometheus a saved target's check asks, as a RunSpec prometheus block.
 
-    A client certificate needs bench's Secret, which only the Kubernetes runner
-    names; without it the check skips the metrics checks and says so.
+    With TLS, bench presents its one certificate, from the Secret the Kubernetes runner names;
+    without that Secret (the subprocess runner) the check asks over TLS with no certificate.
     """
     if settings.prometheus_url is None:
         return None
-    if not settings.tls.uses_tls(Hop.BENCH_PROMETHEUS):
+    if not settings.tls.uses_tls(Connection.BENCH_PROMETHEUS):
         return {"url": settings.prometheus_url, "tls": {"enabled": False}}
-    if not settings.tls.presents_cert(Hop.BENCH_PROMETHEUS):
-        return {"url": settings.prometheus_url, "tls": {"enabled": True}}
     secret = settings.kubernetes.bench_tls_secret if settings.kubernetes else None
     if secret is None:
-        return None
+        return {"url": settings.prometheus_url, "tls": {"enabled": True}}
     return {
         "url": settings.prometheus_url,
         "tls": {"enabled": True, "clientCert": {"secretRef": {"name": secret}}},

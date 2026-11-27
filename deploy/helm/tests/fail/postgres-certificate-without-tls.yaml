@@ -1,0 +1,3 @@
+# expect: postgres.auth is certificate but the postgres connection does not use TLS
+tls: {enabled: true, connections: {postgres: false}, source: cert-manager, certManager: {issuerRef: {name: x}}}
+storage: {file: {pvc: {create: true}}}

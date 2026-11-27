@@ -2,3 +2,4 @@
 tls: {enabled: false}
 storage: {file: {pvc: {create: true}}}
 global: {imageRegistry: registry.example.internal:5000}
+postgres: {auth: password}

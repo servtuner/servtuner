@@ -83,6 +83,7 @@ def start_postgres(
             "SERVTUNER_DATABASE_NAME": DATABASE_NAME,
             "SERVTUNER_DATABASE_USER": DATABASE_USER,
             "SERVTUNER_DATABASE_SSLMODE": "verify-full",
+            "SERVTUNER_DATABASE_AUTH": "certificate",
         }
     postgres = stack.enter_context(PostgresContainer(POSTGRES_IMAGE, driver="psycopg"))
     return {
@@ -90,6 +91,7 @@ def start_postgres(
         "SERVTUNER_DATABASE_PORT": str(postgres.get_exposed_port(POSTGRES_PORT)),
         "SERVTUNER_DATABASE_NAME": postgres.dbname,
         "SERVTUNER_DATABASE_USER": postgres.username,
+        "SERVTUNER_DATABASE_AUTH": "password",
         "SERVTUNER_DATABASE_PASSWORD": postgres.password,
         "SERVTUNER_DATABASE_SSLMODE": "disable",
     }

@@ -265,14 +265,17 @@ POST/DELETE /users/{id}/identities, DELETE /users/{id}/sessions, GET /audit   us
   re-run is a new run with the same spec hash.
 - Secrets are only referenced by name. Run tokens are scoped to a single run
   and expire.
-- **Transport security per hop**. Each hop has TLS on or off and, for hops to
-  servers servtuner does not run, a client certificate or not; set in config
-  (`SERVTUNER_TLS_*`) and never inferred:
+- **Transport security per connection**. Each connection has TLS on or off
+  (`SERVTUNER_TLS_ENABLED`, `SERVTUNER_TLS_CONNECTION_<NAME>`), set in config and
+  never inferred. Each component presents its one certificate with TLS, wherever
+  the server will use it:
   - The API serves TLS with `clientAuth` `required` (the default), `optional`
     or `none`, or plain HTTP. bench presents its certificate unless it is `none`.
-  - To Postgres it uses `verify-full` with or without a client cert (a password
-    then), or `sslmode=disable`.
-  - To the object store it uses TLS, with or without a client cert, or plain HTTP.
+  - To Postgres it uses `verify-full` or `sslmode=disable`, and signs in by
+    `SERVTUNER_DATABASE_AUTH`: `certificate` (its certificate; needs TLS) or
+    `password`.
+  - To the object store it uses TLS (presenting its certificate; the store
+    decides whether to ask) or plain HTTP.
   - servtuner 0.1's `SERVTUNER_TLS_MODE` and per-hop modes are refused with their
     replacement; stored 0.1 data is upgraded when read (`legacy.py`) or by
     migration 0002.

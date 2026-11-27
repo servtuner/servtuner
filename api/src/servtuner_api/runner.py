@@ -37,8 +37,8 @@ from servtuner_api.secret_store import (
 )
 from servtuner_api.settings.models import (
     MOUNTED_SECRETS_DIR,
-    Hop,
-    HopTls,
+    Connection,
+    ConnectionTls,
     S3Settings,
     Settings,
 )
@@ -109,27 +109,27 @@ class Runner(Protocol):
 
 @dataclass(frozen=True)
 class ObjectStoreClient:
-    """How bench reaches the object store (the object-store hop)."""
+    """How bench reaches the object store (the object-store connection)."""
 
-    hop: HopTls
+    connection: ConnectionTls
     cert_file: str | None = None
     key_file: str | None = None
     ca_file: str | None = None
 
 
 def output_arguments(local_dir: str, s3: S3Settings | None, client: ObjectStoreClient) -> list[str]:
-    """bench's --out: the bundle directory, or the s3:// location with the hop's TLS."""
+    """bench's --out: the bundle directory, or the s3:// location with the connection's TLS."""
     if s3 is None:
         return ["--out", local_dir]
     arguments = [
         "--out",
         f"s3://{s3.bucket}/{s3.prefix}",
         "--object-store-tls",
-        tls_flag(client.hop.enabled),
+        tls_flag(client.connection.enabled),
     ]
-    if client.hop.enabled and s3.endpoint is not None:
+    if client.connection.enabled and s3.endpoint is not None:
         flags = [("--object-store-ca-file", client.ca_file)]
-        if client.hop.client_cert:
+        if client.connection.client_cert:
             flags = [
                 ("--object-store-cert-file", client.cert_file),
                 ("--object-store-key-file", client.key_file),
@@ -151,12 +151,12 @@ class SubprocessRunnerConfig:
     bench_binary: Path
     data_dir: Path
     api_url: str
-    api_hop: HopTls
+    api_connection: ConnectionTls
     tls_cert_file: Path | None
     tls_key_file: Path | None
     engine_override: str | None = None  # dev and e2e only (SERVTUNER_ENGINE_OVERRIDE)
     s3: S3Settings | None = None
-    object_store_hop: HopTls = HopTls(enabled=False, client_cert=False)
+    object_store_connection: ConnectionTls = ConnectionTls(enabled=False, client_cert=False)
     # Where each run's Secrets are written for bench --secrets-dir.
     run_secrets_dir: Path | None = None
     mounted_secrets_dir: Path = MOUNTED_SECRETS_DIR
@@ -169,13 +169,13 @@ class SubprocessRunnerConfig:
             bench_binary=settings.bench_binary,
             data_dir=settings.data_dir,
             api_url=settings.api_url,
-            api_hop=settings.tls.hop(Hop.BENCH_API),
+            api_connection=settings.tls.connection(Connection.BENCH_API),
             tls_cert_file=settings.tls.cert_file,
             tls_key_file=settings.tls.key_file,
             engine_override=settings.engine_override,
             offline=settings.offline,
             s3=settings.s3,
-            object_store_hop=settings.tls.hop(Hop.OBJECT_STORE),
+            object_store_connection=settings.tls.connection(Connection.OBJECT_STORE),
             run_secrets_dir=settings.secret_store.run_secrets_dir,
             mounted_secrets_dir=settings.secret_store.mounted_dir,
         )
@@ -260,10 +260,10 @@ class SubprocessRunner:
             *output_arguments(
                 str(run_bundle_dir(config.data_dir, run_id)),
                 config.s3,
-                # The api's own certificate, as for the api hop; the CA comes from
+                # The api's own certificate, as for the api connection; the CA comes from
                 # SSL_CERT_FILE, which bench inherits.
                 ObjectStoreClient(
-                    config.object_store_hop,
+                    config.object_store_connection,
                     str(config.tls_cert_file) if config.tls_cert_file else None,
                     str(config.tls_key_file) if config.tls_key_file else None,
                 ),
@@ -275,7 +275,7 @@ class SubprocessRunner:
             "--run-token-file",
             str(token_path),
             "--api-tls",
-            tls_flag(config.api_hop.enabled),
+            tls_flag(config.api_connection.enabled),
         ]
         if secrets_dir is not None:
             command += ["--secrets-dir", str(secrets_dir)]
@@ -283,7 +283,7 @@ class SubprocessRunner:
             command += ["--engine-override", config.engine_override]
         if config.offline:
             command.append("--offline")
-        if config.api_hop.client_cert:
+        if config.api_connection.client_cert:
             # Subprocess runner only (dev, single node): bench reuses the api's own
             # certificate as its client certificate. The Kubernetes runner will use
             # SERVTUNER_TLS_BENCH_SECRET instead.

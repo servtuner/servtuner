@@ -1,7 +1,7 @@
 {{- /* The api's configuration, including what its KubernetesJobRunner passes through to bench Jobs.
        The names are a contract with api/ and bench/: see deploy/helm/servtuner/README.md. */ -}}
 {{- $tlsDir := "/etc/servtuner/tls/api" }}
-{{- $postgresTls := include "servtuner.hopTls" (dict "root" . "hop" "postgres") }}
+{{- $postgresTls := include "servtuner.connectionTls" (dict "root" . "connection" "postgres") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -22,7 +22,7 @@ data:
   SERVTUNER_OFFLINE: {{ .Values.offline | quote }}
   {{- if eq .Values.runner "kubernetes" }}
   {{- /* Jobs reach the api through its Service; the api certificate names it (certificates.yaml). */}}
-  SERVTUNER_API_URL: {{ printf "%s://%s-api.%s.svc:%v" (ternary "https" "http" (eq (include "servtuner.hopTls" (dict "root" . "hop" "benchApi")) "true")) (include "servtuner.fullname" .) .Release.Namespace .Values.api.port | quote }}
+  SERVTUNER_API_URL: {{ printf "%s://%s-api.%s.svc:%v" (ternary "https" "http" (eq (include "servtuner.connectionTls" (dict "root" . "connection" "benchApi")) "true")) (include "servtuner.fullname" .) .Release.Namespace .Values.api.port | quote }}
   SERVTUNER_BENCH_CPU: {{ .Values.bench.resources.cpu | quote }}
   SERVTUNER_BENCH_MEMORY: {{ .Values.bench.resources.memory | quote }}
   SERVTUNER_BENCH_TARGET_ANTI_AFFINITY: {{ .Values.bench.targetAntiAffinity | quote }}
@@ -78,22 +78,17 @@ data:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- /* Transport security: every hop's TLS and client certificate, stated, never inferred. */}}
+  {{- /* Transport security: every connection's TLS, stated, never inferred. */}}
   SERVTUNER_TLS_ENABLED: {{ .Values.tls.enabled | toString | quote }}
   SERVTUNER_TLS_CLIENT_AUTH: {{ .Values.tls.clientAuth | quote }}
-  {{- $listener := include "servtuner.apiListenerHops" . | fromJsonArray }}
-  {{- range $hop := keys .Values.tls.hops | sortAlpha }}
-  {{- $args := dict "root" $ "hop" $hop }}
-  SERVTUNER_TLS_HOP_{{ snakecase $hop | upper }}_ENABLED: {{ ternary "true" "false" (eq (include "servtuner.hopTls" $args) "true") | quote }}
-  {{- if not (has $hop $listener) }}
-  SERVTUNER_TLS_HOP_{{ snakecase $hop | upper }}_CLIENT_CERT: {{ ternary "true" "false" (eq (include "servtuner.hopClientCert" $args) "true") | quote }}
-  {{- end }}
+  {{- range $connection := include "servtuner.connectionNames" . | fromJsonArray }}
+  SERVTUNER_TLS_CONNECTION_{{ snakecase $connection | upper }}: {{ ternary "true" "false" (eq (include "servtuner.connectionTls" (dict "root" $ "connection" $connection)) "true") | quote }}
   {{- end }}
   {{- if include "servtuner.roleNeeded" (dict "root" . "role" "api") }}
   SERVTUNER_TLS_CERT_FILE: {{ $tlsDir }}/tls.crt
   SERVTUNER_TLS_KEY_FILE: {{ $tlsDir }}/tls.key
   {{- end }}
-  {{- if and (include "servtuner.hopTls" (dict "root" . "hop" "ingressApi")) (ne .Values.tls.clientAuth "none") }}
+  {{- if and (include "servtuner.connectionTls" (dict "root" . "connection" "ingressApi")) (ne .Values.tls.clientAuth "none") }}
   {{- /* The private CA only, mounted by api.yaml from the CA source Secret. */}}
   SERVTUNER_TLS_CLIENT_CA_FILE: /etc/servtuner/tls/client-ca/ca.crt
   {{- end }}
@@ -112,3 +107,4 @@ data:
   SERVTUNER_DATABASE_NAME: {{ ternary .Values.postgres.cnpg.database .Values.postgres.external.database (eq .Values.postgres.mode "cnpg") | quote }}
   SERVTUNER_DATABASE_USER: {{ ternary .Values.postgres.cnpg.owner .Values.postgres.external.user (eq .Values.postgres.mode "cnpg") | quote }}
   SERVTUNER_DATABASE_SSLMODE: {{ ternary "verify-full" "disable" (eq $postgresTls "true") | quote }}
+  SERVTUNER_DATABASE_AUTH: {{ .Values.postgres.auth | quote }}

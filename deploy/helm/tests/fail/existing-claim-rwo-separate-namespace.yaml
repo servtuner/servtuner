@@ -2,3 +2,4 @@
 namespaces: {runs: servtuner-runs}
 tls: {enabled: false}
 storage: {file: {pvc: {create: false, existingClaim: my-data, accessMode: ReadWriteOnce}}}
+postgres: {auth: password}

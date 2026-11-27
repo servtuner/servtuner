@@ -1,4 +1,4 @@
-# expect: is set by the chart from tls.hops.ingressApi
+# expect: is set by the chart from tls.connections.ingressApi
 tls: {enabled: true, source: cert-manager, certManager: {issuerRef: {name: x}}}
 storage: {file: {pvc: {create: true}}}
 ingress:

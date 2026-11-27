@@ -6,5 +6,6 @@ storage:
   file:
     pvc: {create: true, accessMode: ReadWriteOnce, size: 1Gi}
 postgres:
+  auth: password           # without TLS, the api signs in with the generated password
   cnpg:
     storage: {size: 1Gi}

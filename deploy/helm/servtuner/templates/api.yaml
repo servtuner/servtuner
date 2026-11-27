@@ -1,8 +1,8 @@
 {{- $fullname := include "servtuner.fullname" . }}
-{{- $apiTls := include "servtuner.hopTls" (dict "root" . "hop" "ingressApi") }}
+{{- $apiTls := include "servtuner.connectionTls" (dict "root" . "connection" "ingressApi") }}
 {{- $checksClientCerts := and $apiTls (ne .Values.tls.clientAuth "none") }}
 {{- $needsApiCert := include "servtuner.roleNeeded" (dict "root" . "role" "api") }}
-{{- $postgresPassword := not (include "servtuner.hopClientCert" (dict "root" . "hop" "postgres")) }}
+{{- $postgresPassword := eq .Values.postgres.auth "password" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -75,7 +75,7 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
-            {{- /* Without a client certificate the database user authenticates with a password. */}}
+            {{- /* postgres.auth password: the database user signs in with a password. */}}
             {{- if $postgresPassword }}
             - name: SERVTUNER_DATABASE_PASSWORD
               {{- if eq .Values.postgres.mode "cnpg" }}

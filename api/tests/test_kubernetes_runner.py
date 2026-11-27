@@ -32,8 +32,8 @@ from servtuner_api.secret_store import secret_names_in
 from servtuner_api.settings.models import (
     AntiAffinity,
     ChecksumMode,
+    ConnectionTls,
     CredentialsSource,
-    HopTls,
     KubernetesRunnerSettings,
     S3Settings,
 )
@@ -78,19 +78,19 @@ CLUSTER = KubernetesRunnerSettings(
 )
 
 
-PLAIN = HopTls(enabled=False, client_cert=False)
-TLS_ONLY = HopTls(enabled=True, client_cert=False)
-MUTUAL = HopTls(enabled=True, client_cert=True)
+PLAIN = ConnectionTls(enabled=False, client_cert=False)
+TLS_ONLY = ConnectionTls(enabled=True, client_cert=False)
+MUTUAL = ConnectionTls(enabled=True, client_cert=True)
 
 
 def config(
-    hop: HopTls = MUTUAL, cluster: KubernetesRunnerSettings = CLUSTER
+    connection: ConnectionTls = MUTUAL, cluster: KubernetesRunnerSettings = CLUSTER
 ) -> KubernetesRunnerConfig:
     return KubernetesRunnerConfig(
         cluster=cluster,
         data_dir=PurePosixPath("/var/lib/servtuner"),
         api_url="https://servtuner-api.servtuner.svc:8080",
-        api_hop=hop,
+        api_connection=connection,
     )
 
 
@@ -194,19 +194,19 @@ def test_names_and_spec_walkers() -> None:
     assert workloads_in({"target": {"type": "vllm"}}) == []
 
 
-@pytest.mark.parametrize("hop", [PLAIN, TLS_ONLY, MUTUAL])
-def test_command_follows_the_bench_contract(hop: HopTls) -> None:
-    args = JobBuilder(config(hop)).command(RUN_ID)
+@pytest.mark.parametrize("connection", [PLAIN, TLS_ONLY, MUTUAL])
+def test_command_follows_the_bench_contract(connection: ConnectionTls) -> None:
+    args = JobBuilder(config(connection)).command(RUN_ID)
     expected = [
         "run", "--spec", "/etc/servtuner/spec/spec.json",
         "--out", f"/var/lib/servtuner/runs/{RUN_ID}", "--run-id", RUN_ID,
         "--api-url", "https://servtuner-api.servtuner.svc:8080",
         "--run-token-file", "/etc/servtuner/run-token/token",
-        "--api-tls", "true" if hop.enabled else "false",
+        "--api-tls", "true" if connection.enabled else "false",
     ]  # fmt: skip
-    if hop.enabled:
+    if connection.enabled:
         expected += ["--tls-ca-file", "/etc/servtuner/tls/ca/ca.crt"]
-    if hop.client_cert:
+    if connection.client_cert:
         expected += [
             "--tls-cert-file", "/etc/servtuner/tls/bench/tls.crt",
             "--tls-key-file", "/etc/servtuner/tls/bench/tls.key",
@@ -438,7 +438,7 @@ def test_an_s3_store_reaches_the_job_by_reference() -> None:
     cluster = replace(
         CLUSTER, data_claim=None, s3_credentials=("servtuner-s3", "access-key", "secret-key")
     )
-    runner_config = replace(config(cluster=cluster), s3=s3, object_store_hop=MUTUAL)
+    runner_config = replace(config(cluster=cluster), s3=s3, object_store_connection=MUTUAL)
     builder = JobBuilder(runner_config)
     args = builder.command(RUN_ID)
     position = args.index("--out")

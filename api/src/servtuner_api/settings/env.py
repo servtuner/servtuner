@@ -1,6 +1,6 @@
 """The environment variable names the api reads (the chart's environment contract), defined once."""
 
-from servtuner_api.settings.models import Hop
+from servtuner_api.settings.models import Connection
 
 # Environment variable names, defined once.
 ENV_API_PORT = "SERVTUNER_API_PORT"
@@ -56,12 +56,16 @@ ENV_AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID"
 ENV_AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY"
 
 
-# Whether hops use TLS ("true" or "false"); each hop can override it.
+# Whether connections use TLS ("true" or "false"); each connection can override it.
 ENV_TLS_ENABLED = "SERVTUNER_TLS_ENABLED"
 
 
 # The api listener's client-certificate policy: required, optional or none.
 ENV_TLS_CLIENT_AUTH = "SERVTUNER_TLS_CLIENT_AUTH"
+
+
+# How the api signs in to Postgres: certificate (its client certificate; needs TLS) or password.
+ENV_DATABASE_AUTH = "SERVTUNER_DATABASE_AUTH"
 
 
 # servtuner 0.1's names, refused with their replacement.
@@ -241,12 +245,12 @@ ENV_AUTH_FORWARD_EMAIL_HEADER = "SERVTUNER_AUTH_FORWARD_EMAIL_HEADER"
 ENV_AUTH_FORWARD_PROVISIONING = "SERVTUNER_AUTH_FORWARD_PROVISIONING"
 
 
-def hop_env_name(hop: Hop, setting: str = "ENABLED") -> str:
-    """A hop's override: SERVTUNER_TLS_HOP_<HOP>_ENABLED, or _CLIENT_CERT for a hop to a server
-    servtuner does not run."""
-    return f"SERVTUNER_TLS_HOP_{hop.name}_{setting}"
+def connection_env_name(connection: Connection) -> str:
+    """Whether one connection uses TLS, overriding SERVTUNER_TLS_ENABLED:
+    SERVTUNER_TLS_CONNECTION_<NAME>, true or false."""
+    return f"SERVTUNER_TLS_CONNECTION_{connection.name}"
 
 
-def legacy_hop_env_name(hop: Hop) -> str:
+def legacy_hop_env_name(hop: Connection) -> str:
     """servtuner 0.1's per-hop mode, refused with its replacement."""
     return f"SERVTUNER_TLS_HOP_{hop.name}"

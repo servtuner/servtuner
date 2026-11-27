@@ -1,3 +1,4 @@
 # expect: tls.clientAuth "sometimes" is unknown
 tls: {enabled: false, clientAuth: sometimes}
 storage: {file: {pvc: {create: true}}}
+postgres: {auth: password}

@@ -22,9 +22,10 @@ NetworkPolicies limit who reaches the api; they need a CNI that enforces Network
 {{- end }}
 
 Transport security: tls.enabled={{ .Values.tls.enabled }}, clientAuth={{ .Values.tls.clientAuth }}, source={{ .Values.tls.source }}
-{{- range $hop := keys .Values.tls.hops | sortAlpha }}
-  {{ $hop }}: {{ ternary "TLS" "no TLS" (eq (include "servtuner.hopTls" (dict "root" $ "hop" $hop)) "true") }}{{ if include "servtuner.hopClientCert" (dict "root" $ "hop" $hop) }}, client certificate{{ end }}
+{{- range $connection := include "servtuner.connectionNames" . | fromJsonArray }}
+  {{ $connection }}: {{ ternary "TLS" "no TLS" (eq (include "servtuner.connectionTls" (dict "root" $ "connection" $connection)) "true") }}{{ if include "servtuner.connectionClientCert" (dict "root" $ "connection" $connection) }}, client certificate{{ end }}
 {{- end }}
+Postgres sign-in: {{ .Values.postgres.auth }}
 {{- if include "servtuner.isNodePinned" . }}
 
 WARNING: the data volume is ReadWriteOnce. bench Jobs are pinned to the api pod's node

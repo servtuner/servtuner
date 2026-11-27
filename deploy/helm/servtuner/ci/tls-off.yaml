@@ -1,6 +1,9 @@
-# No TLS: plain HTTP on every hop, no certificate Secrets; ReadWriteOnce storage (node pinning).
+# No TLS: plain HTTP or TCP on every connection, no certificate Secrets, so Postgres takes a password;
+# ReadWriteOnce storage (node pinning).
 tls:
   enabled: false
+postgres:
+  auth: password
 storage:
   file:
     pvc: {create: true, accessMode: ReadWriteOnce}

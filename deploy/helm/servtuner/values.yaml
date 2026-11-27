@@ -84,7 +84,7 @@ frontend:
 
 # Optional ingress-nginx routing (annotations are ingress-nginx's). Two Ingresses: the UI goes to the
 # frontend under frontend.basePath, and ingress.apiPath (prefix stripped) goes to the api. Browser
-# TLS is terminated here, outside servtuner. With TLS on the ingress -> api hop the api Ingress
+# TLS is terminated here, outside servtuner. With TLS on the ingress -> api connection the api Ingress
 # uses backend TLS with the chart's ingress certificate Secret, which must carry ca.crt.
 ingress:
   enabled: false
@@ -95,7 +95,7 @@ ingress:
 
 # Gateway API routing (ingress-nginx is retired): HTTPRoutes for the UI under
 # frontend.basePath and the api under ingress.apiPath (prefix stripped), attached to a Gateway the
-# cluster provides. Use this or `ingress`, not both. With TLS the gateway -> api hop needs
+# cluster provides. Use this or `ingress`, not both. With TLS the gateway -> api connection needs
 # Envoy Gateway's Backend API (helm --set config.envoyGateway.extensionApis.enableBackend=true):
 # a Backend carries the chart's ingress client certificate, and a BackendTLSPolicy verifies the api.
 gateway:
@@ -122,11 +122,14 @@ prometheus:
 
 postgres:
   mode: cnpg               # cnpg | external
+  # How the api signs in: certificate (its certificate, whose CN is the database user; needs TLS on the
+  # postgres connection) or password (cnpg: the generated <name>-app Secret; external: passwordSecretRef).
+  auth: certificate
   cnpg:                    # needs the CloudNativePG operator and its CRDs in the cluster
     name: ""               # defaults to <fullname>-pg
     instances: 1
     database: servtuner
-    owner: servtuner          # with a Postgres client certificate, its CN must equal this user
+    owner: servtuner          # with auth certificate, the api certificate's CN must equal this user
     storage: {size: 10Gi, storageClass: ""}
     imageName: ""          # empty = the operator's default image; required with global.imageRegistry
   external:
@@ -134,7 +137,7 @@ postgres:
     port: 5432
     database: servtuner
     user: servtuner
-    passwordSecretRef: {name: "", key: password}   # used only when the postgres hop presents no client certificate
+    passwordSecretRef: {name: "", key: password}   # used only with postgres.auth password
 
 storage:
   backend: file            # file (default) | s3
@@ -223,22 +226,19 @@ rbac:
 tuning:
   monitor: podmonitor
 
-# Transport security: each hop answers TLS's two questions. Never inferred, never mixed on one connection.
+# Transport security: whether each connection uses TLS. Never inferred, never mixed on one connection.
+# With TLS, each component presents its one certificate; the server decides whether to ask for it.
 tls:
-  # Whether hops use TLS; each hop can override it. false is plain HTTP or TCP: for a service mesh or an
-  # encrypted CNI that encrypts the hop, or for testing.
+  # Whether connections use TLS; each connection can override it. false is plain HTTP or TCP: for a
+  # service mesh or an encrypted CNI that encrypts the connection, or for testing.
   enabled: true
   # The api listener's client certificates (ingressApi, benchApi): required, optional (a certificate that
   # is sent is verified, and tokens authenticate clients without one) or none.
   clientAuth: required
-  # Per-hop overrides: {enabled}, and for a hop to a server servtuner does not run also {clientCert}
-  # (servtuner presents its certificate; true by default with TLS). Empty inherits the defaults above.
-  hops:
-    benchPrometheus: {}
-    benchApi: {}           # its enabled must equal ingressApi's: the api has one listener
-    ingressApi: {}
-    postgres: {}           # clientCert false: password auth over TLS
-    objectStore: {}
+  # Per-connection overrides, true or false; a connection not listed takes tls.enabled. The names:
+  # benchApi, benchPrometheus, ingressApi, objectStore, postgres. benchApi and ingressApi must agree (the
+  # api has one listener). Example: {postgres: false} (then postgres.auth password).
+  connections: {}
   source: cert-manager     # cert-manager | secret
   certManager:
     issuerRef: {kind: ClusterIssuer, name: "", group: cert-manager.io}

@@ -1,3 +1,4 @@
 # expect: leave namespaces.runs empty, or use storage.file.pvc.existingClaim
 namespaces: {runs: servtuner-runs}
 tls: {enabled: false}
+postgres: {auth: password}

@@ -11,9 +11,9 @@ from servtuner_api.settings.models import (
     ChecksumMode,
     ClientAuth,
     ConfigError,
+    Connection,
+    ConnectionTls,
     DatabaseSslMode,
-    Hop,
-    HopTls,
     Settings,
 )
 from tests.support.environment import plain_env
@@ -32,6 +32,7 @@ def mtls_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
             SERVTUNER_TLS_KEY_FILE=str(tmp_path / files["key"]),
             SSL_CERT_FILE=str(tmp_path / files["ca"]),
             SERVTUNER_DATABASE_SSLMODE="verify-full",
+            SERVTUNER_DATABASE_AUTH="certificate",
             SERVTUNER_DATABASE_PASSWORD="",
         )
         | overrides
@@ -48,7 +49,8 @@ def test_plain_configuration(tmp_path: Path) -> None:
     settings = Settings.from_env(plain_env(tmp_path, SERVTUNER_API_PORT="9090"))
     assert settings.port == 9090
     assert all(
-        hop == HopTls(enabled=False, client_cert=False) for hop in settings.tls.hops.values()
+        connection == ConnectionTls(enabled=False, client_cert=False)
+        for connection in settings.tls.connections.values()
     )
     assert settings.database.ssl_mode is DatabaseSslMode.DISABLE
     assert settings.api_url == "http://localhost:9090"
@@ -74,20 +76,24 @@ def test_mtls_configuration(tmp_path: Path) -> None:
     settings = Settings.from_env(
         mtls_env(tmp_path, SERVTUNER_API_URL="https://api.example.invalid/")
     )
-    # TLS everywhere, client certificates required by the listener and presented on every hop.
-    assert all(hop == HopTls(enabled=True, client_cert=True) for hop in settings.tls.hops.values())
+    # TLS everywhere: the listener requires client certificates, and each connection presents one.
+    assert all(
+        connection == ConnectionTls(enabled=True, client_cert=True)
+        for connection in settings.tls.connections.values()
+    )
     assert settings.tls.client_auth is ClientAuth.REQUIRED
     assert settings.api_url == "https://api.example.invalid"
 
 
-def test_hop_overrides_the_default(tmp_path: Path) -> None:
-    env = plain_env(tmp_path, SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_ENABLED="true")
+def test_a_connection_overrides_the_default(tmp_path: Path) -> None:
+    env = plain_env(tmp_path, SERVTUNER_TLS_CONNECTION_BENCH_PROMETHEUS="true")
     settings = Settings.from_env(env)
-    assert settings.tls.hop(Hop.BENCH_PROMETHEUS) == HopTls(enabled=True, client_cert=True)
-    assert settings.tls.hop(Hop.POSTGRES) == HopTls(enabled=False, client_cert=False)
-    env |= {"SERVTUNER_TLS_HOP_BENCH_PROMETHEUS_CLIENT_CERT": "false"}
-    assert Settings.from_env(env).tls.hop(Hop.BENCH_PROMETHEUS) == HopTls(
-        enabled=True, client_cert=False
+    # With TLS, the component presents its one certificate; the server decides whether to ask.
+    assert settings.tls.connection(Connection.BENCH_PROMETHEUS) == ConnectionTls(
+        enabled=True, client_cert=True
+    )
+    assert settings.tls.connection(Connection.POSTGRES) == ConnectionTls(
+        enabled=False, client_cert=False
     )
 
 
@@ -97,11 +103,11 @@ def test_tls_defaults_to_on_and_then_demands_certificates(tmp_path: Path) -> Non
     assert "SERVTUNER_TLS_CERT_FILE is required" in problems_of(env)
 
 
-def test_certificates_no_hop_uses_are_rejected(tmp_path: Path) -> None:
+def test_certificates_no_connection_uses_are_rejected(tmp_path: Path) -> None:
     env = plain_env(
         tmp_path, SERVTUNER_TLS_CERT_FILE=str(tmp_path / "x"), SERVTUNER_TLS_KEY_FILE="y"
     )
-    assert "no hop uses the api's certificate" in problems_of(env)
+    assert "no connection uses the api's certificate" in problems_of(env)
 
 
 @pytest.mark.parametrize("policy", list(ClientAuth))
@@ -110,7 +116,9 @@ def test_the_listener_client_auth_policy(tmp_path: Path, policy: ClientAuth) -> 
     assert settings.tls.client_auth is policy
     # bench presents its certificate to the api exactly when the policy asks for one.
     presents = policy is not ClientAuth.NONE
-    assert settings.tls.hop(Hop.BENCH_API) == HopTls(enabled=True, client_cert=presents)
+    assert settings.tls.connection(Connection.BENCH_API) == ConnectionTls(
+        enabled=True, client_cert=presents
+    )
 
 
 def test_client_auth_none_needs_no_client_ca(tmp_path: Path) -> None:
@@ -120,14 +128,12 @@ def test_client_auth_none_needs_no_client_ca(tmp_path: Path) -> None:
     Settings.from_env(none)
 
 
-def test_the_listener_hops_take_no_client_cert_override(tmp_path: Path) -> None:
-    env = mtls_env(tmp_path, SERVTUNER_TLS_HOP_BENCH_API_CLIENT_CERT="false")
-    assert "SERVTUNER_TLS_CLIENT_AUTH" in problems_of(env)
-
-
-def test_a_client_cert_needs_tls(tmp_path: Path) -> None:
-    env = plain_env(tmp_path, SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT="true")
-    assert "SERVTUNER_TLS_HOP_POSTGRES_ENABLED=true" in problems_of(env)
+def test_postgres_certificate_auth_needs_tls(tmp_path: Path) -> None:
+    env = plain_env(tmp_path, SERVTUNER_DATABASE_AUTH="certificate", SERVTUNER_DATABASE_PASSWORD="")
+    assert "SERVTUNER_TLS_CONNECTION_POSTGRES=true" in problems_of(env)
+    assert "SERVTUNER_DATABASE_AUTH" in problems_of(
+        plain_env(tmp_path, SERVTUNER_DATABASE_AUTH="kerberos")
+    )
 
 
 @pytest.mark.parametrize(
@@ -145,17 +151,19 @@ def test_servtuner_0_1_names_are_refused_with_their_replacement(
 def test_postgres_tls_without_a_client_certificate_takes_a_password(tmp_path: Path) -> None:
     env = mtls_env(
         tmp_path,
-        SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT="false",
+        SERVTUNER_DATABASE_AUTH="password",
         SERVTUNER_DATABASE_PASSWORD="not-a-real-password",
     )
     settings = Settings.from_env(env)
-    assert settings.tls.hop(Hop.POSTGRES) == HopTls(enabled=True, client_cert=False)
+    assert settings.tls.connection(Connection.POSTGRES) == ConnectionTls(
+        enabled=True, client_cert=False
+    )
     url = build_database_url(settings.database, settings.tls)
     assert url.query["sslmode"] == "verify-full" and "sslrootcert" in url.query
     assert "sslcert" not in url.query and "sslkey" not in url.query
 
 
-def test_postgres_sslmode_must_agree_with_the_hop(tmp_path: Path) -> None:
+def test_postgres_sslmode_must_agree_with_the_connection(tmp_path: Path) -> None:
     assert "contradicts" in problems_of(
         plain_env(tmp_path, SERVTUNER_DATABASE_SSLMODE="verify-full")
     )
@@ -168,14 +176,14 @@ def test_sslmode_is_never_inferred(tmp_path: Path) -> None:
     assert "SERVTUNER_DATABASE_SSLMODE is required" in problems_of(env)
 
 
-def test_password_with_a_client_certificate_is_rejected(tmp_path: Path) -> None:
-    assert "certificate auth" in problems_of(
+def test_password_with_certificate_auth_is_rejected(tmp_path: Path) -> None:
+    assert "SERVTUNER_DATABASE_AUTH is certificate" in problems_of(
         mtls_env(tmp_path, SERVTUNER_DATABASE_PASSWORD="secret")
     )
 
 
 def test_one_listener_cannot_serve_two_modes(tmp_path: Path) -> None:
-    env = mtls_env(tmp_path, SERVTUNER_TLS_HOP_INGRESS_API_ENABLED="false")
+    env = mtls_env(tmp_path, SERVTUNER_TLS_CONNECTION_INGRESS_API="false")
     assert "one listener" in problems_of(env)
 
 
@@ -386,7 +394,7 @@ def test_s3_needs_its_contract_and_never_infers(tmp_path: Path) -> None:
     assert "S3 needs parts of at least 5 MiB" in problems_of(
         s3_env(tmp_path, SERVTUNER_S3_PART_SIZE_MIB="4")
     )
-    # platform means plain HTTP, so an https endpoint contradicts the hop mode.
+    # platform means plain HTTP, so an https endpoint contradicts the connection mode.
     assert "needs an http://" in problems_of(
         s3_env(tmp_path, SERVTUNER_S3_ENDPOINT="https://s3.example.invalid")
     )

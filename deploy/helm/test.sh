@@ -12,7 +12,7 @@ capabilities=(--api-versions postgresql.cnpg.io/v1 --api-versions cert-manager.i
 failures=0
 
 # NOTES.txt only prints on install; helm install has no --api-versions, so use external Postgres.
-notes() { helm install servtuner "$chart" -n "$namespace" --dry-run=client --set postgres.mode=external --set postgres.external.host=postgres.example.internal "$@"; }
+notes() { helm install servtuner "$chart" -n "$namespace" --dry-run=client --set postgres.mode=external --set postgres.external.host=postgres.example.internal --set postgres.external.passwordSecretRef.name=servtuner-postgres "$@"; }
 
 render() { helm template servtuner "$chart" -n "$namespace" "${capabilities[@]}" "$@"; }
 
@@ -39,6 +39,8 @@ for values in mutual-tls-cert-manager mutual-tls-secret tls-off tls-server-only 
       check "$values: SSL_CERT_FILE set" "$([ "$(count 'SSL_CERT_FILE')" -ge 1 ] && echo 0 || echo 1)"
       check "$values: one shared CA init container" "$([ "$(count 'name: build-ca-bundle')" -eq 1 ] && echo 0 || echo 1)"
       check "$values: pg_hba requires client certs" "$([ "$(count 'hostssl all all all cert')" -eq 1 ] && echo 0 || echo 1)"
+      check "$values: certificate sign-in, no password" "$(grep -qF 'SERVTUNER_DATABASE_AUTH: "certificate"' <<<"$rendered" && [ "$(count 'name: SERVTUNER_DATABASE_PASSWORD')" -eq 0 ] && echo 0 || echo 1)"
+      check "$values: every connection stated" "$([ "$(count '^  SERVTUNER_TLS_CONNECTION_[A-Z_]+: "true"$')" -eq 5 ] && echo 0 || echo 1)"
       check "$values: no RWO warning" "$(notes -f "$file" | grep -q 'ReadWriteOnce' && echo 1 || echo 0)"
       check "$values: client CA file rendered, from the CA source Secret" "$([ "$(count 'SERVTUNER_TLS_CLIENT_CA_FILE: /etc/servtuner/tls/client-ca/ca.crt')" -eq 1 ] && echo 0 || echo 1)"
       check "$values: client CA mounted in the api" "$([ "$(count 'mountPath: /etc/servtuner/tls/client-ca')" -eq 1 ] && echo 0 || echo 1)"
@@ -68,8 +70,8 @@ for values in mutual-tls-cert-manager mutual-tls-secret tls-off tls-server-only 
     tls-server-only)
       check "$values: the api asks for no client certificate" "$([ "$(count 'SERVTUNER_TLS_CLIENT_AUTH: "none"')" -eq 1 ] && [ "$(count 'SERVTUNER_TLS_CLIENT_CA_FILE|client-ca')" -eq 0 ] && echo 0 || echo 1)"
       check "$values: no bench client certificate, but the CA that verifies the api" "$(grep -qF 'SERVTUNER_TLS_CA_SECRET: "servtuner-bench-tls"' <<<"$rendered" && grep -qF 'SERVTUNER_API_URL: "https://' <<<"$rendered" && echo 0 || echo 1)"
-      check "$values: Postgres takes a password over TLS" "$([ "$(count 'hostssl all all all scram-sha-256')" -eq 1 ] && [ "$(count 'hostssl all all all cert')" -eq 0 ] && grep -qF 'SERVTUNER_TLS_HOP_POSTGRES_CLIENT_CERT: "false"' <<<"$rendered" && grep -qF 'SERVTUNER_DATABASE_SSLMODE: "verify-full"' <<<"$rendered" && [ "$(count 'name: SERVTUNER_DATABASE_PASSWORD')" -eq 1 ] && echo 0 || echo 1)"
-      check "$values: the api's own hops are TLS" "$(grep -qF 'SERVTUNER_TLS_HOP_INGRESS_API_ENABLED: "true"' <<<"$rendered" && echo 0 || echo 1)"
+      check "$values: Postgres takes a password over TLS" "$([ "$(count 'hostssl all all all scram-sha-256')" -eq 1 ] && [ "$(count 'hostssl all all all cert')" -eq 0 ] && grep -qF 'SERVTUNER_DATABASE_AUTH: "password"' <<<"$rendered" && grep -qF 'SERVTUNER_DATABASE_SSLMODE: "verify-full"' <<<"$rendered" && [ "$(count 'name: SERVTUNER_DATABASE_PASSWORD')" -eq 1 ] && echo 0 || echo 1)"
+      check "$values: the api's own connections are TLS" "$(grep -qF 'SERVTUNER_TLS_CONNECTION_INGRESS_API: "true"' <<<"$rendered" && echo 0 || echo 1)"
       ;;
   esac
 done

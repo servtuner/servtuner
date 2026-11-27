@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 from servtuner_api.database import RunRow
 from servtuner_api.datadir import run_bundle_dir
 from servtuner_api.errors import ForeignStoreError
-from servtuner_api.settings.models import Hop, S3Settings, TlsSettings
+from servtuner_api.settings.models import Connection, S3Settings, TlsSettings
 
 MANIFEST_FILE = "manifest.json"
 SUMMARY_FILE = "summary.json"
@@ -227,7 +227,7 @@ def _is_missing(error: ClientError) -> bool:
 
 
 def _s3_client(settings: S3Settings, tls: TlsSettings) -> Any:
-    """A boto3 client for the store, with the object-store hop's TLS."""
+    """A boto3 client for the store, with the object-store connection's TLS."""
     options: dict[str, Any] = {
         "s3": {"addressing_style": "path" if settings.force_path_style else "auto"},
         # SigV4 for presigned URLs too: boto3 presigns with legacy SigV2 otherwise.
@@ -236,9 +236,9 @@ def _s3_client(settings: S3Settings, tls: TlsSettings) -> Any:
         "response_checksum_validation": settings.checksum_mode.value,
     }
     verify: str | bool = True
-    if tls.uses_tls(Hop.OBJECT_STORE) and settings.endpoint is not None:
+    if tls.uses_tls(Connection.OBJECT_STORE) and settings.endpoint is not None:
         verify = str(tls.ca_bundle_file) if tls.ca_bundle_file else True
-        if tls.presents_cert(Hop.OBJECT_STORE):
+        if tls.presents_cert(Connection.OBJECT_STORE):
             assert tls.cert_file is not None and tls.key_file is not None  # Settings require them
             options["client_cert"] = (str(tls.cert_file), str(tls.key_file))
     # Static keys from the chart's Secret with source secret; None leaves the

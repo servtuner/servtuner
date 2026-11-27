@@ -33,7 +33,7 @@ PIPELINE_STEPS = json.loads(EVENTS_SCHEMA.read_text())["definitions"]["pipelineS
 
 
 class Security(StrEnum):
-    """The two end-to-end setups: TLS with client certificates on every hop, or TLS on none."""
+    """The two end-to-end setups: TLS with client certificates on every connection, or no TLS."""
 
     MUTUAL_TLS = "mutual-tls"
     TLS_OFF = "tls-off"

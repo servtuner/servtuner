@@ -1,3 +1,4 @@
-# expect: tls.hops.benchApi.enabled and tls.hops.ingressApi.enabled must agree
-tls: {enabled: false, hops: {benchApi: {enabled: true}}, source: cert-manager, certManager: {issuerRef: {name: x}}}
+# expect: tls.connections.benchApi and tls.connections.ingressApi must agree
+tls: {enabled: false, connections: {benchApi: true}, source: cert-manager, certManager: {issuerRef: {name: x}}}
 storage: {file: {pvc: {create: true}}}
+postgres: {auth: password}

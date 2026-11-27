@@ -1,3 +1,0 @@
-# expect: tls.hops.postgres.clientCert is true but the hop does not use TLS
-tls: {enabled: false, hops: {postgres: {clientCert: true}}}
-storage: {file: {pvc: {create: true}}}

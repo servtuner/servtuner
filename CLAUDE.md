@@ -56,15 +56,17 @@ Each folder has its own `CLAUDE.md` that covers its purpose and design.
 5. **All timestamps are UTC** and recorded with the clock source used.
    Prometheus queries use the run's recorded window, not wall-clock guesses.
 6. **Never assume the network is encrypted.**
-   - Every connection answers TLS's two questions: is it encrypted
-     (`tls.enabled`), and client certificates. A client presents one when it
-     is given one (`clientCert`); a server servtuner runs requires one,
-     verifies one if sent, or asks for none (`clientAuth`: `required`,
-     `optional`, `none`). servtuner's own hops default to TLS with client
-     certificates required.
+   - Every connection uses TLS or not (`tls.enabled`). Each component has one
+     certificate and presents it on every connection with TLS; a server
+     servtuner runs requires one, verifies one if sent, or asks for none
+     (`clientAuth`: `required`, `optional`, `none`). servtuner's own
+     connections default to TLS with client certificates required. A RunSpec
+     target is someone else's server, so it names its own certificate
+     (`clientCert`). Postgres sign-in is `postgres.auth`: certificate or password.
    - TLS off (plain on the wire, for a CNI or mesh that encrypts, or testing)
-     is an explicit, per-hop opt-in. What each hop did is recorded in every
-     run, and TLS settings never appear on a hop without TLS.
+     is an explicit, per-connection opt-in. What each connection did is
+     recorded in every run, and TLS settings never appear on a connection
+     without TLS.
    - Every service has its own certificate. A managed vLLM is plain HTTP by
      default, with TLS (no client certificates yet) as its opt-in.
    - Certificates come from `kubernetes.io/tls` Secrets, issued by cert-manager

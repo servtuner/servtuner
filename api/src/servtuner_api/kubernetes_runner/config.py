@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from servtuner_api.settings.models import (
-    Hop,
-    HopTls,
+    Connection,
+    ConnectionTls,
     KubernetesRunnerSettings,
     S3Settings,
     Settings,
@@ -114,10 +114,10 @@ class KubernetesRunnerConfig:
     cluster: KubernetesRunnerSettings
     data_dir: PurePosixPath
     api_url: str
-    api_hop: HopTls
+    api_connection: ConnectionTls
     engine_override: str | None = None  # dev and e2e only (SERVTUNER_ENGINE_OVERRIDE)
     s3: S3Settings | None = None
-    object_store_hop: HopTls = HopTls(enabled=False, client_cert=False)
+    object_store_connection: ConnectionTls = ConnectionTls(enabled=False, client_cert=False)
     offline: bool = False  # servtuner run --offline
 
     @classmethod
@@ -127,9 +127,9 @@ class KubernetesRunnerConfig:
             cluster=settings.kubernetes,
             data_dir=PurePosixPath(settings.data_dir),
             api_url=settings.api_url,
-            api_hop=settings.tls.hop(Hop.BENCH_API),
+            api_connection=settings.tls.connection(Connection.BENCH_API),
             engine_override=settings.engine_override,
             offline=settings.offline,
             s3=settings.s3,
-            object_store_hop=settings.tls.hop(Hop.OBJECT_STORE),
+            object_store_connection=settings.tls.connection(Connection.OBJECT_STORE),
         )

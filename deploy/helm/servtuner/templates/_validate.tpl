@@ -9,7 +9,7 @@ connection and are never inferred.
 {{- $root := . -}}
 {{- $tls := $values.tls -}}
 
-{{- /* tls.enabled, tls.clientAuth, tls.source, tls.hops.* */ -}}
+{{- /* tls.enabled, tls.clientAuth, tls.source, tls.connections.*, postgres.auth */ -}}
 {{- $tlsValid := true -}}
 {{- if hasKey $tls "mode" -}}
   {{- $tlsValid = false -}}
@@ -27,62 +27,63 @@ connection and are never inferred.
   {{- $tlsValid = false -}}
   {{- $errors = append $errors (printf "tls.source %q is unknown; use cert-manager or secret" $tls.source) -}}
 {{- end -}}
-{{- $listener := include "servtuner.apiListenerHops" $root | fromJsonArray -}}
-{{- range $hop, $setting := $tls.hops -}}
-  {{- if kindIs "string" $setting -}}
-    {{- $tlsValid = false -}}
-    {{- $errors = append $errors (printf "tls.hops.%s %q was replaced in servtuner 0.2: use {enabled: true|false}%s" $hop $setting (ternary "" ", with clientCert: true|false" (has $hop $listener))) -}}
-  {{- else if not (kindIs "map" $setting) -}}
-    {{- $tlsValid = false -}}
-    {{- $errors = append $errors (printf "tls.hops.%s must be a map: {enabled, clientCert}" $hop) -}}
-  {{- else -}}
-    {{- range $key, $value := $setting -}}
-      {{- if not (has $key (list "enabled" "clientCert")) -}}
-        {{- $tlsValid = false -}}
-        {{- $errors = append $errors (printf "tls.hops.%s.%s is unknown; a hop takes enabled and clientCert" $hop $key) -}}
-      {{- else if not (kindIs "bool" $value) -}}
-        {{- $tlsValid = false -}}
-        {{- $errors = append $errors (printf "tls.hops.%s.%s must be true or false" $hop $key) -}}
-      {{- end -}}
-    {{- end -}}
-    {{- if and (hasKey $setting "clientCert") (has $hop $listener) -}}
+{{- if hasKey $tls "hops" -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors "tls.hops was replaced in servtuner 0.2: set tls.connections.<name>: true|false (benchApi, benchPrometheus, ingressApi, objectStore, postgres); each component presents its one certificate with TLS, and postgres.auth (certificate or password) replaces tls.hops.postgres.clientCert" -}}
+{{- end -}}
+{{- $names := include "servtuner.connectionNames" $root | fromJsonArray -}}
+{{- if not (kindIs "map" ($tls.connections | default dict)) -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors "tls.connections must be a map of connection names to true or false" -}}
+{{- else -}}
+  {{- range $connection, $value := $tls.connections -}}
+    {{- if not (has $connection $names) -}}
       {{- $tlsValid = false -}}
-      {{- $errors = append $errors (printf "tls.hops.%s.clientCert: this hop reaches the api's own listener, so tls.clientAuth decides" $hop) -}}
+      {{- $errors = append $errors (printf "tls.connections.%s is unknown; the connections are %s" $connection (join ", " $names)) -}}
+    {{- else if not (kindIs "bool" $value) -}}
+      {{- $tlsValid = false -}}
+      {{- $errors = append $errors (printf "tls.connections.%s must be true or false, not %q" $connection (toString $value)) -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
+{{- if not (has (toString $values.postgres.auth) (list "certificate" "password")) -}}
+  {{- $tlsValid = false -}}
+  {{- $errors = append $errors (printf "postgres.auth %q is unknown; use certificate or password" (toString $values.postgres.auth)) -}}
+{{- end -}}
 
 {{- if $tlsValid -}}
-  {{- range $hop, $setting := $tls.hops -}}
-    {{- if and (eq (toString (get $setting "clientCert")) "true") (not (include "servtuner.hopTls" (dict "root" $root "hop" $hop))) -}}
-      {{- $errors = append $errors (printf "tls.hops.%s.clientCert is true but the hop does not use TLS" $hop) -}}
-    {{- end -}}
+  {{- /* The api has one listener, so its two inbound connections must agree. */ -}}
+  {{- if ne (include "servtuner.connectionTls" (dict "root" $root "connection" "benchApi")) (include "servtuner.connectionTls" (dict "root" $root "connection" "ingressApi")) -}}
+    {{- $errors = append $errors "tls.connections.benchApi and tls.connections.ingressApi must agree: the api has a single listener" -}}
   {{- end -}}
-  {{- /* The api has one listener, so its two inbound hops must agree. */ -}}
-  {{- if ne (include "servtuner.hopTls" (dict "root" $root "hop" "benchApi")) (include "servtuner.hopTls" (dict "root" $root "hop" "ingressApi")) -}}
-    {{- $errors = append $errors "tls.hops.benchApi.enabled and tls.hops.ingressApi.enabled must agree: the api has a single listener" -}}
+  {{- /* A client certificate is sent only over TLS. */ -}}
+  {{- if and (eq $values.postgres.auth "certificate") (not (include "servtuner.connectionTls" (dict "root" $root "connection" "postgres"))) -}}
+    {{- $errors = append $errors "postgres.auth is certificate but the postgres connection does not use TLS: use password, or TLS on the postgres connection" -}}
+  {{- end -}}
+  {{- if and (eq $values.postgres.auth "password") (eq $values.postgres.mode "external") (not $values.postgres.external.passwordSecretRef.name) -}}
+    {{- $errors = append $errors "postgres.auth is password, so postgres.external.passwordSecretRef.name is required" -}}
   {{- end -}}
 
-  {{- /* Cert Secrets set for a role no hop uses (for example with TLS off). */ -}}
+  {{- /* Cert Secrets set for a role no connection uses (for example with TLS off). */ -}}
   {{- range $role, $secretName := $tls.secrets -}}
     {{- if and $secretName (not (include "servtuner.roleNeeded" (dict "root" $root "role" $role))) -}}
-      {{- $errors = append $errors (printf "tls.secrets.%s is set but no hop uses it (a hop without TLS must not carry certificate Secrets)" $role) -}}
+      {{- $errors = append $errors (printf "tls.secrets.%s is set but no connection uses it (a connection without TLS must not carry certificate Secrets)" $role) -}}
     {{- end -}}
   {{- end -}}
   {{- if and $tls.caSecretRef (not (include "servtuner.anyTls" $root)) -}}
-    {{- $errors = append $errors "tls.caSecretRef is set but no hop uses TLS (a hop without TLS must not carry certificate Secrets)" -}}
+    {{- $errors = append $errors "tls.caSecretRef is set but no connection uses TLS (a connection without TLS must not carry certificate Secrets)" -}}
   {{- end -}}
 
-  {{- /* Hops with TLS need certificates from the chosen source. */ -}}
+  {{- /* Connections with TLS need certificates from the chosen source. */ -}}
   {{- if eq $tls.source "secret" -}}
     {{- range $role := list "api" "bench" "ingress" "postgres" "postgresReplication" -}}
       {{- if and (include "servtuner.roleNeeded" (dict "root" $root "role" $role)) (not (get $tls.secrets $role)) -}}
-        {{- $errors = append $errors (printf "tls.source is secret and a hop with TLS needs tls.secrets.%s, which is empty" $role) -}}
+        {{- $errors = append $errors (printf "tls.source is secret and a connection with TLS needs tls.secrets.%s, which is empty" $role) -}}
       {{- end -}}
     {{- end -}}
   {{- else if include "servtuner.anyTls" $root -}}
     {{- if not $tls.certManager.issuerRef.name -}}
-      {{- $errors = append $errors "tls.source is cert-manager and a hop uses TLS, so tls.certManager.issuerRef.name is required" -}}
+      {{- $errors = append $errors "tls.source is cert-manager and a connection uses TLS, so tls.certManager.issuerRef.name is required" -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
@@ -140,7 +141,7 @@ connection and are never inferred.
   {{- /* The chart owns the backend TLS annotations: a user value must never weaken them. */ -}}
   {{- range $key, $_ := $values.ingress.annotations -}}
     {{- if or (hasSuffix "/backend-protocol" $key) (contains "/proxy-ssl-" $key) -}}
-      {{- $errors = append $errors (printf "ingress.annotations.%s is set by the chart from tls.hops.ingressApi; remove it" $key) -}}
+      {{- $errors = append $errors (printf "ingress.annotations.%s is set by the chart from tls.connections.ingressApi; remove it" $key) -}}
     {{- end -}}
   {{- end -}}
   {{- /* An api path equal to, or a prefix of, the UI path would shadow the UI. */ -}}
@@ -195,7 +196,7 @@ connection and are never inferred.
   {{- if not ($root.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") -}}
     {{- $errors = append $errors "gateway.enabled but gateway.networking.k8s.io/v1 is not available: install a Gateway API implementation (Envoy Gateway)" -}}
   {{- end -}}
-  {{- if and (include "servtuner.hopTls" (dict "root" $root "hop" "ingressApi")) (not ($root.Capabilities.APIVersions.Has "gateway.envoyproxy.io/v1alpha1")) -}}
+  {{- if and (include "servtuner.connectionTls" (dict "root" $root "connection" "ingressApi")) (not ($root.Capabilities.APIVersions.Has "gateway.envoyproxy.io/v1alpha1")) -}}
     {{- $errors = append $errors "gateway.enabled with TLS to the api needs Envoy Gateway's gateway.envoyproxy.io/v1alpha1 (its Backend carries the TLS settings and the gateway's client certificate)" -}}
   {{- end -}}
   {{- with $gateway.envoy.extAuth -}}

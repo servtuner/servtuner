@@ -2,3 +2,4 @@
 tls: {enabled: false}
 storage: {file: {pvc: {create: true}}}
 ingress: {enabled: true, host: servtuner.example.test, apiPath: /}
+postgres: {auth: password}

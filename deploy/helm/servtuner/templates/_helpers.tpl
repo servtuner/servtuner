@@ -115,16 +115,19 @@ when set explicitly: frontend.apiBaseUrl, or an explicit ingress.apiPath (which 
 {{- end -}}
 
 {{/*
-Transport security. Each hop answers TLS's two questions: does it use TLS (tls.enabled, or
-tls.hops.<hop>.enabled), and does servtuner present a client certificate on it. The api's own
-listener (ingressApi, benchApi) follows tls.clientAuth; a hop to a server servtuner does not run
-sets tls.hops.<hop>.clientCert, true by default with TLS.
+Transport security. Each connection uses TLS or not (tls.enabled, or tls.connections.<name>:
+true|false). With TLS, each component presents its one certificate wherever the server will use it:
+on the api's own listener (ingressApi, benchApi) unless tls.clientAuth is none, to Postgres with
+postgres.auth certificate, and to every other server (whose own configuration decides whether to ask).
 
-roleHops is the single source of truth for which hops need each certificate role, and how: "tls"
-when the hop uses TLS (a server certificate, or the Secret that carries the CA a client verifies
-with), "cert" when the hop presents a client certificate. Templates and validation never disagree.
+roleConnections is the single source of truth for which connections need each certificate role, and
+how: "tls" when the connection uses TLS (a server certificate, or the Secret that carries the CA a
+client verifies with), "cert" when the client presents its certificate on it. Templates and
+validation never disagree.
 */}}
-{{- define "servtuner.roleHops" -}}
+{{- define "servtuner.connectionNames" -}}{{ list "benchApi" "benchPrometheus" "ingressApi" "objectStore" "postgres" | toJson }}{{- end -}}
+
+{{- define "servtuner.roleConnections" -}}
 {{- dict
   "api" (list (list "ingressApi" "tls") (list "benchApi" "tls") (list "postgres" "cert") (list "objectStore" "cert"))
   "bench" (list (list "benchApi" "tls") (list "benchPrometheus" "cert") (list "objectStore" "cert"))
@@ -135,49 +138,47 @@ with), "cert" when the hop presents a client certificate. Templates and validati
   | toJson -}}
 {{- end -}}
 
-{{/* The hops of the api's own listener: their client certificate follows tls.clientAuth. */}}
-{{- define "servtuner.apiListenerHops" -}}{{ list "ingressApi" "benchApi" | toJson }}{{- end -}}
-
-{{/* Pass (dict "root" . "hop" "postgres"); "true" when the hop uses TLS. */}}
-{{- define "servtuner.hopTls" -}}
-{{- $hop := get .root.Values.tls.hops .hop -}}
+{{/* Pass (dict "root" . "connection" "postgres"); "true" when the connection uses TLS. */}}
+{{- define "servtuner.connectionTls" -}}
+{{- $connections := .root.Values.tls.connections | default dict -}}
 {{- $enabled := .root.Values.tls.enabled -}}
-{{- if and (kindIs "map" $hop) (hasKey $hop "enabled") -}}{{- $enabled = $hop.enabled -}}{{- end -}}
+{{- if hasKey $connections .connection -}}{{- $enabled = get $connections .connection -}}{{- end -}}
 {{- if eq (toString $enabled) "true" -}}true{{- end -}}
 {{- end -}}
 
-{{/* Pass (dict "root" . "hop" "postgres"); "true" when servtuner presents its client certificate on the hop. */}}
-{{- define "servtuner.hopClientCert" -}}
-{{- if include "servtuner.hopTls" . -}}
-  {{- if has .hop (include "servtuner.apiListenerHops" . | fromJsonArray) -}}
+{{/* Pass (dict "root" . "connection" "postgres"); "true" when the client presents its certificate on the
+     connection: with TLS, unless the server will not use it (the api listener with clientAuth none,
+     Postgres with password auth). */}}
+{{- define "servtuner.connectionClientCert" -}}
+{{- if include "servtuner.connectionTls" . -}}
+  {{- if has .connection (list "ingressApi" "benchApi") -}}
     {{- if ne .root.Values.tls.clientAuth "none" -}}true{{- end -}}
-  {{- else -}}
-    {{- $hop := get .root.Values.tls.hops .hop -}}
-    {{- if not (and (kindIs "map" $hop) (hasKey $hop "clientCert") (eq (toString $hop.clientCert) "false")) -}}true{{- end -}}
-  {{- end -}}
+  {{- else if eq .connection "postgres" -}}
+    {{- if eq (toString .root.Values.postgres.auth) "certificate" -}}true{{- end -}}
+  {{- else -}}true{{- end -}}
 {{- end -}}
 {{- end -}}
 
-{{/* Pass (dict "root" . "role" "api"); "true" when some hop needs that role's certificate. */}}
+{{/* Pass (dict "root" . "role" "api"); "true" when some connection needs that role's certificate. */}}
 {{- define "servtuner.roleNeeded" -}}
 {{- $root := .root -}}
 {{- $needed := false -}}
-{{- range $use := get (include "servtuner.roleHops" $root | fromJson) .role -}}
-  {{- $args := dict "root" $root "hop" (index $use 0) -}}
+{{- range $use := get (include "servtuner.roleConnections" $root | fromJson) .role -}}
+  {{- $args := dict "root" $root "connection" (index $use 0) -}}
   {{- if eq (index $use 1) "tls" -}}
-    {{- if include "servtuner.hopTls" $args -}}{{- $needed = true -}}{{- end -}}
-  {{- else if include "servtuner.hopClientCert" $args -}}{{- $needed = true -}}{{- end -}}
+    {{- if include "servtuner.connectionTls" $args -}}{{- $needed = true -}}{{- end -}}
+  {{- else if include "servtuner.connectionClientCert" $args -}}{{- $needed = true -}}{{- end -}}
 {{- end -}}
 {{- if and $needed (hasPrefix "postgres" .role) (ne $root.Values.postgres.mode "cnpg") -}}{{- $needed = false -}}{{- end -}}
 {{- if $needed -}}true{{- end -}}
 {{- end -}}
 
-{{/* "true" when any hop uses TLS, which is when pods need the CA bundle. */}}
+{{/* "true" when any connection uses TLS, which is when pods need the CA bundle. */}}
 {{- define "servtuner.anyTls" -}}
 {{- $root := . -}}
 {{- $found := false -}}
-{{- range $hop := list "ingressApi" "benchApi" "postgres" "objectStore" "benchPrometheus" -}}
-  {{- if include "servtuner.hopTls" (dict "root" $root "hop" $hop) -}}{{- $found = true -}}{{- end -}}
+{{- range $connection := include "servtuner.connectionNames" $root | fromJsonArray -}}
+  {{- if include "servtuner.connectionTls" (dict "root" $root "connection" $connection) -}}{{- $found = true -}}{{- end -}}
 {{- end -}}
 {{- if $found -}}true{{- end -}}
 {{- end -}}
