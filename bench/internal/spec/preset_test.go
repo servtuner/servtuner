@@ -21,8 +21,8 @@ const presetGoldenDir = "../../testdata/presets"
 // presetRunSpec is a RunSpec whose workload block is the argument.
 func presetRunSpec(engineType, workloadBlock string) []byte {
 	return []byte(`{
-  "apiVersion": "servtuner.dev/v1", "kind": "RunSpec", "name": "preset-test",
-  "target": {"type": "vllm", "endpoint": "http://vllm.inference.svc:8000/v1", "model": "example/model-8b", "tls": {"mode": "platform"}},
+  "apiVersion": "servtuner.dev/v2", "kind": "RunSpec", "name": "preset-test",
+  "target": {"type": "vllm", "endpoint": "http://vllm.inference.svc:8000/v1", "model": "example/model-8b", "tls": {"enabled": false}},
   "engine": {"type": "` + engineType + `"},
   "workload": ` + workloadBlock + `,
   "load": {"stages": [{"rate": 1, "duration": "90s"}]}

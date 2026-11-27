@@ -12,14 +12,18 @@ import (
 // flag of the same name, and a flag given on the command line wins over the file. Secrets are
 // never in it: token_file and api_key_file name files that hold them.
 type Config struct {
-	Listen      string `yaml:"listen"`
-	TLSMode     string `yaml:"tls_mode"`
-	TLSCertFile string `yaml:"tls_cert_file"`
-	TLSKeyFile  string `yaml:"tls_key_file"`
-	TokenFile   string `yaml:"token_file"`
-	APIKeyFile  string `yaml:"api_key_file"`
-	VLLM        string `yaml:"vllm"`
-	LogDir      string `yaml:"log_dir"`
+	Listen string `yaml:"listen"`
+	// TLS is "true" or "false": whether the launcher API is served over TLS. Required, never inferred.
+	TLS string `yaml:"tls"`
+	// ClientAuth is the client-certificate policy with TLS: required, optional or none.
+	ClientAuth      string `yaml:"client_auth"`
+	TLSCertFile     string `yaml:"tls_cert_file"`
+	TLSKeyFile      string `yaml:"tls_key_file"`
+	TLSClientCAFile string `yaml:"tls_client_ca_file"`
+	TokenFile       string `yaml:"token_file"`
+	APIKeyFile      string `yaml:"api_key_file"`
+	VLLM            string `yaml:"vllm"`
+	LogDir          string `yaml:"log_dir"`
 }
 
 const (
@@ -80,6 +84,16 @@ func LoadConfig(path string) (Config, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return config, fmt.Errorf("read config %s: %w", path, err)
+	}
+	var keys map[string]any
+	if yaml.Unmarshal(content, &keys) == nil {
+		if mode, found := keys["tls_mode"]; found {
+			replacement := "tls: true, with client_auth: required, optional or none"
+			if mode == "platform" {
+				replacement = "tls: false"
+			}
+			return config, fmt.Errorf("config %s: tls_mode was replaced in servtuner 0.2: use %s", path, replacement)
+		}
 	}
 	if err := yaml.UnmarshalWithOptions(content, &config, yaml.DisallowUnknownField()); err != nil {
 		return config, fmt.Errorf("config %s: %w", path, err)

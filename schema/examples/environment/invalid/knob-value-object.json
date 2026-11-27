@@ -10,10 +10,22 @@
   },
   "clock_source": "ntp",
   "transport": {
-    "target": "mtls",
-    "prometheus": "platform",
-    "api": "mtls",
-    "object_store": "platform"
+    "target": {
+      "tls": true,
+      "client_cert": true
+    },
+    "prometheus": {
+      "tls": false,
+      "client_cert": false
+    },
+    "api": {
+      "tls": true,
+      "client_cert": true
+    },
+    "object_store": {
+      "tls": false,
+      "client_cert": false
+    }
   },
   "tls_relay_used": false,
   "namespace": "servtuner-system",

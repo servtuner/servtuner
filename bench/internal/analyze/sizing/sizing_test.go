@@ -78,8 +78,8 @@ func (f *fixture) series(value func(stage int, offset time.Duration) float64) []
 func (f *fixture) input(t *testing.T) Input {
 	t.Helper()
 	runSpec, err := spec.ParseRunSpec([]byte(`{
-	  "apiVersion": "servtuner.dev/v1", "kind": "RunSpec", "name": "sizing",
-	  "target": {"type": "` + f.targetType + `", "endpoint": "http://router/v1", "model": "m", "tls": {"mode": "platform"},
+	  "apiVersion": "servtuner.dev/v2", "kind": "RunSpec", "name": "sizing",
+	  "target": {"type": "` + f.targetType + `", "endpoint": "http://router/v1", "model": "m", "tls": {"enabled": false},
 	             "workload": {"namespace": "` + namespace + `", "selector": {"app": "router"}}},
 	  "engine": {"type": "loadgen"},
 	  "workload": {"streaming": true, "dataset": {"type": "synthetic", "input_tokens": {"mean": 8}, "output_tokens": {"mean": 8}}},

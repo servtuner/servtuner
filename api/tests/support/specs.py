@@ -17,7 +17,7 @@ def example_paths(schema_name: str, kind: str) -> list[Path]:
 
 def run_spec_bytes(**changes: Any) -> bytes:
     """The minimal valid RunSpec with top-level fields replaced."""
-    document = json.loads(example_bytes("runspec", "valid", "minimal-vllm-mtls"))
+    document = json.loads(example_bytes("runspec", "valid", "minimal-vllm-client-cert"))
     return json.dumps(document | changes).encode()
 
 

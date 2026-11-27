@@ -90,14 +90,14 @@ type Credentials struct {
 	// BearerToken is the target.auth secret, sent as "Authorization: Bearer".
 	// Empty when the RunSpec names no target.auth.
 	BearerToken string
-	// CertFile and KeyFile are the client certificate and key (mtls only).
+	// CertFile and KeyFile are the client certificate and key, when target.tls names one.
 	CertFile, KeyFile string
-	// CAFile is the private CA (ca.crt of the mtls Secret), or empty when the
+	// CAFile is the private CA (caSecretRef's ca.crt, else the client certificate Secret's), or empty when the
 	// Secret has none. Go clients add it to the system pool.
 	CAFile string
 	// CABundleFile is a combined system-plus-private-CA bundle in a temp file
 	// the pipeline removes at the end of the run, for a child process that has no
-	// CA option (mtls only; empty without a private CA).
+	// CA option (with TLS; empty without a private CA).
 	CABundleFile string
 }
 

@@ -3,6 +3,6 @@
     "type": "openai-compatible",
     "endpoint": "https://mock.servtuner.svc:8443/v1",
     "model": "mock",
-    "tls": {"mode": "mtls", "secretRef": {"name": "servtuner-client"}}
+    "tls": {"enabled": true, "clientCert": {"secretRef": {"name": "servtuner-client"}}}
   }
 }

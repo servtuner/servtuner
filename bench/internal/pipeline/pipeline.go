@@ -45,9 +45,9 @@ type Options struct {
 	NewEngine func(spec.RunSpec, engine.Inputs) (engine.Engine, error)
 	// Reporter receives one status event per step. Nil discards them.
 	Reporter events.Reporter
-	// APITransport is the mode of the bench to api hop, recorded in
+	// APITransport is how the bench to api hop is secured, recorded in
 	// environment.json; nil when no api URL was given.
-	APITransport *spec.TransportMode
+	APITransport *spec.HopTransport
 	// SecretsDir is where the Secrets named by the RunSpec are mounted
 	// (secrets.go). Empty means DefaultSecretsDir.
 	SecretsDir string
@@ -158,12 +158,12 @@ type run struct {
 	// Prometheus. client is nil when the RunSpec names none or the hop could
 	// not be built; prometheusProblem then says why, for the logs and for
 	// queries.json.
-	client            *prometheus.Client
-	prometheusMode    *spec.TransportMode
-	prometheusProblem string
-	resolution        prometheus.Resolution
-	targets           *spec.PrometheusTargets
-	optionalCatalogs  []spec.OptionalCatalogResult
+	client              *prometheus.Client
+	prometheusTransport *spec.HopTransport
+	prometheusProblem   string
+	resolution          prometheus.Resolution
+	targets             *spec.PrometheusTargets
+	optionalCatalogs    []spec.OptionalCatalogResult
 
 	// Kubernetes snapshot.
 	kube         kubernetes.Interface

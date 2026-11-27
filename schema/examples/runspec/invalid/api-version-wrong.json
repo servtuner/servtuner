@@ -30,9 +30,11 @@
     },
     "upstreams": [],
     "tls": {
-      "mode": "mtls",
-      "secretRef": {
-        "name": "servtuner-client"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
       }
     }
   },
@@ -85,9 +87,11 @@
   "prometheus": {
     "url": "https://prometheus-operated.monitoring.svc:9090",
     "tls": {
-      "mode": "mtls",
-      "secretRef": {
-        "name": "servtuner-client"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
       }
     },
     "catalogs": [

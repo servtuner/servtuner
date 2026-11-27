@@ -1,5 +1,5 @@
 # The mock target for servtuner (deploy/mocks/README.md). Install one release per namespace:
-#   helm install openai-mock deploy/mocks/chart -n servtuner-mock --create-namespace --set tls.mode=mtls ...
+#   helm install openai-mock deploy/mocks/chart -n servtuner-mock --create-namespace --set tls.enabled=true ...
 image:
   repository: servtuner-mock     # built by `just images` (servtuner-mock:<tag>); push or load it where the cluster can pull it
   tag: e2e
@@ -28,15 +28,16 @@ mock:
 
 service:
   port: 8000
-  metricsPort: 9100   # plain-HTTP /metrics listener (--metrics-listen), in both TLS modes
+  metricsPort: 9100   # plain-HTTP /metrics listener (--metrics-listen), with or without TLS
 
-# Transport security. The mock never mixes modes on one listener. The one exception is /metrics:
-# it is served on service.metricsPort in plain HTTP in both modes, because the mock's counters are not
-# sensitive and Prometheus cannot present a client certificate per target. The main port keeps the mode.
+# Transport security of the main port. The one exception is /metrics: it is served on
+# service.metricsPort in plain HTTP either way, because the mock's counters are not sensitive and
+# Prometheus cannot present a client certificate per target.
 tls:
-  mode: mtls                      # mtls (default) | platform
+  enabled: true                   # false serves plain HTTP: local testing, or a mesh or CNI that encrypts
+  clientAuth: required            # with enabled: required (default) | optional (verify one if sent) | none
   certManager:
-    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}   # mtls only; ca.crt in the Secret is the client CA the mock trusts
+    issuerRef: {kind: ClusterIssuer, name: servtuner-ca}   # with enabled; ca.crt in the Secret is the client CA the mock trusts
 
 resources:
   requests: {cpu: 100m, memory: 64Mi}

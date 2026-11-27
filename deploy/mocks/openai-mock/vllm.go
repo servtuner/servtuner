@@ -174,8 +174,11 @@ func runVLLM(args []string, environment func(string) string, stdout, stderr io.W
 // mock knobs still come from the OPENAI_MOCK_* environment.
 func vllmConfig(parsed vllmArgs, environment func(string) string) (Config, error) {
 	cfg, err := loadConfig(nil, func(name string) string {
-		if name == envPrefix+"TLS_MODE" {
-			return tlsModePlatform // the mode comes from the vLLM flags below
+		switch name {
+		case envPrefix + "TLS":
+			return tlsOff // TLS comes from the vLLM flags below
+		case envPrefix + "CLIENT_AUTH":
+			return ""
 		}
 		return environment(name)
 	}, io.Discard)
@@ -194,7 +197,7 @@ func vllmConfig(parsed vllmArgs, environment func(string) string) (Config, error
 	}
 	cert, key := parsed.flags["--ssl-certfile"], parsed.flags["--ssl-keyfile"]
 	if cert != "" || key != "" {
-		cfg.TLSMode, cfg.CertFile, cfg.KeyFile = tlsModeServer, cert, key
+		cfg.TLS, cfg.ClientAuth, cfg.CertFile, cfg.KeyFile = tlsOn, clientAuthNone, cert, key
 	}
 	tensorParallel := parsed.number("--tensor-parallel-size", 1)
 	memoryUtil := parsed.number("--gpu-memory-utilization", vllmDefaultGPUMemUtil)

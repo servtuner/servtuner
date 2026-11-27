@@ -100,14 +100,14 @@ func CheckWithResolution(runSpec spec.RunSpec, resolution prometheus.Resolution)
 	return report
 }
 
-// transportProblems checks one hop's mode against its URL scheme.
-// The mode comes from DecodeTLS and is never inferred from the URL.
+// transportProblems checks one hop's tls block against its URL scheme. TLS
+// comes from DecodeTLS and is never inferred from the URL.
 func transportProblems(hop string, tls spec.Tls, endpoint string) []string {
-	mode, err := spec.ModeOf(tls)
+	decoded, err := spec.DecodeTLS(tls)
 	if err != nil {
 		return []string{fmt.Sprintf("%s.tls: %v", hop, err)}
 	}
-	if err := tlsconfig.CheckScheme(mode, endpoint); err != nil {
+	if err := tlsconfig.CheckScheme(decoded.Enabled, endpoint); err != nil {
 		return []string{fmt.Sprintf("%s: %v", hop, err)}
 	}
 	return nil

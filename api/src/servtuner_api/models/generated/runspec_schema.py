@@ -27,26 +27,26 @@ class SecretKeyRef(BaseModel):
     key: Annotated[str, Field(min_length=1)]
 
 
-class TlsMtls(BaseModel):
+class TlsClientCert(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    mode: Literal["mtls"]
     secretRef: SecretRef
 
 
-class TlsPlatform(BaseModel):
+class TlsDisabled(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    mode: Literal["platform"]
+    enabled: Literal[False]
 
 
-class TlsServer(BaseModel):
+class TlsEnabled(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    mode: Literal["tls"]
+    enabled: Literal[True]
+    clientCert: TlsClientCert | None = None
     caSecretRef: Annotated[
         SecretRef | None,
         Field(
@@ -55,11 +55,11 @@ class TlsServer(BaseModel):
     ] = None
 
 
-class Tls(RootModel[TlsMtls | TlsPlatform | TlsServer]):
+class Tls(RootModel[TlsDisabled | TlsEnabled]):
     root: Annotated[
-        TlsMtls | TlsPlatform | TlsServer,
+        TlsDisabled | TlsEnabled,
         Field(
-            description="Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred."
+            description="Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred."
         ),
     ]
 
@@ -617,7 +617,7 @@ class RunSpec(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    apiVersion: Literal["servtuner.dev/v1"]
+    apiVersion: Literal["servtuner.dev/v2"]
     kind: Literal["RunSpec"]
     name: Annotated[
         str,

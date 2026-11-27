@@ -21,7 +21,7 @@ func TestThePriceBookClientCarriesTheRunToken(t *testing.T) {
 	if err := os.WriteFile(tokenFile, []byte("secret-token\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, _, priceBook, err := newReporter(runFlags{apiURL: server.URL + "/", apiTLSMode: "platform", runTokenFile: tokenFile}, "01ARZ3NDEKTSV4RRFFQ69G5FAV", streams{out: io.Discard, err: io.Discard})
+	_, _, priceBook, err := newReporter(runFlags{apiURL: server.URL + "/", apiTLS: "false", runTokenFile: tokenFile}, "01ARZ3NDEKTSV4RRFFQ69G5FAV", streams{out: io.Discard, err: io.Discard})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestThePriceBookClientUsesTheAPIHopsMTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	flags := runFlags{
-		apiURL: server.URL, apiTLSMode: "mtls", runTokenFile: tokenFile, tlsCertFile: certFile, tlsKeyFile: keyFile,
+		apiURL: server.URL, apiTLS: "true", runTokenFile: tokenFile, tlsCertFile: certFile, tlsKeyFile: keyFile,
 		tlsCAFile: tlstest.WriteFile(t, directory, "ca.crt", authority.CertPEM),
 	}
 	_, _, priceBook, err := newReporter(flags, "01ARZ3NDEKTSV4RRFFQ69G5FAV", streams{out: io.Discard, err: io.Discard})

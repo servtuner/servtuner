@@ -56,10 +56,10 @@ type Options struct {
 	// OutputDir receives the native output: the child's stdout and stderr and
 	// its report files. Required.
 	OutputDir string
-	// CertFile and KeyFile are the client certificate and key (mtls only).
+	// CertFile and KeyFile are the client certificate and key, when the target.tls names one.
 	CertFile, KeyFile string
 	// CABundleFile is the combined system-plus-private-CA bundle, exported as
-	// SSL_CERT_FILE to the child only (mtls only; see the package doc).
+	// SSL_CERT_FILE to the child only (with TLS; see the package doc).
 	CABundleFile string
 	// NumWorkers is the worker process count; 0 keeps inference-perf's default,
 	// the CPU count.
@@ -117,21 +117,11 @@ func (e *Engine) Prepare(_ context.Context, runSpec spec.RunSpec) error {
 	return nil
 }
 
-// checkTransport applies the transport rules: the mode is the spec's, never
-// inferred, and the files given must be exactly the ones that mode allows.
+// checkTransport applies the transport rules: TLS and the client certificate
+// are the spec's, never inferred, and the files given must match them.
 func (e *Engine) checkTransport(runSpec spec.RunSpec) error {
-	mode, err := spec.ModeOf(runSpec.Target.Tls)
-	if err != nil {
-		return fmt.Errorf("target.tls: %w", err)
-	}
-	return tlsconfig.Hop{
-		Name:     "target",
-		Mode:     mode,
-		URL:      runSpec.Target.Endpoint,
-		CertFile: e.options.CertFile,
-		KeyFile:  e.options.KeyFile,
-		CAFile:   e.options.CABundleFile,
-	}.Validate()
+	_, err := tlsconfig.SpecHop("target", runSpec.Target.Tls, runSpec.Target.Endpoint, e.options.CertFile, e.options.KeyFile, e.options.CABundleFile)
+	return err
 }
 
 // checkSpec lists every RunSpec feature the engine cannot honour.
@@ -310,7 +300,7 @@ func (e *Engine) executable() string {
 }
 
 // childEnvironment is the base environment plus the checksum variables and,
-// in mtls mode, SSL_CERT_FILE. It never touches bench's own environment.
+// with TLS, SSL_CERT_FILE. It never touches bench's own environment.
 func (e *Engine) childEnvironment() []string {
 	base := e.options.Environment
 	if base == nil {

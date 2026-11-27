@@ -10,7 +10,7 @@ version="${2:-0.0.0-dev}"
 api_image="servtuner-api:$tag"
 bench_image="servtuner-bench:$tag"
 examples="$PWD/schema/examples/runspec/valid"
-spec=/specs/minimal-vllm-mtls.json
+spec=/specs/minimal-vllm-client-cert.json
 failures=0
 # shellcheck source=labeled-containers.sh
 source e2e/labeled-containers.sh test-images
@@ -30,7 +30,7 @@ output="$(in_image "$api_image" python -c '
 import json
 from servtuner_api.models.validation import parse_run_spec, schema_names
 print(schema_names())
-parse_run_spec(json.load(open("/specs/minimal-vllm-mtls.json")))
+parse_run_spec(json.load(open("/specs/minimal-vllm-client-cert.json")))
 print("parsed")' || true)"
 check "api image: schemas load through the api's own code path and a RunSpec parses" "$(grep -q '^parsed$' <<<"$output" && echo 0 || { echo "$output" >&2; echo 1; })"
 

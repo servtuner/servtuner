@@ -241,23 +241,23 @@ func TestUpstreamModeIsCheckedAgainstItsOwnURL(t *testing.T) {
 	runSpec := runSpecWithStages("5m")
 	runSpec.Target = spec.Target{
 		Endpoint: "https://router.invalid/v1",
-		Tls:      spec.TlsMtls{Mode: "mtls", SecretRef: spec.SecretRef{Name: "servtuner-client"}},
+		Tls:      spec.TlsEnabled{Enabled: true, ClientCert: &spec.TlsClientCert{SecretRef: spec.SecretRef{Name: "servtuner-client"}}},
 		Upstreams: []spec.Upstream{
-			{Name: "mock", Endpoint: &endpoint, Tls: spec.TlsMtls{Mode: "mtls", SecretRef: spec.SecretRef{Name: "servtuner-client"}}},
-			{Name: "ok", Endpoint: &endpoint, Tls: spec.TlsPlatform{Mode: "platform"}},
+			{Name: "mock", Endpoint: &endpoint, Tls: spec.TlsEnabled{Enabled: true, ClientCert: &spec.TlsClientCert{SecretRef: spec.SecretRef{Name: "servtuner-client"}}}},
+			{Name: "ok", Endpoint: &endpoint, Tls: spec.TlsDisabled{}},
 		},
 	}
 	errs := Check(runSpec).Errors
 	if len(errs) != 1 || !strings.Contains(errs[0], "upstream mock") {
-		t.Errorf("only the mtls upstream with an http:// url is an error, and the target's mode must not rescue it: %q", errs)
+		t.Errorf("only the TLS upstream with an http:// url is an error, and the target's tls must not rescue it: %q", errs)
 	}
 }
 
-func TestTLSModeNeedsAnHTTPSURL(t *testing.T) {
+func TestTLSNeedsAnHTTPSURL(t *testing.T) {
 	runSpec := runSpecWithStages("5m")
-	runSpec.Target = spec.Target{Endpoint: "http://vllm.invalid:8000/v1", Tls: spec.TlsServer{Mode: "tls"}}
+	runSpec.Target = spec.Target{Endpoint: "http://vllm.invalid:8000/v1", Tls: spec.TlsEnabled{Enabled: true}}
 	errs := Check(runSpec).Errors
-	if len(errs) != 1 || !strings.Contains(errs[0], "mode tls needs an https:// url") {
+	if len(errs) != 1 || !strings.Contains(errs[0], "tls enabled needs an https:// url") {
 		t.Errorf("tls with an http:// url is an error: %q", errs)
 	}
 	runSpec.Target.Endpoint = "https://vllm.invalid:8000/v1"
@@ -269,7 +269,7 @@ func TestTLSModeNeedsAnHTTPSURL(t *testing.T) {
 func TestSharedPrefixProblems(t *testing.T) {
 	withPrefix := func(tokens int, change func(*spec.RunSpec)) spec.RunSpec {
 		runSpec := runSpecWithStages("5m")
-		runSpec.Target = spec.Target{Endpoint: "http://vllm.invalid:8000/v1", Tls: spec.TlsPlatform{Mode: "platform"}}
+		runSpec.Target = spec.Target{Endpoint: "http://vllm.invalid:8000/v1", Tls: spec.TlsDisabled{}}
 		runSpec.Engine.Type = spec.EngineTypeLoadgen
 		runSpec.Workload = spec.Workload{Api: spec.WorkloadApiChat, Dataset: &spec.Dataset{
 			Type: spec.DatasetTypeSynthetic, InputTokens: spec.TokenDistribution{Mean: 2048}, OutputTokens: spec.TokenDistribution{Mean: 128},
@@ -303,7 +303,7 @@ func TestSharedPrefixProblems(t *testing.T) {
 
 func TestMetricsAndWorkloadAreExclusive(t *testing.T) {
 	runSpec := runSpecWithStages("5m")
-	runSpec.Target = spec.Target{Endpoint: "http://vllm-host.invalid:8080/v1", Tls: spec.TlsPlatform{Mode: "platform"}}
+	runSpec.Target = spec.Target{Endpoint: "http://vllm-host.invalid:8080/v1", Tls: spec.TlsDisabled{}}
 	runSpec.Target.Metrics = &spec.TargetMetrics{Job: prometheus.ExternalJob, Namespace: "servtuner-external", Pod: "vllm-lan"}
 	if errs := Check(runSpec).Errors; len(errs) != 0 {
 		t.Fatalf("metrics alone is valid: %q", errs)

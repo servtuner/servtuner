@@ -18,7 +18,7 @@ var updateFixtures = flag.Bool("update", false, "rewrite the fixture bundles und
 
 const (
 	fixtureDir        = "../../testdata/propose"
-	minimalRunSpec    = "../../../schema/examples/runspec/valid/minimal-vllm-mtls.json"
+	minimalRunSpec    = "../../../schema/examples/runspec/valid/minimal-vllm-client-cert.json"
 	fixtureAnalyzer   = "1.22.0"
 	fixtureTimestamp  = "2026-11-20T10:00:00Z"
 	fixtureBenchBuild = "0.0.0"

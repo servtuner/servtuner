@@ -64,7 +64,7 @@ func decodeChunk(t *testing.T, event sseEvent) chunk {
 }
 
 func TestStreamingFormatAndUsage(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 4
 	address := startMock(t, cfg)
 
@@ -99,7 +99,7 @@ func TestStreamingFormatAndUsage(t *testing.T) {
 }
 
 func TestStreamingOmitsUsageUnlessRequested(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.OutputTokens = 2
 	response, _ := postChat(t, startMock(t, cfg), `{"stream":true,"messages":[]}`)
 	events := readEvents(t, response)
@@ -115,7 +115,7 @@ func TestStreamingOmitsUsageUnlessRequested(t *testing.T) {
 
 func TestMaxTokensDeterminesLengthWhenHonored(t *testing.T) {
 	for _, honor := range []bool{true, false} {
-		cfg := platformConfig()
+		cfg := plainConfig()
 		cfg.OutputTokens = 3
 		cfg.HonorRequestMaxTokens = honor
 		response, _ := postChat(t, startMock(t, cfg), `{"max_tokens":5,"messages":[{"role":"user","content":"hi"}]}`)
@@ -143,7 +143,7 @@ func TestMaxTokensDeterminesLengthWhenHonored(t *testing.T) {
 }
 
 func TestStreamingTimingsAreHonoured(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.TimeToFirstToken = 150 * time.Millisecond
 	cfg.InterTokenLatency = 40 * time.Millisecond
 	cfg.OutputTokens = 4
@@ -167,7 +167,7 @@ func TestStreamingTimingsAreHonoured(t *testing.T) {
 }
 
 func TestRoleOnlyFirstChunkSeparatesTTFBFromTTFT(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.TimeToFirstToken = 200 * time.Millisecond
 	cfg.OutputTokens = 2
 	cfg.SendRoleOnlyFirstChunk = true
@@ -190,7 +190,7 @@ func TestRoleOnlyFirstChunkSeparatesTTFBFromTTFT(t *testing.T) {
 }
 
 func TestModelsHealthzAndMetrics(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.ModelName = "my-model"
 	address := startMock(t, cfg)
 	postChat(t, address, `{"messages":[]}`)
@@ -227,7 +227,7 @@ func TestModelsHealthzAndMetrics(t *testing.T) {
 }
 
 func TestInvalidBodyIsRejected(t *testing.T) {
-	response, _ := postChat(t, startMock(t, platformConfig()), `{not json`)
+	response, _ := postChat(t, startMock(t, plainConfig()), `{not json`)
 	if response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status %d", response.StatusCode)
 	}
@@ -259,8 +259,8 @@ func TestChatMaxCompletionTokensTakesPrecedenceInBothTLSModes(t *testing.T) {
 		return decoded.Usage.CompletionTokens
 	}
 	modes := map[string]func(t *testing.T) (string, string, *http.Client){
-		"platform": func(t *testing.T) (string, string, *http.Client) {
-			cfg := platformConfig()
+		"plain": func(t *testing.T) (string, string, *http.Client) {
+			cfg := plainConfig()
 			cfg.OutputTokens = 3
 			return "http", startMock(t, cfg), newClient(nil)
 		},

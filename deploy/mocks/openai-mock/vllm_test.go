@@ -31,7 +31,7 @@ func TestVLLMArgsBecomeTheMocksConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ListenAddress != "0.0.0.0:8000" || cfg.ModelName != "Qwen/Qwen3-32B" || cfg.TLSMode != tlsModePlatform {
+	if cfg.ListenAddress != "0.0.0.0:8000" || cfg.ModelName != "Qwen/Qwen3-32B" || cfg.TLS != tlsOff {
 		t.Errorf("config = %+v", cfg)
 	}
 	if cfg.Faults.MaxConcurrency != 64 || cfg.Faults.OverCapacity != overCapacityQueue {
@@ -46,7 +46,7 @@ func TestVLLMArgsBecomeTheMocksConfig(t *testing.T) {
 	}
 	tls, _ := parseVLLMArgs([]string{"serve", "m", "--served-model-name=qwen", "--ssl-certfile=/t/tls.crt", "--ssl-keyfile=/t/tls.key"})
 	tlsCfg, _ := vllmConfig(tls, noEnv)
-	if tlsCfg.TLSMode != tlsModeServer || tlsCfg.ModelName != "qwen" || tlsCfg.ClientCAFile != "" {
+	if tlsCfg.TLS != tlsOn || tlsCfg.ClientAuth != clientAuthNone || tlsCfg.ModelName != "qwen" || tlsCfg.ClientCAFile != "" {
 		t.Errorf("tls config = %+v", tlsCfg)
 	}
 }

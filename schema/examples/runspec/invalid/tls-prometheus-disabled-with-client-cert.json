@@ -1,0 +1,127 @@
+{
+  "apiVersion": "servtuner.dev/v2",
+  "kind": "RunSpec",
+  "name": "vllm-llama8b-maxseqs-256",
+  "experiment": "vllm-max-num-seqs",
+  "labels": {
+    "team": "platform"
+  },
+  "knobs": {
+    "vllm.max_num_seqs": 256,
+    "vllm.gpu_memory_utilization": 0.9,
+    "vllm.enable_prefix_caching": true,
+    "vllm.dtype": "bfloat16"
+  },
+  "target": {
+    "type": "vllm",
+    "endpoint": "https://vllm.inference.svc:8000/v1",
+    "model": "example/llama-8b-instruct",
+    "auth": {
+      "secretRef": {
+        "name": "vllm-key",
+        "key": "token"
+      }
+    },
+    "workload": {
+      "namespace": "inference",
+      "selector": {
+        "app": "vllm"
+      }
+    },
+    "upstreams": [],
+    "tls": {
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
+      }
+    }
+  },
+  "engine": {
+    "type": "inference-perf",
+    "version": "pinned",
+    "options": {
+      "report_percentiles": [
+        50,
+        95,
+        99
+      ]
+    }
+  },
+  "workload": {
+    "api": "chat",
+    "streaming": true,
+    "seed": 42,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {
+        "mean": 1024,
+        "stddev": 128
+      },
+      "output_tokens": {
+        "mean": 256
+      }
+    }
+  },
+  "load": {
+    "profile": "stages",
+    "stages": [
+      {
+        "rate": 10,
+        "duration": "120s"
+      },
+      {
+        "rate": 20,
+        "duration": "120s"
+      }
+    ],
+    "warmup": "30s"
+  },
+  "slos": {
+    "ttft_p95": "500ms",
+    "e2e_p95": "10s",
+    "itl_p95": "80ms",
+    "max_error_rate": 0.01
+  },
+  "prometheus": {
+    "url": "https://prometheus-operated.monitoring.svc:9090",
+    "tls": {
+      "enabled": false,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
+      }
+    },
+    "catalogs": [
+      "vllm",
+      "kubernetes"
+    ],
+    "optional_catalogs": [
+      "dcgm"
+    ],
+    "extra_queries": [
+      {
+        "name": "queue_depth",
+        "query": "sum(vllm:num_requests_waiting)"
+      }
+    ],
+    "step": "5s"
+  },
+  "analysis": {
+    "target_rps": 15,
+    "baseline_rps": 10,
+    "stage_validity": {
+      "min_achieved_rps_ratio": 0.97,
+      "max_send_lag_p99": "50ms"
+    },
+    "limits": {
+      "cpu": "follow",
+      "memory": "set"
+    }
+  },
+  "storage": {
+    "store": "default"
+  }
+}

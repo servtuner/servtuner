@@ -139,7 +139,7 @@
       }
     },
     "hopTransports": {
-      "description": "Transport mode of every hop used by this run. A hop that was not used is omitted.",
+      "description": "How every hop used by this run was secured. A hop that was not used is omitted. Bundle format version 1 recorded a mode string per hop (mtls, tls or platform); readers upgrade it when they load such a bundle.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -147,16 +147,16 @@
       ],
       "properties": {
         "target": {
-          "$ref": "../common.schema.json#/definitions/transportMode"
+          "$ref": "../common.schema.json#/definitions/hopTransport"
         },
         "prometheus": {
-          "$ref": "../common.schema.json#/definitions/transportMode"
+          "$ref": "../common.schema.json#/definitions/hopTransport"
         },
         "api": {
-          "$ref": "../common.schema.json#/definitions/transportMode"
+          "$ref": "../common.schema.json#/definitions/hopTransport"
         },
         "object_store": {
-          "$ref": "../common.schema.json#/definitions/transportMode"
+          "$ref": "../common.schema.json#/definitions/hopTransport"
         }
       }
     }

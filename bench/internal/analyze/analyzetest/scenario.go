@@ -129,10 +129,10 @@ func (s Scenario) RunSpecDocument() map[string]any {
 		stages[i] = map[string]any{"rate": stage.OfferedRPS, "duration": fmt.Sprintf("%ds", stage.DurationSeconds)}
 	}
 	document := map[string]any{
-		"apiVersion": "servtuner.dev/v1", "kind": "RunSpec", "name": s.Name,
+		"apiVersion": "servtuner.dev/v2", "kind": "RunSpec", "name": s.Name,
 		// A Kubernetes target, as the snapshot (two vLLM pods in namespace servtuner) says.
 		"target": map[string]any{
-			"type": "vllm", "endpoint": "http://target.invalid:8000", "model": "example/model-8b", "tls": map[string]any{"mode": "platform"},
+			"type": "vllm", "endpoint": "http://target.invalid:8000", "model": "example/model-8b", "tls": map[string]any{"enabled": false},
 			"workload": map[string]any{"namespace": "servtuner", "selector": map[string]any{"app": "vllm"}},
 		},
 		"engine": map[string]any{"type": "loadgen"},

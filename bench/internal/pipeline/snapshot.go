@@ -59,7 +59,7 @@ func (r *run) snapshot(ctx context.Context) (string, error) {
 
 // capture takes one snapshot and writes target/snapshot-<phase>.json and the
 // redacted config documents. What could not be read is logged, never fatal;
-// only an unknown tls mode or a failed bundle write fails the step.
+// only an unreadable tls block or a failed bundle write fails the step.
 func (r *run) capture(ctx context.Context, phase spec.SnapshotPhase) (target.Result, error) {
 	targetRef, upstreamRefs, err := r.targetRefs()
 	if err != nil {

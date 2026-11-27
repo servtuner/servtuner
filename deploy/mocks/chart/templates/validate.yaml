@@ -1,6 +1,12 @@
-{{- if not (has .Values.tls.mode (list "mtls" "platform")) }}
-{{- fail (printf "tls.mode %q is not one of \"mtls\", \"platform\"" .Values.tls.mode) }}
+{{- if hasKey .Values.tls "mode" }}
+{{- fail (printf "tls.mode %q was replaced in servtuner 0.2: set tls.enabled (true or false) and, with true, tls.clientAuth (required, optional or none)" (toString .Values.tls.mode)) }}
 {{- end }}
-{{- if and (include "openaiMock.isMtls" .) (not .Values.tls.certManager.issuerRef.name) }}
-{{- fail "tls.mode mtls needs tls.certManager.issuerRef.name" }}
+{{- if not (kindIs "bool" .Values.tls.enabled) }}
+{{- fail (printf "tls.enabled must be true or false, not %q" (toString .Values.tls.enabled)) }}
+{{- end }}
+{{- if and .Values.tls.enabled (not (has .Values.tls.clientAuth (list "required" "optional" "none"))) }}
+{{- fail (printf "tls.clientAuth %q is not one of \"required\", \"optional\", \"none\"" (toString .Values.tls.clientAuth)) }}
+{{- end }}
+{{- if and .Values.tls.enabled (not .Values.tls.certManager.issuerRef.name) }}
+{{- fail "tls.enabled needs tls.certManager.issuerRef.name" }}
 {{- end }}

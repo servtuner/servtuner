@@ -7,7 +7,10 @@
   },
   "clock_source": "host",
   "transport": {
-    "target": "platform"
+    "target": {
+      "tls": false,
+      "client_cert": false
+    }
   },
   "tls_relay_used": true
 }

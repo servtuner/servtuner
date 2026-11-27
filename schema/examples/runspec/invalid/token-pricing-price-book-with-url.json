@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "token-pricing-price-book-with-url",
   "knobs": {
@@ -20,7 +20,7 @@
         "name": "mock-a",
         "endpoint": "http://mock-a.mock.svc:8000/v1",
         "tls": {
-          "mode": "platform"
+          "enabled": false
         }
       },
       {
@@ -32,12 +32,12 @@
           }
         },
         "tls": {
-          "mode": "platform"
+          "enabled": false
         }
       }
     ],
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -74,7 +74,7 @@
   "prometheus": {
     "url": "http://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "analysis": {

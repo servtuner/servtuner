@@ -24,10 +24,17 @@ class Duration(RootModel[str]):
     ]
 
 
-class TransportMode(Enum):
-    mtls = "mtls"
-    platform = "platform"
-    tls = "tls"
+class HopTransport(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tls: Annotated[bool, Field(description="The connection used TLS. False is plain HTTP or TCP.")]
+    client_cert: Annotated[
+        bool,
+        Field(
+            description="servtuner presented a client certificate on it. Always false without TLS."
+        ),
+    ]
 
 
 class UtcTimestamp(RootModel[str]):

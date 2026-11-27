@@ -1,0 +1,48 @@
+{
+  "apiVersion": "servtuner.dev/v2",
+  "kind": "RunSpec",
+  "name": "vllm-lan-baseline",
+  "knobs": {
+    "vllm.gpu_memory_utilization": 0.75
+  },
+  "target": {
+    "type": "vllm",
+    "endpoint": "http://vllm-host.example:8080/v1",
+    "model": "tiny",
+    "auth": {
+      "secretRef": {
+        "name": "vllm-key",
+        "key": "token"
+      }
+    },
+    "metrics": {
+      "namespace": "servtuner-external",
+      "pod": "vllm-lan"
+    },
+    "tls": {
+      "enabled": false
+    }
+  },
+  "engine": {
+    "type": "loadgen"
+  },
+  "workload": {
+    "api": "chat",
+    "streaming": true,
+    "dataset": {
+      "type": "synthetic",
+      "input_tokens": {"mean": 256, "stddev": 32},
+      "output_tokens": {"mean": 128, "stddev": 16}
+    }
+  },
+  "load": {
+    "stages": [
+      {"rate": 2, "duration": "60s"},
+      {"rate": 8, "duration": "60s"}
+    ]
+  },
+  "prometheus": {
+    "url": "http://prometheus.monitoring.svc:9090",
+    "tls": {"enabled": false}
+  }
+}

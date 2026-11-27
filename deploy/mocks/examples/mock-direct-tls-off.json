@@ -1,7 +1,7 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
-  "name": "mock-direct-platform",
+  "name": "mock-direct-tls-off",
   "target": {
     "type": "openai-compatible",
     "endpoint": "http://openai-mock.servtuner-mock.svc:8000/v1",
@@ -13,7 +13,7 @@
       }
     },
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "engine": {
@@ -47,7 +47,7 @@
   "prometheus": {
     "url": "http://kps-prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   },
   "slos": {

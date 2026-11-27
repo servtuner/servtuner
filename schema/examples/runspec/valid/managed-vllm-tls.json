@@ -1,5 +1,5 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
   "name": "managed-vllm-tls",
   "knobs": {
@@ -16,7 +16,7 @@
       }
     },
     "tls": {
-      "mode": "tls",
+      "enabled": true,
       "caSecretRef": {
         "name": "vllm-qwen-tls"
       }
@@ -61,7 +61,7 @@
   "prometheus": {
     "url": "http://prometheus.monitoring.svc:9090",
     "tls": {
-      "mode": "platform"
+      "enabled": false
     }
   }
 }

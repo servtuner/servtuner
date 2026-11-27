@@ -9,7 +9,7 @@ import (
 	"github.com/servtuner/servtuner/bench/internal/spec"
 )
 
-// fixturePhases match testdata/inferenceperf/native-platform: its first
+// fixturePhases match testdata/inferenceperf/native-tls-off: its first
 // inference-perf stage (5 rps, 1s) plays the warmup, then two stages.
 func fixturePhases() []engine.Phase {
 	zero, one := 0, 1
@@ -22,7 +22,7 @@ func fixturePhases() []engine.Phase {
 
 func normalizedFixture(t *testing.T) ([]engine.Window, []engine.RequestRow) {
 	t.Helper()
-	windows, rows, err := normalizeDirectory(filepath.Join(testdataDir, "native-platform"), fixturePhases())
+	windows, rows, err := normalizeDirectory(filepath.Join(testdataDir, "native-tls-off"), fixturePhases())
 	if err != nil {
 		t.Fatalf("normalizeDirectory: %v", err)
 	}

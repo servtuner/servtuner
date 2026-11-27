@@ -1,7 +1,7 @@
-{{- /* mtls only. One certificate for both roles: the mock presents it as a server, and the metrics proxy
-       sidecar presents it as a client. The issuer's CA (ca.crt) is the CA the mock accepts for clients, so
+{{- /* With tls.enabled. One certificate for both roles: the mock presents it as a server, and it can be
+       presented as a client. The issuer's CA (ca.crt) is the CA the mock accepts for clients, so
        servtuner's bench certificate, issued by the same issuer, is accepted. */ -}}
-{{- if include "openaiMock.isMtls" . }}
+{{- if include "openaiMock.tlsEnabled" . }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

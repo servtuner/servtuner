@@ -1,15 +1,17 @@
 {
-  "apiVersion": "servtuner.dev/v1",
+  "apiVersion": "servtuner.dev/v2",
   "kind": "RunSpec",
-  "name": "vllm-smoke",
+  "name": "litellm-mixed-hops",
   "target": {
-    "type": "vllm",
+    "type": "litellm",
     "endpoint": "https://vllm.inference.svc:8000/v1",
     "model": "example/model-8b",
     "tls": {
-      "mode": "mtls",
-      "secretRef": {
-        "name": "servtuner-client"
+      "enabled": true,
+      "clientCert": {
+        "secretRef": {
+          "name": "servtuner-client"
+        }
       }
     }
   },
@@ -35,5 +37,11 @@
         "duration": "30s"
       }
     ]
+  },
+  "prometheus": {
+    "url": "http://prometheus.monitoring.svc:9090",
+    "tls": {
+      "enabled": false
+    }
   }
 }

@@ -1,14 +1,15 @@
-// Package tlsconfig builds the TLS configuration and HTTP client of one
-// outbound hop. Every hop is in exactly one mode, chosen by the
-// caller and never inferred from the URL:
+// Package tlsconfig builds the TLS configuration of one connection. It answers
+// the two questions TLS asks, each stated by the caller and never inferred
+// from the URL:
 //
-//   - mtls: present a client certificate and verify the server against the
-//     system pool plus an optional private CA bundle. The URL must be https://.
-//   - platform: plain http://; the platform encrypts the traffic. No
-//     certificate settings are allowed.
-//   - tls: server-authenticated TLS. Verify the server against the
-//     system pool plus an optional private CA bundle and present no client
-//     certificate. The URL must be https://.
+//   - Is the connection encrypted? A hop with TLS needs an https:// URL and
+//     verifies the server against the system pool plus an optional private CA
+//     bundle. A hop without TLS needs an http:// URL and takes no certificate
+//     settings: something else (a service mesh, an encrypted CNI) encrypts it,
+//     or it is a local test.
+//   - Client certificates. A client presents one when it is given one. A
+//     server requires one, verifies one if it is sent, or ignores them
+//     (ClientAuth).
 //
 // There is deliberately no option to skip verification.
 package tlsconfig
@@ -30,21 +31,26 @@ import (
 type Hop struct {
 	// Name says which hop this is ("api", "target"), for error messages.
 	Name string
-	Mode spec.TransportMode
-	URL  string
-	// CertFile and KeyFile are the client certificate and key (mtls only).
+	// TLS says whether the connection uses TLS.
+	TLS bool
+	URL string
+	// CertFile and KeyFile are the client certificate and key: both set to
+	// present one, both empty to present none. TLS only.
 	CertFile string
 	KeyFile  string
-	// CAFile is an extra CA bundle added to the system pool (mtls and tls). The
+	// CAFile is an extra CA bundle added to the system pool. TLS only. The
 	// system pool already honours SSL_CERT_FILE, which is how a pod's combined
 	// bundle reaches Go clients.
 	CAFile string
 }
 
-// CheckScheme enforces that the modes do not mix: mtls and tls need https://
-// and platform needs http://. The RunSpec checks and the client
+// PresentsClientCert says whether the hop presents a client certificate.
+func (h Hop) PresentsClientCert() bool { return h.CertFile != "" }
+
+// CheckScheme enforces that TLS and plain connections do not mix: TLS needs an
+// https:// URL and no TLS needs http://. The RunSpec checks and the client
 // constructor both call it, so the rule has one definition.
-func CheckScheme(mode spec.TransportMode, rawURL string) error {
+func CheckScheme(useTLS bool, rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("parse url %q: %w", rawURL, err)
@@ -52,41 +58,27 @@ func CheckScheme(mode spec.TransportMode, rawURL string) error {
 	if parsed.Hostname() == "" {
 		return fmt.Errorf("url %q has no host", rawURL)
 	}
-	switch mode {
-	case spec.TransportModeMtls, spec.TransportModeTls:
-		if parsed.Scheme != "https" {
-			return fmt.Errorf("mode %s needs an https:// url, got %q", mode, rawURL)
-		}
-	case spec.TransportModePlatform:
-		if parsed.Scheme != "http" {
-			return fmt.Errorf("mode platform needs an http:// url, got %q", rawURL)
-		}
-	default:
-		return fmt.Errorf("unknown transport mode %q (want %s, %s or %s)", mode, spec.TransportModeMtls, spec.TransportModePlatform, spec.TransportModeTls)
+	if useTLS && parsed.Scheme != "https" {
+		return fmt.Errorf("tls enabled needs an https:// url, got %q", rawURL)
+	}
+	if !useTLS && parsed.Scheme != "http" {
+		return fmt.Errorf("tls disabled needs an http:// url, got %q", rawURL)
 	}
 	return nil
 }
 
-// Validate rejects a hop that mixes the modes or lacks what its mode needs.
-// All problems are reported together.
+// Validate rejects a hop that mixes TLS and plain settings, or names half a
+// client certificate. All problems are reported together.
 func (h Hop) Validate() error {
-	if err := CheckScheme(h.Mode, h.URL); err != nil {
+	if err := CheckScheme(h.TLS, h.URL); err != nil {
 		return fmt.Errorf("%s hop: %w", h.Name, err)
 	}
 	var problems []error
-	switch h.Mode {
-	case spec.TransportModeMtls:
-		if h.CertFile == "" || h.KeyFile == "" {
-			problems = append(problems, errors.New("mode mtls needs both a client certificate and a key"))
-		}
-	case spec.TransportModePlatform:
-		if h.CertFile != "" || h.KeyFile != "" || h.CAFile != "" {
-			problems = append(problems, errors.New("mode platform takes no certificate, key or CA settings"))
-		}
-	case spec.TransportModeTls:
-		if h.CertFile != "" || h.KeyFile != "" {
-			problems = append(problems, errors.New("mode tls presents no client certificate or key"))
-		}
+	if (h.CertFile == "") != (h.KeyFile == "") {
+		problems = append(problems, errors.New("a client certificate needs both its certificate and its key"))
+	}
+	if !h.TLS && (h.CertFile != "" || h.KeyFile != "" || h.CAFile != "") {
+		problems = append(problems, errors.New("tls disabled takes no certificate, key or CA settings"))
 	}
 	if err := errors.Join(problems...); err != nil {
 		return fmt.Errorf("%s hop: %w", h.Name, err)
@@ -94,13 +86,13 @@ func (h Hop) Validate() error {
 	return nil
 }
 
-// ClientConfig returns the *tls.Config of an mtls or tls hop. It returns nil
-// for a platform hop, which has no TLS configuration.
+// ClientConfig returns the *tls.Config of a TLS hop, with the client
+// certificate when the hop has one. It returns nil for a hop without TLS.
 func ClientConfig(h Hop) (*tls.Config, error) {
 	if err := h.Validate(); err != nil {
 		return nil, err
 	}
-	if h.Mode == spec.TransportModePlatform {
+	if !h.TLS {
 		return nil, nil
 	}
 	roots, err := trustPool(h.CAFile)
@@ -108,12 +100,83 @@ func ClientConfig(h Hop) (*tls.Config, error) {
 		return nil, fmt.Errorf("%s hop: %w", h.Name, err)
 	}
 	config := &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
-	if h.Mode == spec.TransportModeMtls {
+	if h.PresentsClientCert() {
 		certificate, err := tls.LoadX509KeyPair(h.CertFile, h.KeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("%s hop: load client certificate: %w", h.Name, err)
 		}
 		config.Certificates = []tls.Certificate{certificate}
+	}
+	return config, nil
+}
+
+// ClientAuth is a server's client-certificate policy.
+type ClientAuth string
+
+const (
+	// ClientAuthRequired refuses a client without a valid certificate.
+	ClientAuthRequired ClientAuth = "required"
+	// ClientAuthOptional verifies a certificate when one is sent, refusing a
+	// bad one, and accepts a client that sends none: authentication then
+	// rests on tokens.
+	ClientAuthOptional ClientAuth = "optional"
+	// ClientAuthNone asks for no client certificate.
+	ClientAuthNone ClientAuth = "none"
+)
+
+// ParseClientAuth reads a policy name, as flags and config files give it.
+func ParseClientAuth(name string) (ClientAuth, error) {
+	switch policy := ClientAuth(name); policy {
+	case ClientAuthRequired, ClientAuthOptional, ClientAuthNone:
+		return policy, nil
+	}
+	return "", fmt.Errorf("client auth %q: want %s, %s or %s", name, ClientAuthRequired, ClientAuthOptional, ClientAuthNone)
+}
+
+// tlsType is the crypto/tls setting of the policy.
+func (c ClientAuth) tlsType() tls.ClientAuthType {
+	switch c {
+	case ClientAuthRequired:
+		return tls.RequireAndVerifyClientCert
+	case ClientAuthOptional:
+		return tls.VerifyClientCertIfGiven
+	}
+	return tls.NoClientCert
+}
+
+// Server describes a TLS listener.
+type Server struct {
+	CertFile, KeyFile string
+	// ClientAuth is the client-certificate policy.
+	ClientAuth ClientAuth
+	// ClientCAFile verifies client certificates, added to the system pool.
+	// Required unless ClientAuth is none, where it is not allowed.
+	ClientCAFile string
+}
+
+// ServerConfig returns the *tls.Config of a TLS listener.
+func ServerConfig(s Server) (*tls.Config, error) {
+	if _, err := ParseClientAuth(string(s.ClientAuth)); err != nil {
+		return nil, err
+	}
+	if s.CertFile == "" || s.KeyFile == "" {
+		return nil, errors.New("a TLS server needs its certificate and key")
+	}
+	if s.ClientAuth == ClientAuthNone && s.ClientCAFile != "" {
+		return nil, errors.New("client auth none verifies no client certificates, so it takes no client CA")
+	}
+	if s.ClientAuth != ClientAuthNone && s.ClientCAFile == "" {
+		return nil, fmt.Errorf("client auth %s needs the CA that signs client certificates", s.ClientAuth)
+	}
+	certificate, err := tls.LoadX509KeyPair(s.CertFile, s.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("load server certificate: %w", err)
+	}
+	config := &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}, ClientAuth: s.ClientAuth.tlsType()}
+	if s.ClientAuth != ClientAuthNone {
+		if config.ClientCAs, err = trustPool(s.ClientCAFile); err != nil {
+			return nil, err
+		}
 	}
 	return config, nil
 }
@@ -139,7 +202,7 @@ func trustPool(caFile string) (*x509.CertPool, error) {
 }
 
 // NewHTTPClient returns a client for the hop. It never follows redirects: a
-// redirect could carry the request, and its bearer token, across the mode or
+// redirect could carry the request, and its bearer token, across the TLS or
 // scheme boundary the hop was configured for.
 func NewHTTPClient(h Hop, timeout time.Duration) (*http.Client, error) {
 	tlsConfig, err := ClientConfig(h)
@@ -147,7 +210,7 @@ func NewHTTPClient(h Hop, timeout time.Duration) (*http.Client, error) {
 		return nil, err
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	// For platform this stays nil, which is correct for a plain http:// URL.
+	// Without TLS this stays nil, which is correct for a plain http:// URL.
 	transport.TLSClientConfig = tlsConfig
 	return &http.Client{
 		Transport: transport,
@@ -156,4 +219,24 @@ func NewHTTPClient(h Hop, timeout time.Duration) (*http.Client, error) {
 			return http.ErrUseLastResponse
 		},
 	}, nil
+}
+
+// SpecHop is the hop a RunSpec tls block describes, with the files the run
+// was given for it. The block decides and the files must match it: a client
+// certificate is given exactly when the block names one, so a run never
+// presents a certificate the spec did not ask for, or silently goes without
+// one it did.
+func SpecHop(name string, block spec.Tls, rawURL, certFile, keyFile, caFile string) (Hop, error) {
+	decoded, err := spec.DecodeTLS(block)
+	if err != nil {
+		return Hop{}, fmt.Errorf("%s.tls: %w", name, err)
+	}
+	switch {
+	case decoded.ClientCert != nil && certFile == "":
+		return Hop{}, fmt.Errorf("%s.tls names client certificate Secret %q, but the run was given no certificate", name, decoded.ClientCert.Name)
+	case decoded.ClientCert == nil && certFile != "":
+		return Hop{}, fmt.Errorf("%s.tls names no client certificate, but the run was given one", name)
+	}
+	hop := Hop{Name: name, TLS: decoded.Enabled, URL: rawURL, CertFile: certFile, KeyFile: keyFile, CAFile: caFile}
+	return hop, hop.Validate()
 }

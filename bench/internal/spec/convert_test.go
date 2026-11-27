@@ -20,8 +20,8 @@ func TestResolveAnalysisFillsEveryAbsentBlockFromTheSchema(t *testing.T) {
 
 func TestResolveAnalysisKeepsWhatTheRunSpecDeclares(t *testing.T) {
 	runSpec, err := ParseRunSpec([]byte(`{
-	  "apiVersion": "servtuner.dev/v1", "kind": "RunSpec", "name": "declared",
-	  "target": {"type": "vllm", "endpoint": "http://x", "model": "m", "tls": {"mode": "platform"}},
+	  "apiVersion": "servtuner.dev/v2", "kind": "RunSpec", "name": "declared",
+	  "target": {"type": "vllm", "endpoint": "http://x", "model": "m", "tls": {"enabled": false}},
 	  "engine": {"type": "loadgen"},
 	  "workload": {"streaming": false, "dataset": {"type": "synthetic", "input_tokens": {"mean": 1}, "output_tokens": {"mean": 1}}},
 	  "load": {"stages": [{"rate": 1, "duration": "1s"}]},

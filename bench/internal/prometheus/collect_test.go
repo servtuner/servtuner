@@ -79,7 +79,7 @@ func TestCollectStoresRawMatrices(t *testing.T) {
 		}
 		return nil
 	}}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	collection, err := Collect(context.Background(), client, collectRequest([]spec.CatalogName{spec.CatalogNameVllm}, nil))
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +113,7 @@ func TestCollectStoresRawMatrices(t *testing.T) {
 
 func TestCollectRecordsWhichSeriesMayBeEmpty(t *testing.T) {
 	fake := &prometheustest.Server{Answer: func(string) []prometheustest.Series { return nil }}
-	collection, err := Collect(context.Background(), newPlatformClient(t, fake, nil), collectRequest([]spec.CatalogName{spec.CatalogNameKubernetes}, nil))
+	collection, err := Collect(context.Background(), newPlainClient(t, fake, nil), collectRequest([]spec.CatalogName{spec.CatalogNameKubernetes}, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestCollectRecordsWhichSeriesMayBeEmpty(t *testing.T) {
 
 func TestCollectSkipsAbsentOptionalCatalogsAndRecordsThem(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	absent := "marker query returned no series"
 	optional := []spec.OptionalCatalogResult{{Name: spec.CatalogNameDcgm, Result: spec.CatalogResultAbsent, Detail: &absent}}
 	collection, err := Collect(context.Background(), client, collectRequest([]spec.CatalogName{spec.CatalogNameLitellm}, optional))
@@ -166,7 +166,7 @@ func TestCollectRecordsFailedQueriesAndKeepsGoing(t *testing.T) {
 		}
 		return 0, ""
 	}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	collection, err := Collect(context.Background(), client, collectRequest([]spec.CatalogName{spec.CatalogNameVllm}, nil))
 	if err != nil {
 		t.Fatalf("a failed query must not fail the collection: %v", err)
@@ -195,7 +195,7 @@ func TestCollectTriesAlternatesWhenThePrimaryIsEmptyAndRecordsTheMatch(t *testin
 		}
 		return nil
 	}}
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	collection, err := Collect(context.Background(), client, collectRequest([]spec.CatalogName{spec.CatalogNameVllm}, nil))
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func TestCollectTriesAlternatesWhenThePrimaryIsEmptyAndRecordsTheMatch(t *testin
 
 func TestCollectRunsExtraQueriesAsCatalogExtra(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	request := collectRequest(nil, nil)
 	request.ExtraQueries = []spec.ExtraQuery{{Name: "my_series", Query: "sum(rate(my_total[1m]))"}}
 	request.StepOverride = 15 * time.Second
@@ -229,7 +229,7 @@ func TestCollectRunsExtraQueriesAsCatalogExtra(t *testing.T) {
 
 func TestCollectRejectsBadRequestsBeforeQuerying(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	noNodes := collectRequest([]spec.CatalogName{spec.CatalogNameVllm, spec.CatalogNameDcgm}, nil)
 	noNodes.Selectors.NodeRegex = ""
 	if _, err := Collect(context.Background(), client, noNodes); err == nil {
@@ -254,7 +254,7 @@ func TestCollectRejectsBadRequestsBeforeQuerying(t *testing.T) {
 }
 
 func TestCollectStopsOnACancelledContextAndReturnsWhatItHas(t *testing.T) {
-	client := newPlatformClient(t, answerEverything(), nil)
+	client := newPlainClient(t, answerEverything(), nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	collection, err := Collect(ctx, client, collectRequest([]spec.CatalogName{spec.CatalogNameVllm}, nil))
@@ -276,7 +276,7 @@ func TestCatalogsToCollectDeduplicates(t *testing.T) {
 
 func TestAnOptionalCatalogThatCannotBeRenderedDoesNotAbortCollect(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	detected := []spec.OptionalCatalogResult{{Name: spec.CatalogNameDcgm, Result: spec.CatalogResultCollected}}
 	request := collectRequest([]spec.CatalogName{spec.CatalogNameVllm}, detected)
 	request.Selectors.NodeRegex = ""
@@ -302,7 +302,7 @@ func TestAnOptionalCatalogThatCannotBeRenderedDoesNotAbortCollect(t *testing.T) 
 
 func TestCollectUsesTheKubeStateIntervalWhenDiscovered(t *testing.T) {
 	fake := answerEverything()
-	client := newPlatformClient(t, fake, nil)
+	client := newPlainClient(t, fake, nil)
 	request := collectRequest([]spec.CatalogName{spec.CatalogNameKubernetes}, nil)
 	request.Intervals.PerRole[spec.JobRoleKubeStateMetrics] = ScrapeInterval{Interval: 30 * time.Second, Source: spec.ScrapeIntervalSourceDiscovered, Job: "kube-state-metrics"}
 	collection, err := Collect(context.Background(), client, request)

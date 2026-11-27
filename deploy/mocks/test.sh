@@ -13,31 +13,33 @@ check() { if [ "$2" -eq 0 ]; then echo "ok   $1"; else echo "FAIL $1"; failures=
 count() { grep -cE "$1" <<<"$rendered" || true; }
 is() { [ "$1" -eq "$2" ] && echo 0 || echo 1; }
 
-for mode in mtls platform; do
-  rendered="$(render -f "$chart/ci/$mode.yaml")" || { echo "FAIL render $mode"; failures=$((failures + 1)); continue; }
-  echo "ok   render $mode"
-  lint_status=0; helm lint "$chart" -f "$chart/ci/$mode.yaml" >/dev/null || lint_status=$?
-  check "lint $mode" "$lint_status"
-  check "$mode: pod labelled servtuner.dev/scrape=true" "$(is "$(count 'servtuner.dev/scrape: "true"')" 1)"
-  check "$mode: namespace is servtuner-mock" "$([ "$(count 'namespace: servtuner-mock')" -ge 2 ] && echo 0 || echo 1)"
-  check "$mode: TLS mode passed to the mock" "$(is "$(count "OPENAI_MOCK_TLS_MODE, value: \"$mode\"")" 1)"
-  check "$mode: numeric non-root user and fsGroup" "$([ "$(count 'runAsUser: 65532')" -eq 1 ] && [ "$(count 'fsGroup: 65532')" -eq 1 ] && echo 0 || echo 1)"
-  check "$mode: plain metrics listener, scrape annotation and Service port agree on 9100" "$([ "$(count 'OPENAI_MOCK_METRICS_LISTEN, value: ":9100"')" -eq 1 ] && [ "$(count 'servtuner.dev/metrics-port: "9100"')" -eq 1 ] && [ "$(count 'name: metrics, port: 9100')" -eq 1 ] && echo 0 || echo 1)"
-  check "$mode: scheme http, no sidecar or proxy ConfigMap" "$([ "$(count 'servtuner.dev/metrics-scheme: http')" -eq 1 ] && [ "$(count 'metrics-proxy|nginx')" -eq 0 ] && echo 0 || echo 1)"
-  case "$mode" in
-    mtls)
-      check "mtls: one Certificate from the servtuner-ca ClusterIssuer" "$([ "$(count '^kind: Certificate$')" -eq 1 ] && [ "$(count 'name: servtuner-ca$')" -eq 1 ] && echo 0 || echo 1)"
-      check "mtls: Certificate has server and client auth" "$([ "$(count 'server auth')" -eq 1 ] && [ "$(count 'client auth')" -eq 1 ] && echo 0 || echo 1)"
-      check "mtls: client CA, cert and key files passed" "$(is "$(count 'OPENAI_MOCK_TLS_(CLIENT_CA|CERT|KEY)_FILE')" 3)"
+for values in client-cert client-cert-optional server-tls tls-off; do
+  rendered="$(render -f "$chart/ci/$values.yaml")" || { echo "FAIL render $values"; failures=$((failures + 1)); continue; }
+  echo "ok   render $values"
+  lint_status=0; helm lint "$chart" -f "$chart/ci/$values.yaml" >/dev/null || lint_status=$?
+  check "lint $values" "$lint_status"
+  check "$values: pod labelled servtuner.dev/scrape=true" "$(is "$(count 'servtuner.dev/scrape: "true"')" 1)"
+  check "$values: namespace is servtuner-mock" "$([ "$(count 'namespace: servtuner-mock')" -ge 2 ] && echo 0 || echo 1)"
+  check "$values: numeric non-root user and fsGroup" "$([ "$(count 'runAsUser: 65532')" -eq 1 ] && [ "$(count 'fsGroup: 65532')" -eq 1 ] && echo 0 || echo 1)"
+  check "$values: plain metrics listener, scrape annotation and Service port agree on 9100" "$([ "$(count 'OPENAI_MOCK_METRICS_LISTEN, value: ":9100"')" -eq 1 ] && [ "$(count 'servtuner.dev/metrics-port: "9100"')" -eq 1 ] && [ "$(count 'name: metrics, port: 9100')" -eq 1 ] && echo 0 || echo 1)"
+  check "$values: scheme http, no sidecar or proxy ConfigMap" "$([ "$(count 'servtuner.dev/metrics-scheme: http')" -eq 1 ] && [ "$(count 'metrics-proxy|nginx')" -eq 0 ] && echo 0 || echo 1)"
+  case "$values" in
+    tls-off)
+      check "tls-off: OPENAI_MOCK_TLS false, no Certificate, no client auth, no cert files" "$([ "$(count 'OPENAI_MOCK_TLS, value: "false"')" -eq 1 ] && [ "$(count '^kind: Certificate$|_FILE|mock-tls|CLIENT_AUTH')" -eq 0 ] && echo 0 || echo 1)"
       ;;
-    platform)
-      check "platform: no Certificate, no cert files" "$(is "$(count '^kind: Certificate$|_FILE|mock-tls')" 0)"
+    *)
+      policy="$(grep -oE 'clientAuth: [a-z]+' "$chart/ci/$values.yaml" | cut -d' ' -f2)"
+      check "$values: OPENAI_MOCK_TLS true with client auth $policy" "$([ "$(count 'OPENAI_MOCK_TLS, value: "true"')" -eq 1 ] && [ "$(count "OPENAI_MOCK_CLIENT_AUTH, value: \"$policy\"")" -eq 1 ] && echo 0 || echo 1)"
+      check "$values: one Certificate from the servtuner-ca ClusterIssuer, server and client auth" "$([ "$(count '^kind: Certificate$')" -eq 1 ] && [ "$(count 'name: servtuner-ca$')" -eq 1 ] && [ "$(count 'server auth')" -eq 1 ] && echo 0 || echo 1)"
+      check "$values: cert and key files passed" "$(is "$(count 'OPENAI_MOCK_TLS_(CERT|KEY)_FILE')" 2)"
+      want_ca=1; [ "$policy" = none ] && want_ca=0
+      check "$values: client CA file passed only when client certificates are checked" "$(is "$(count 'OPENAI_MOCK_TLS_CLIENT_CA_FILE')" "$want_ca")"
       ;;
   esac
 done
 
 # Every variable the chart sets is one the mock reads (config.go), so a misspelt knob cannot be ignored.
-rendered="$(render -f "$chart/ci/platform.yaml")"
+rendered="$(render -f "$chart/ci/tls-off.yaml")"
 read_by_mock="$(grep -oE 'env\.[A-Za-z]+\("[A-Z_]+"' "$here/openai-mock/config.go" | sed -E 's/.*\("([A-Z_]+)"/OPENAI_MOCK_\1/' | sort -u)"
 unread="$(grep -oE 'OPENAI_MOCK_[A-Z_]+' <<<"$rendered" | sort -u | comm -23 - <(echo "$read_by_mock"))"
 check "every OPENAI_MOCK_* variable the chart sets is read by the mock ${unread:+(unread: $unread)}" "$([ -z "$unread" ] && echo 0 || echo 1)"
@@ -46,7 +48,7 @@ check "fault knobs are passed, off by default" "$([ "$(count 'OPENAI_MOCK_(EXTRA
 # helm upgrade --reuse-values keeps a release's old values and skips new chart defaults: a release
 # that predates the fault knobs, given one of them, must still render every knob as a real value.
 partial='{"mock": {"faults": {"extraLatency": null, "maxConcurrency": null, "overCapacity": null, "errorRate": null, "errorStatus": null, "memoryPerRequestBytes": null, "memoryRampBytesPerSecond": null, "memoryRampMaxBytes": null, "latencyPerInFlight": "1ms"}}}'
-rendered="$(render -f "$chart/ci/platform.yaml" -f <(echo "$partial"))"
+rendered="$(render -f "$chart/ci/tls-off.yaml" -f <(echo "$partial"))"
 check "fault knobs missing from the values fall back to their defaults (--reuse-values)" "$([ "$(count '<nil>')" -eq 0 ] && [ "$(count 'OPENAI_MOCK_ERROR_RATE, value: "0"')" -eq 1 ] && [ "$(count 'OPENAI_MOCK_LATENCY_PER_IN_FLIGHT, value: "1ms"')" -eq 1 ] && echo 0 || echo 1)"
 
 # Each failure case must fail with its message.
@@ -56,7 +58,9 @@ expect_failure() { # <message> <helm args...>
   elif grep -qF -- "$message" <<<"$output"; then echo "ok   fail: $message"
   else echo "FAIL expected message \"$message\""; echo "$output" | head -5; failures=$((failures + 1)); fi
 }
-expect_failure 'is not one of' --set tls.mode=insecure
-expect_failure 'needs tls.certManager.issuerRef.name' --set tls.mode=mtls --set tls.certManager.issuerRef.name=
+expect_failure 'tls.clientAuth "sometimes" is not one of' --set tls.clientAuth=sometimes
+expect_failure 'tls.enabled must be true or false' --set-string tls.enabled=yes
+expect_failure 'tls.enabled needs tls.certManager.issuerRef.name' --set tls.certManager.issuerRef.name=
+expect_failure 'was replaced in servtuner 0.2' --set tls.mode=mtls
 
 [ "$failures" -eq 0 ] && echo "all mock chart tests passed" || { echo "$failures mock chart test(s) failed"; exit 1; }

@@ -4,7 +4,7 @@ package pipeline
 // the whole pipeline. Shards 1..N-1 follow: each builds the same engine for
 // its share of the load (rate / N, every N-th request) and sends nothing else.
 // The shards meet only through the bundle store, so no new network hop exists
-// and no transport mode has to be added:
+// and no transport setting has to be added:
 //
 //	shards/<i>/ready.json      a follower's engine is prepared
 //	shards/plan.json           the leader's common start time, once every follower is ready

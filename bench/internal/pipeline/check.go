@@ -189,8 +189,8 @@ func (c *checker) connect(ctx context.Context) {
 	c.record(spec.CheckNameConnect, spec.CheckStepStatusOk, started, "Connected to %s in %d ms.", c.address(), time.Since(started).Milliseconds())
 }
 
-// transport is the tls check: the declared mode against the scheme, and for
-// mtls a real handshake with the client certificate.
+// transport is the tls check: the declared tls block against the scheme, and
+// with TLS a real handshake, with the client certificate when there is one.
 func (c *checker) transport(ctx context.Context) {
 	if c.skipIfBlocked(spec.CheckNameTls) {
 		return
@@ -201,7 +201,7 @@ func (c *checker) transport(ctx context.Context) {
 		c.record(spec.CheckNameTls, spec.CheckStepStatusFailed, started, "The certificate files are not usable: %v.", err)
 		return
 	}
-	if err := tlsconfig.CheckScheme(hop.Mode, c.target.Endpoint); err != nil {
+	if err := tlsconfig.CheckScheme(hop.TLS, c.target.Endpoint); err != nil {
 		c.record(spec.CheckNameTls, spec.CheckStepStatusFailed, started, "%v.", err)
 		return
 	}
@@ -211,8 +211,8 @@ func (c *checker) transport(ctx context.Context) {
 		return
 	}
 	c.hop, c.client = hop, client
-	if hop.Mode == spec.TransportModePlatform {
-		c.record(spec.CheckNameTls, spec.CheckStepStatusOk, started, "Plain HTTP, as tls.mode platform declares: the network must encrypt this hop.")
+	if !hop.TLS {
+		c.record(spec.CheckNameTls, spec.CheckStepStatusOk, started, "Plain HTTP, as tls.enabled false declares: servtuner does not encrypt this hop, so a service mesh or an encrypted network must.")
 		return
 	}
 	config, err := tlsconfig.ClientConfig(hop)
@@ -232,8 +232,8 @@ func (c *checker) transport(ctx context.Context) {
 	}
 	version := tls.VersionName(conn.(*tls.Conn).ConnectionState().Version)
 	_ = conn.Close()
-	if hop.Mode == spec.TransportModeTls {
-		c.record(spec.CheckNameTls, spec.CheckStepStatusOk, started, "%s handshake succeeded without a client certificate, as tls.mode tls declares, and the server's certificate verified.", version)
+	if !hop.PresentsClientCert() {
+		c.record(spec.CheckNameTls, spec.CheckStepStatusOk, started, "%s handshake succeeded without a client certificate, as the tls block declares, and the server's certificate verified.", version)
 		return
 	}
 	c.record(spec.CheckNameTls, spec.CheckStepStatusOk, started, "%s handshake succeeded with the client certificate, and the server's certificate verified.", version)

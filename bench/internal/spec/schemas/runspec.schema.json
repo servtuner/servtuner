@@ -17,7 +17,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "const": "servtuner.dev/v1"
+      "const": "servtuner.dev/v2"
     },
     "kind": {
       "type": "string",
@@ -119,49 +119,47 @@
         }
       }
     },
-    "tlsMtls": {
-      "description": "mtls: present a client certificate from the named kubernetes.io/tls Secret and verify the server.",
+    "tlsClientCert": {
+      "description": "A client certificate to present: the tls.crt and tls.key of the named kubernetes.io/tls Secret.",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "mode",
         "secretRef"
       ],
       "properties": {
-        "mode": {
-          "type": "string",
-          "const": "mtls"
-        },
         "secretRef": {
           "$ref": "#/definitions/secretRef"
         }
       }
     },
-    "tlsPlatform": {
-      "description": "platform: plain HTTP, encryption asserted by the platform. Carries no certificate settings.",
+    "tlsDisabled": {
+      "description": "enabled false: plain HTTP or TCP, with no TLS from servtuner. Use it where a service mesh or an encrypted CNI encrypts the connection, or for local testing. Carries no certificate settings.",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "mode"
+        "enabled"
       ],
       "properties": {
-        "mode": {
-          "type": "string",
-          "const": "platform"
+        "enabled": {
+          "type": "boolean",
+          "const": false
         }
       }
     },
-    "tlsServer": {
-      "description": "tls: server-authenticated TLS. Verify the server against the system pool plus SSL_CERT_FILE, and the optional ca.crt of caSecretRef; present no client certificate, so there is no secretRef.",
+    "tlsEnabled": {
+      "description": "enabled true: TLS. The server is verified against the system pool plus SSL_CERT_FILE, and the ca.crt of caSecretRef when it is set; the certificate of clientCert is presented when it is set.",
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "mode"
+        "enabled"
       ],
       "properties": {
-        "mode": {
-          "type": "string",
-          "const": "tls"
+        "enabled": {
+          "type": "boolean",
+          "const": true
+        },
+        "clientCert": {
+          "$ref": "#/definitions/tlsClientCert"
         },
         "caSecretRef": {
           "description": "A Secret whose ca.crt is the private CA that signed the server certificate. Only ca.crt is read.",
@@ -170,16 +168,13 @@
       }
     },
     "tls": {
-      "description": "Transport security of one connection, discriminated by mode. Required wherever it appears: the mode is never inferred.",
+      "description": "Transport security of one connection on which servtuner is the client, discriminated by enabled. Required wherever it appears: it is never inferred.",
       "oneOf": [
         {
-          "$ref": "#/definitions/tlsMtls"
+          "$ref": "#/definitions/tlsDisabled"
         },
         {
-          "$ref": "#/definitions/tlsPlatform"
-        },
-        {
-          "$ref": "#/definitions/tlsServer"
+          "$ref": "#/definitions/tlsEnabled"
         }
       ]
     },

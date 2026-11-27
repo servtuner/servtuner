@@ -47,7 +47,7 @@ type S3Config struct {
 	ChecksumMode   string
 	// CredentialsSource is CredentialsSecret or CredentialsAmbient.
 	CredentialsSource string
-	// HTTPClient carries the object-store hop's TLS (mtls or plain); nil uses
+	// HTTPClient carries the object-store hop's TLS settings (or none); nil uses
 	// the SDK's default client.
 	HTTPClient *http.Client
 	// Getenv reads the static keys; os.Getenv when nil.

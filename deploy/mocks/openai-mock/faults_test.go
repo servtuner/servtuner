@@ -31,20 +31,20 @@ func TestFaultKnobsAreValidated(t *testing.T) {
 		"ramp without a maximum": func(f *FaultConfig) { f.MemoryRampBytesPerSecond = 1 },
 	} {
 		t.Run(name, func(t *testing.T) {
-			cfg := platformConfig()
+			cfg := plainConfig()
 			change(&cfg.Faults)
 			if cfg.Validate() == nil {
 				t.Error("accepted")
 			}
 		})
 	}
-	if err := platformConfig().Validate(); err != nil {
+	if err := plainConfig().Validate(); err != nil {
 		t.Errorf("the default knobs are invalid: %v", err)
 	}
 }
 
 func TestFaultKnobsComeFromFlagsAndEnvironment(t *testing.T) {
-	env := map[string]string{"OPENAI_MOCK_TLS_MODE": "platform", "OPENAI_MOCK_ERROR_RATE": "0.25", "OPENAI_MOCK_MAX_CONCURRENCY": "4"}
+	env := map[string]string{"OPENAI_MOCK_TLS": "false", "OPENAI_MOCK_ERROR_RATE": "0.25", "OPENAI_MOCK_MAX_CONCURRENCY": "4"}
 	cfg, err := loadConfig([]string{"--over-capacity", "reject", "--extra-latency", "50ms"}, func(key string) string { return env[key] }, io.Discard)
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +57,7 @@ func TestFaultKnobsComeFromFlagsAndEnvironment(t *testing.T) {
 
 // Every fourth request fails at 0.25, so the share is exact and reproducible.
 func TestErrorRateIsSpreadEvenly(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.Faults.ErrorRate = 0.25
 	cfg.Faults.ErrorStatus = http.StatusServiceUnavailable
 	address := startMock(t, cfg)
@@ -78,7 +78,7 @@ func TestErrorRateIsSpreadEvenly(t *testing.T) {
 }
 
 func TestExtraLatencyDelaysTheFirstToken(t *testing.T) {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.Faults.ExtraLatency = 150 * time.Millisecond
 	address := startMock(t, cfg)
 	response, sent := postChat(t, address, `{"messages":[]}`)
@@ -120,7 +120,7 @@ func waitForMetric(t *testing.T, address, line string) {
 }
 
 func slowConfig() Config {
-	cfg := platformConfig()
+	cfg := plainConfig()
 	cfg.InterTokenLatency = 25 * time.Millisecond // 20 tokens: each request is served for about 0.5s
 	return cfg
 }

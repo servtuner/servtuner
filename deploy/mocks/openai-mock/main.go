@@ -55,7 +55,7 @@ func run(ctx context.Context, cfg Config) error {
 }
 
 // serve runs the mock on an existing listener until ctx ends. metricsListener is nil unless
-// cfg.MetricsListenAddress is set; it always serves plain HTTP, whatever the TLS mode. Tests pass listeners on
+// cfg.MetricsListenAddress is set; it always serves plain HTTP, with or without TLS. Tests pass listeners on
 // port 0.
 func serve(ctx context.Context, cfg Config, listener, metricsListener net.Listener) error {
 	mainHandler, metricsHandler, m := newHandlers(cfg)
@@ -64,19 +64,12 @@ func serve(ctx context.Context, cfg Config, listener, metricsListener net.Listen
 	startMemoryRamp(ctx, cfg.Faults, m, ticker.C)
 	servers := []*http.Server{{Handler: mainHandler, ReadHeaderTimeout: 10 * time.Second}}
 
-	switch cfg.TLSMode {
-	case tlsModeMutual:
-		tlsConfig, err := mutualTLSConfig(cfg)
+	if cfg.TLS == tlsOn {
+		tlsConfig, err := serverTLSConfig(cfg)
 		if err != nil {
 			return err
 		}
 		listener = tls.NewListener(listener, tlsConfig)
-	case tlsModeServer:
-		certificate, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
-		if err != nil {
-			return fmt.Errorf("load server certificate %s and key %s: %w", cfg.CertFile, cfg.KeyFile, err)
-		}
-		listener = tls.NewListener(listener, &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}})
 	}
 
 	listeners := []net.Listener{listener}
@@ -94,7 +87,7 @@ func serve(ctx context.Context, cfg Config, listener, metricsListener net.Listen
 		}
 	}()
 
-	log.Printf("openai-mock serving model %q on %s (tls-mode %s)", cfg.ModelName, listener.Addr(), cfg.TLSMode)
+	log.Printf("openai-mock serving model %q on %s (tls %s, client-auth %q)", cfg.ModelName, listener.Addr(), cfg.TLS, cfg.ClientAuth)
 	if metricsListener != nil {
 		log.Printf("openai-mock serving /metrics in plain HTTP on %s", metricsListener.Addr())
 	}
@@ -119,11 +112,22 @@ func stopAll(servers []*http.Server) {
 	}
 }
 
-// mutualTLSConfig requires and verifies client certificates.
-func mutualTLSConfig(cfg Config) (*tls.Config, error) {
+// clientAuthTypes maps --client-auth to crypto/tls.
+var clientAuthTypes = map[string]tls.ClientAuthType{
+	clientAuthRequired: tls.RequireAndVerifyClientCert,
+	clientAuthOptional: tls.VerifyClientCertIfGiven,
+	clientAuthNone:     tls.NoClientCert,
+}
+
+// serverTLSConfig serves the certificate with the client-certificate policy.
+func serverTLSConfig(cfg Config) (*tls.Config, error) {
 	certificate, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("load server certificate %s and key %s: %w", cfg.CertFile, cfg.KeyFile, err)
+	}
+	config := &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}, ClientAuth: clientAuthTypes[cfg.ClientAuth]}
+	if cfg.ClientAuth == clientAuthNone {
+		return config, nil
 	}
 	caPEM, err := os.ReadFile(cfg.ClientCAFile)
 	if err != nil {
@@ -133,10 +137,6 @@ func mutualTLSConfig(cfg Config) (*tls.Config, error) {
 	if !clientCAs.AppendCertsFromPEM(caPEM) {
 		return nil, fmt.Errorf("client CA %s contains no PEM certificates", cfg.ClientCAFile)
 	}
-	return &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{certificate},
-		ClientCAs:    clientCAs,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-	}, nil
+	config.ClientCAs = clientCAs
+	return config, nil
 }

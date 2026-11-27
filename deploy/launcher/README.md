@@ -14,7 +14,7 @@ freed.
 ## The config file
 
 `launcher.yaml` here is a commented example. Every key matches a flag
-(`listen`, `tls_mode`, `tls_cert_file`, `tls_key_file`, `token_file`,
+(`listen`, `tls`, `client_auth`, `tls_cert_file`, `tls_key_file`, `tls_client_ca_file`, `token_file`,
 `api_key_file`, `vllm`, `log_dir`), and a flag on the command line wins.
 Unknown keys are refused. The launcher reads the first of:
 
@@ -115,6 +115,14 @@ panel reads.
 
 ## TLS
 
-For `--tls-mode=tls`, replace `--tls-mode=platform` with `--tls-mode=tls
---tls-cert-file=... --tls-key-file=...` (the launcher's own
-certificate). There is no skip-verify on the api side.
+The launcher serves plain HTTP with `tls: false` (`--tls=false`), and TLS with
+`tls: true` plus its own certificate: `tls_cert_file` and `tls_key_file`
+(`--tls-cert-file`, `--tls-key-file`). With TLS, `client_auth` (`--client-auth`)
+sets client certificates: `none`, `optional` (a certificate that is sent is
+verified against `tls_client_ca_file`) or `required`. servtuner's api presents
+no client certificate to launchers yet, so use `none`, or `optional` if other
+clients have one; `required` would refuse the api. There is no skip-verify on
+the api side.
+
+servtuner 0.1's `tls_mode` was replaced: `platform` is `tls: false`, and `tls`
+is `tls: true` with `client_auth: none`.

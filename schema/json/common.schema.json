@@ -9,14 +9,24 @@
       "type": "string",
       "pattern": "^([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+$"
     },
-    "transportMode": {
-      "description": "How one connection is secured. Never inferred.",
-      "type": "string",
-      "enum": [
-        "mtls",
-        "platform",
-        "tls"
-      ]
+    "hopTransport": {
+      "description": "How one connection was secured: whether it used TLS, and whether servtuner presented a client certificate on it. Never inferred.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tls",
+        "client_cert"
+      ],
+      "properties": {
+        "tls": {
+          "description": "The connection used TLS. False is plain HTTP or TCP.",
+          "type": "boolean"
+        },
+        "client_cert": {
+          "description": "servtuner presented a client certificate on it. Always false without TLS.",
+          "type": "boolean"
+        }
+      }
     },
     "utcTimestamp": {
       "description": "An RFC 3339 timestamp in UTC: a Z suffix, optional fractional seconds. The one timestamp representation used in every schema. Enforced by the pattern alone, with no format keyword, so every language checks it the same way.",

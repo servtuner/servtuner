@@ -44,7 +44,7 @@ def validate_client(
 
 
 def test_a_valid_spec_in_json_or_yaml(validate_client: TestClient) -> None:
-    document = json.loads(example_bytes("runspec", "valid", "off-cluster-vllm-platform"))
+    document = json.loads(example_bytes("runspec", "valid", "off-cluster-vllm-tls-off"))
     response = validate_client.post("/specs/validate", content=json.dumps(document))
     assert response.status_code == 200, response.text
     expected: dict[str, object] = {
@@ -65,7 +65,7 @@ def test_problems_and_warnings_are_listed(validate_client: TestClient) -> None:
     report = missing.json()
     assert missing.status_code == 200 and report["valid"] is False
     assert any("missing properties" in problem for problem in report["errors"])
-    document = json.loads(example_bytes("runspec", "valid", "off-cluster-vllm-platform"))
+    document = json.loads(example_bytes("runspec", "valid", "off-cluster-vllm-tls-off"))
     document["load"]["stages"] = [{"rate": 2, "duration": "20s"}]
     short = validate_client.post("/specs/validate", content=json.dumps(document)).json()
     assert short["valid"] is True and any(

@@ -21,8 +21,8 @@ func TestValidateExpandsPresetsAndRejectsBadOnes(t *testing.T) {
 		"engine":          {"inference-perf", `{"preset": "chat-multiturn@1", "streaming": true}`}, // loadgen only
 	}
 	for name, c := range cases {
-		document := `{"apiVersion":"servtuner.dev/v1","kind":"RunSpec","name":"x",
-"target":{"type":"vllm","endpoint":"http://vllm.inference.svc:8000/v1","model":"m","tls":{"mode":"platform"}},
+		document := `{"apiVersion":"servtuner.dev/v2","kind":"RunSpec","name":"x",
+"target":{"type":"vllm","endpoint":"http://vllm.inference.svc:8000/v1","model":"m","tls":{"enabled":false}},
 "engine":{"type":"` + c.engine + `"},"workload":` + c.workload + `,"load":{"stages":[{"rate":1,"duration":"90s"}]}}`
 		path := filepath.Join(t.TempDir(), "spec.json")
 		if err := os.WriteFile(path, []byte(document), 0o644); err != nil {

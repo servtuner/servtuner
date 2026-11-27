@@ -32,8 +32,8 @@ EVENTS_SCHEMA = REPOSITORY / "schema" / "json" / "events.schema.json"
 PIPELINE_STEPS = json.loads(EVENTS_SCHEMA.read_text())["definitions"]["pipelineStep"]["enum"]
 # An example whose target TLS mode matches the hop under test; the null engine never connects.
 EXAMPLE_FOR_MODE = {
-    TransportMode.MTLS: "minimal-vllm-mtls",
-    TransportMode.PLATFORM: "router-bifrost-platform",
+    TransportMode.MTLS: "minimal-vllm-client-cert",
+    TransportMode.PLATFORM: "router-bifrost-tls-off",
 }
 
 

@@ -96,19 +96,19 @@ func assertNoSecret(t *testing.T, result spec.CheckTargetResult) {
 	}
 }
 
-func platformTarget(endpoint, model string, withAuth bool) string {
+func plainTarget(endpoint, model string, withAuth bool) string {
 	auth := ""
 	if withAuth {
 		auth = `"auth": {"secretRef": {"name": "vllm-key", "key": "token"}},`
 	}
-	return fmt.Sprintf(`{"type": "vllm", "endpoint": %q, "model": %q, %s "tls": {"mode": "platform"}}`, endpoint, model, auth)
+	return fmt.Sprintf(`{"type": "vllm", "endpoint": %q, "model": %q, %s "tls": {"enabled": false}}`, endpoint, model, auth)
 }
 
-func TestCheckTargetPlatformPassesWithTheRightKey(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, fakeOpenAI("tiny"))
+func TestCheckTargetPlainPassesWithTheRightKey(t *testing.T) {
+	server := tlstest.NewPlainServer(t, fakeOpenAI("tiny"))
 	secretsDir := t.TempDir()
 	writeSecret(t, secretsDir, "vllm-key", "token", []byte(checkKey+"\n"))
-	request := checkRequest(t, fmt.Sprintf(`{"target": %s, "generate": true}`, platformTarget(server.URL+"/v1", "tiny", true)))
+	request := checkRequest(t, fmt.Sprintf(`{"target": %s, "generate": true}`, plainTarget(server.URL+"/v1", "tiny", true)))
 
 	result := CheckTarget(context.Background(), CheckOptions{SecretsDir: secretsDir}, request)
 
@@ -123,7 +123,7 @@ func TestCheckTargetPlatformPassesWithTheRightKey(t *testing.T) {
 }
 
 func TestCheckTargetSaysWhatIsWrongWithTheKeyOrModel(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, fakeOpenAI("tiny", "other"))
+	server := tlstest.NewPlainServer(t, fakeOpenAI("tiny", "other"))
 	for _, scenario := range []struct {
 		name, key, model, wantCheck, wantMessage string
 		withAuth                                 bool
@@ -138,7 +138,7 @@ func TestCheckTargetSaysWhatIsWrongWithTheKeyOrModel(t *testing.T) {
 			if scenario.key != "" {
 				writeSecret(t, secretsDir, "vllm-key", "token", []byte(scenario.key))
 			}
-			request := checkRequest(t, fmt.Sprintf(`{"target": %s}`, platformTarget(server.URL+"/v1", scenario.model, scenario.withAuth)))
+			request := checkRequest(t, fmt.Sprintf(`{"target": %s}`, plainTarget(server.URL+"/v1", scenario.model, scenario.withAuth)))
 			result := CheckTarget(context.Background(), CheckOptions{SecretsDir: secretsDir}, request)
 			assertNoSecret(t, result)
 			if result.Status != spec.CheckStatusFailed {
@@ -162,7 +162,7 @@ func TestCheckTargetStopsAtARefusedConnection(t *testing.T) {
 	}
 	address := listener.Addr().String()
 	_ = listener.Close() // nothing listens there now
-	request := checkRequest(t, fmt.Sprintf(`{"target": %s}`, platformTarget("http://"+address+"/v1", "tiny", false)))
+	request := checkRequest(t, fmt.Sprintf(`{"target": %s}`, plainTarget("http://"+address+"/v1", "tiny", false)))
 	result := CheckTarget(context.Background(), CheckOptions{SecretsDir: t.TempDir()}, request)
 	want := "resolve=ok connect=failed tls=skipped auth=skipped model=skipped generate=skipped"
 	if got := statuses(result); !strings.HasPrefix(got, want) {
@@ -171,7 +171,7 @@ func TestCheckTargetStopsAtARefusedConnection(t *testing.T) {
 }
 
 func mtlsTarget(endpoint, certSecret string) string {
-	return fmt.Sprintf(`{"type": "openai-compatible", "endpoint": %q, "model": "tiny", "auth": {"secretRef": {"name": "key", "key": "token"}}, "tls": {"mode": "mtls", "secretRef": {"name": %q}}}`, endpoint, certSecret)
+	return fmt.Sprintf(`{"type": "openai-compatible", "endpoint": %q, "model": "tiny", "auth": {"secretRef": {"name": "key", "key": "token"}}, "tls": {"enabled":true,"clientCert":{"secretRef":{"name": %q}}}}`, endpoint, certSecret)
 }
 
 func TestCheckTargetMTLSHandshakesWithTheClientCertificate(t *testing.T) {
@@ -204,7 +204,7 @@ func TestCheckTargetMTLSHandshakesWithTheClientCertificate(t *testing.T) {
 	}
 
 	// mtls declared against an http:// URL never connects in plain text.
-	plain := tlstest.NewPlatformServer(t, fakeOpenAI("tiny"))
+	plain := tlstest.NewPlainServer(t, fakeOpenAI("tiny"))
 	mixed := CheckTarget(context.Background(), CheckOptions{SecretsDir: secretsDir}, checkRequest(t, fmt.Sprintf(`{"target": %s}`, mtlsTarget(plain.URL+"/v1", "bench-tls"))))
 	if checkNamed(t, mixed, spec.CheckNameTls).Status != spec.CheckStepStatusFailed {
 		t.Errorf("mtls with an http:// endpoint fails the tls check: %s", statuses(mixed))
@@ -212,9 +212,9 @@ func TestCheckTargetMTLSHandshakesWithTheClientCertificate(t *testing.T) {
 }
 
 func tlsTarget(endpoint, caSecret string) string {
-	tls := `{"mode": "tls"}`
+	tls := `{"enabled": true}`
 	if caSecret != "" {
-		tls = fmt.Sprintf(`{"mode": "tls", "caSecretRef": {"name": %q}}`, caSecret)
+		tls = fmt.Sprintf(`{"enabled": true, "caSecretRef": {"name": %q}}`, caSecret)
 	}
 	return fmt.Sprintf(`{"type": "openai-compatible", "endpoint": %q, "model": "tiny", "auth": {"secretRef": {"name": "key", "key": "token"}}, "tls": %s}`, endpoint, tls)
 }
@@ -260,7 +260,7 @@ func TestCheckTargetTLSVerifiesTheServerWithoutAClientCertificate(t *testing.T) 
 // DCGM queries with none or one.
 func fakePrometheus(t *testing.T, withDCGM bool) string {
 	t.Helper()
-	server := tlstest.NewPlatformServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := tlstest.NewPlainServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query := r.FormValue("query")
 		result := `[]`
 		if strings.Contains(query, "vllm:") || (withDCGM && strings.Contains(query, "DCGM_")) {
@@ -272,16 +272,16 @@ func fakePrometheus(t *testing.T, withDCGM bool) string {
 }
 
 func TestCheckTargetFindsTheTargetsSeriesInPrometheus(t *testing.T) {
-	server := tlstest.NewPlatformServer(t, fakeOpenAI("tiny"))
+	server := tlstest.NewPlainServer(t, fakeOpenAI("tiny"))
 	secretsDir := t.TempDir()
 	writeSecret(t, secretsDir, "vllm-key", "token", []byte(checkKey))
 	offCluster := fmt.Sprintf(`{"type": "vllm", "endpoint": %q, "model": "tiny",
 		"auth": {"secretRef": {"name": "vllm-key", "key": "token"}},
 		"metrics": {"namespace": "servtuner-external", "pod": "vllm-lan", "node": "vllm-lan-gpu"},
-		"tls": {"mode": "platform"}}`, server.URL+"/v1")
+		"tls": {"enabled": false}}`, server.URL+"/v1")
 	for _, withDCGM := range []bool{true, false} {
 		prometheusURL := fakePrometheus(t, withDCGM)
-		request := checkRequest(t, fmt.Sprintf(`{"target": %s, "prometheus": {"url": %q, "tls": {"mode": "platform"}}}`, offCluster, prometheusURL))
+		request := checkRequest(t, fmt.Sprintf(`{"target": %s, "prometheus": {"url": %q, "tls": {"enabled": false}}}`, offCluster, prometheusURL))
 		result := CheckTarget(context.Background(), CheckOptions{SecretsDir: secretsDir}, request)
 		if got := checkNamed(t, result, spec.CheckNameMetrics); got.Status != spec.CheckStepStatusOk {
 			t.Errorf("the vllm marker is found: %+v", got)

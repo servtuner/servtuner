@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -322,7 +323,7 @@ func TestDecodeTLS(t *testing.T) {
 		return tls
 	}
 
-	t.Run("valid examples decode to the variant named by their own mode", func(t *testing.T) {
+	t.Run("valid examples decode to what their own block says", func(t *testing.T) {
 		for _, file := range exampleFiles(t, "runspec", "valid") {
 			document, err := os.ReadFile(file)
 			if err != nil {
@@ -337,53 +338,80 @@ func TestDecodeTLS(t *testing.T) {
 				tlsBlocks = append(tlsBlocks, runSpec.Prometheus.Tls)
 			}
 			for _, tls := range tlsBlocks {
-				wantMode := tls.(map[string]any)["mode"]
+				raw := tls.(map[string]any)
 				decoded, err := DecodeTLS(tls)
 				if err != nil {
 					t.Fatalf("%s: %v", filepath.Base(file), err)
 				}
-				if string(decoded.Mode) != wantMode || (wantMode == "mtls") != (decoded.Mtls != nil) || (wantMode == "tls") != (decoded.Server != nil) {
-					t.Errorf("%s: mode %v decoded to %+v", filepath.Base(file), wantMode, decoded)
+				_, hasCert := raw["clientCert"]
+				_, hasCA := raw["caSecretRef"]
+				if decoded.Enabled != raw["enabled"] || hasCert != (decoded.ClientCert != nil) || hasCA != (decoded.CA != nil) {
+					t.Errorf("%s: %v decoded to %+v", filepath.Base(file), raw, decoded)
 				}
 			}
 		}
 	})
 
-	t.Run("tls decodes with and without a CA Secret", func(t *testing.T) {
-		for tlsJSON, wantCA := range map[string]string{
-			`{"mode":"tls"}`: "",
-			`{"mode":"tls","caSecretRef":{"name":"vllm-ca"}}`: "vllm-ca",
+	t.Run("enabled decodes with and without a client certificate and a CA", func(t *testing.T) {
+		for tlsJSON, want := range map[string]struct{ cert, ca string }{
+			`{"enabled":true}`: {},
+			`{"enabled":true,"caSecretRef":{"name":"vllm-ca"}}`:                                    {ca: "vllm-ca"},
+			`{"enabled":true,"clientCert":{"secretRef":{"name":"servtuner-client"}}}`:              {cert: "servtuner-client"},
+			`{"enabled":true,"clientCert":{"secretRef":{"name":"c"}},"caSecretRef":{"name":"ca"}}`: {cert: "c", ca: "ca"},
 		} {
 			decoded, err := DecodeTLS(tlsOf(t, tlsJSON))
 			if err != nil {
 				t.Fatalf("%s: %v", tlsJSON, err)
 			}
-			if decoded.Mode != TransportModeTls || decoded.Server == nil || decoded.Mtls != nil {
-				t.Fatalf("%s: decoded to %+v", tlsJSON, decoded)
+			gotCert, gotCA := "", ""
+			if decoded.ClientCert != nil {
+				gotCert = decoded.ClientCert.Name
 			}
-			gotCA := ""
-			if decoded.Server.CaSecretRef != nil {
-				gotCA = decoded.Server.CaSecretRef.Name
+			if decoded.CA != nil {
+				gotCA = decoded.CA.Name
 			}
-			if gotCA != wantCA {
-				t.Errorf("%s: CA Secret %q, want %q", tlsJSON, gotCA, wantCA)
+			if !decoded.Enabled || gotCert != want.cert || gotCA != want.ca {
+				t.Errorf("%s: decoded to %+v", tlsJSON, decoded)
+			}
+			if transport := decoded.Transport(); !transport.Tls || transport.ClientCert != (want.cert != "") {
+				t.Errorf("%s: transport %+v", tlsJSON, transport)
+			}
+		}
+		decoded, err := DecodeTLS(tlsOf(t, `{"enabled":false}`))
+		if err != nil || decoded != (DecodedTLS{}) || decoded.Transport() != (HopTransport{}) {
+			t.Errorf("enabled false decoded to %+v, %v", decoded, err)
+		}
+	})
+
+	t.Run("a servtuner 0.1 block names its replacement", func(t *testing.T) {
+		for legacy, want := range map[string]string{
+			`{"mode":"mtls","secretRef":{"name":"servtuner-client"}}`: `{"clientCert":{"secretRef":{"name":"servtuner-client"}},"enabled":true}`,
+			`{"mode":"tls","caSecretRef":{"name":"ca"}}`:              `{"caSecretRef":{"name":"ca"},"enabled":true}`,
+			`{"mode":"platform"}`:                                     `{"enabled":false}`,
+		} {
+			_, err := DecodeTLS(tlsOf(t, legacy))
+			if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "servtuner 0.2") {
+				t.Errorf("%s: error %v, want it to name %s", legacy, err, want)
 			}
 		}
 	})
 
 	rejected := map[string]Tls{
-		"platform with secretRef":   tlsOf(t, `{"mode":"platform","secretRef":{"name":"servtuner-client"}}`),
-		"platform with skipVerify":  tlsOf(t, `{"mode":"platform","skipVerify":true}`),
-		"mtls without secretRef":    tlsOf(t, `{"mode":"mtls"}`),
-		"mtls with an extra key":    tlsOf(t, `{"mode":"mtls","secretRef":{"name":"servtuner-client"},"skipVerify":true}`),
-		"mtls secretRef extra key":  tlsOf(t, `{"mode":"mtls","secretRef":{"name":"servtuner-client","key":"tls.key"}}`),
-		"tls with a client cert":    tlsOf(t, `{"mode":"tls","secretRef":{"name":"servtuner-client"}}`),
-		"tls with skipVerify":       tlsOf(t, `{"mode":"tls","skipVerify":true}`),
-		"tls caSecretRef extra key": tlsOf(t, `{"mode":"tls","caSecretRef":{"name":"ca","key":"ca.crt"}}`),
-		"unknown mode":              tlsOf(t, `{"mode":"insecure"}`),
-		"missing mode":              tlsOf(t, `{"secretRef":{"name":"servtuner-client"}}`),
-		"nil":                       nil,
-		"non-object":                "mtls",
+		"disabled with a client cert":        tlsOf(t, `{"enabled":false,"clientCert":{"secretRef":{"name":"servtuner-client"}}}`),
+		"disabled with a CA":                 tlsOf(t, `{"enabled":false,"caSecretRef":{"name":"ca"}}`),
+		"disabled with skipVerify":           tlsOf(t, `{"enabled":false,"skipVerify":true}`),
+		"client cert without secretRef":      tlsOf(t, `{"enabled":true,"clientCert":{}}`),
+		"enabled with an extra key":          tlsOf(t, `{"enabled":true,"clientCert":{"secretRef":{"name":"servtuner-client"}},"skipVerify":true}`),
+		"client cert secretRef extra key":    tlsOf(t, `{"enabled":true,"clientCert":{"secretRef":{"name":"servtuner-client","key":"tls.key"}}}`),
+		"enabled with a top-level secretRef": tlsOf(t, `{"enabled":true,"secretRef":{"name":"servtuner-client"}}`),
+		"enabled with skipVerify":            tlsOf(t, `{"enabled":true,"skipVerify":true}`),
+		"caSecretRef extra key":              tlsOf(t, `{"enabled":true,"caSecretRef":{"name":"ca","key":"ca.crt"}}`),
+		"enabled not a boolean":              tlsOf(t, `{"enabled":"true"}`),
+		"missing enabled":                    tlsOf(t, `{"clientCert":{"secretRef":{"name":"servtuner-client"}}}`),
+		"0.1 mtls":                           tlsOf(t, `{"mode":"mtls","secretRef":{"name":"servtuner-client"}}`),
+		"0.1 unknown mode":                   tlsOf(t, `{"mode":"insecure"}`),
+		"nil":                                nil,
+		"non-object":                         "mtls",
 	}
 	for name, tls := range rejected {
 		t.Run("rejects "+name, func(t *testing.T) {
