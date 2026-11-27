@@ -1,0 +1,48 @@
+# The Gateway servtuner's routes attach to (gateway.parentRefs), with its own GatewayClass for Envoy Gateway:
+# the helmfile's servtuner-gateway release (install.gateway). Envoy Gateway's chart installs the controller and
+# the CRDs, but no class and no Gateway. The listener is plain HTTP on port 80; terminate browser TLS in front of
+# it, or add an HTTPS listener here with your certificate.
+{{- if eq .Values.gateway.serviceType "ClusterIP" }}
+# No load balancer (kind): a LoadBalancer Service never gets an address, so the Gateway would never become
+# Programmed. The proxy gets a ClusterIP Service instead, reached with kubectl port-forward.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: servtuner-cluster-ip
+  namespace: envoy-gateway-system
+spec:
+  # Merged onto Envoy Gateway's default EnvoyProxy instead of replacing it: the default carries the proxy image
+  # under the install's registry and its pull secrets, which a replacing EnvoyProxy would drop.
+  mergeType: StrategicMerge
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: ClusterIP
+---
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: servtuner
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  {{- if eq .Values.gateway.serviceType "ClusterIP" }}
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: servtuner-cluster-ip
+    namespace: envoy-gateway-system
+  {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: servtuner
+spec:
+  gatewayClassName: servtuner
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes: {namespaces: {from: Same}}

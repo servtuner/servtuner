@@ -1,10 +1,9 @@
 # kind / dev cluster manifests
 
-`cluster-issuer.yaml` creates a self-signed CA chain (`servtuner-selfsigned` -> CA certificate -> `servtuner-ca` ClusterIssuer)
-for `tls.enabled: true` with `tls.source: cert-manager`. Use it with `--set tls.certManager.issuerRef.name=servtuner-ca`.
-
-It is **NOT applied automatically** by anything in this repository. On a shared cluster, review it and
-apply it yourself (`kubectl apply -f deploy/kind/cluster-issuer.yaml`). cert-manager must already be installed.
+`../helmfile/manifests/issuer/cluster-issuer.yaml` creates a self-signed CA chain (`servtuner-selfsigned` -> CA
+certificate -> `servtuner-ca` ClusterIssuer) for `tls.enabled: true` with `tls.source: cert-manager`. The helmfile
+installs it as its own release (`servtuner-issuer`), and `kind-up.sh` applies it on the dev cluster. Elsewhere,
+review it and apply it yourself; cert-manager must already be installed.
 
 ## End to end
 

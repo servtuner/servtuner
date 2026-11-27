@@ -63,7 +63,7 @@ kube apply -f "$here/envoy-gateway-class.yaml"
 step "applying the servtuner-ca ClusterIssuer"
 # cert-manager's webhook can lag behind its Deployment; retry for a short while.
 for attempt in 1 2 3 4 5 6; do
-  kube apply -f "$here/cluster-issuer.yaml" && break
+  kube apply -f "$here/../helmfile/manifests/issuer/cluster-issuer.yaml" && break
   [ "$attempt" -lt 6 ] || { echo "kind-up: the ClusterIssuer was not accepted" >&2; exit 1; }
   sleep 10
 done

@@ -1,11 +1,13 @@
-# The kind environment's values for the servtuner chart: plain connections, a ReadWriteOnce volume, and the
-# Envoy Gateway class kind uses (deploy/kind/envoy-gateway-class.yaml, applied after Envoy Gateway).
-tls:
-  enabled: false
+# The kind environment's values for the servtuner chart: the defaults (TLS with client certificates, from the
+# servtuner-ca issuer), a ReadWriteOnce volume, small Postgres storage, and the Gateway answering on localhost:
+#   kubectl -n envoy-gateway-system port-forward \
+#     "$(kubectl -n envoy-gateway-system get svc -l gateway.envoyproxy.io/owning-gateway-name=servtuner -o name)" 8080:80
+# then open http://localhost:8080. Your own values go in deploy/site-values.yaml, which comes after this file.
+gateway:
+  hostname: localhost
 storage:
   file:
     pvc: {create: true, accessMode: ReadWriteOnce, size: 1Gi}
 postgres:
-  auth: password           # without TLS, the api signs in with the generated password
   cnpg:
     storage: {size: 1Gi}

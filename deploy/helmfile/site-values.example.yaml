@@ -1,16 +1,14 @@
-# The site's values for the servtuner chart: copy to deploy/site-values.yaml and edit.
-# Every value of deploy/helm/servtuner/values.yaml may be set here; these are the ones every site decides.
+# The site's values for the servtuner chart: copy to deploy/site-values.yaml and edit. It comes after the
+# environment's values, so anything here wins. Every value of deploy/helm/servtuner/values.yaml may be set.
+#
+# The helmfile installs servtuner's private CA (the servtuner-ca ClusterIssuer) and a Gateway, and points the
+# chart at both. Using your own instead: --state-values-set install.issuer=false,install.gateway=false and set
+# tls.certManager.issuerRef and gateway.parentRefs (or ingress) here.
 tls:
   enabled: true                  # TLS on every connection (false: plain HTTP, and postgres.auth password)
   clientAuth: required           # the api listener: required, optional or none
-  source: cert-manager
-  certManager:
-    issuerRef: {kind: ClusterIssuer, name: <your-issuer>}
 gateway:
-  enabled: true
   hostname: servtuner.example.internal
-  parentRefs:
-    - {name: <your-gateway>, namespace: <its-namespace>}
 storage:
   file:
     pvc: {create: true, accessMode: ReadWriteMany, size: 100Gi}

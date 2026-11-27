@@ -20,7 +20,7 @@ Safety, because the cluster may be shared:
   ``<release>-bench-nodes``; cleanup checks that they are gone after `helm uninstall` and deletes
   exactly those two names if not. The ``servtuner-ca`` ClusterIssuer (mutual-tls) must already
   exist:
-  apply deploy/kind/cluster-issuer.yaml yourself.
+  apply deploy/helmfile/manifests/issuer/cluster-issuer.yaml yourself.
 - Every run builds images under its own tag (``<--image-tag>-<nonce>``) and removes exactly those
   tags from every kind node and from local docker on exit.
 - Everything it started is torn down on exit, including on failure and on SIGINT, SIGTERM and
@@ -127,7 +127,7 @@ LOAD_TARGET_SERVICES = (
     ("servtuner-bifrost", "servtuner-bifrost"),
 )
 CLUSTER_ISSUER = "servtuner-ca"
-CLUSTER_ISSUER_FILE = "deploy/kind/cluster-issuer.yaml"
+CLUSTER_ISSUER_FILE = "deploy/helmfile/manifests/issuer/cluster-issuer.yaml"
 INGRESS_NAMESPACE = "ingress-nginx"
 INGRESS_SERVICE = "ingress-nginx-controller"
 INGRESS_HTTP_PORT = 80

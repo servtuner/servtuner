@@ -14,14 +14,16 @@ with the NVIDIA device plugin.
 ## 1. Your values
 
 servtuner's chart needs a few decisions only you can make: copy `deploy/helmfile/site-values.example.yaml`
-to `deploy/site-values.yaml` and set the TLS mode and issuer, the hostname and Gateway, and storage.
-Every value of `deploy/helm/servtuner/values.yaml` may go there.
+to `deploy/site-values.yaml` and set the hostname, TLS and storage. Every value of
+`deploy/helm/servtuner/values.yaml` may go there, and it wins over the environment's values.
 
-The Gateway is yours too: Envoy Gateway installs the controller, not a `GatewayClass` or `Gateway`.
-`deploy/helmfile/envoy-gateway-class.yaml` is an example class; on a cluster without a load balancer
-it gives the proxy a ClusterIP Service. If your class names its own `EnvoyProxy`, give it
-`mergeType: StrategicMerge` (as the example does): without it, it replaces Envoy Gateway's default,
-which is where the proxy image under your registry is set, and the proxy pulls from docker.io.
+The helmfile also installs servtuner's private CA (release `servtuner-issuer`, the `servtuner-ca`
+ClusterIssuer) and a Gateway (release `servtuner-gateway`), and points the chart at both. Each is plain
+manifests in `deploy/helmfile/manifests/`, its own release, and optional: with your own issuer or Gateway,
+add `--state-values-set install.issuer=false,install.gateway=false` and name yours in the site values. On a
+cluster without a load balancer, add `gateway.serviceType=ClusterIP` and reach the Gateway with
+`kubectl port-forward`. If your own class names an `EnvoyProxy`, give it `mergeType: StrategicMerge`:
+without it, it replaces Envoy Gateway's default, which is where the proxy image under your registry is set.
 
 ### Secrets come first
 

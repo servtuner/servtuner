@@ -85,31 +85,12 @@ SITE_VALUES = {
         "resources": {"cpu": "1", "memory": "512Mi"},
     },
     "storage": {"file": {"pvc": {"create": True, "accessMode": "ReadWriteOnce", "size": "1Gi"}}},
-    "postgres": {"cnpg": {"storage": {"size": "1Gi"}}},
+    # Without TLS the api signs in to Postgres with the generated password.
+    "postgres": {"auth": "password", "cnpg": {"storage": {"size": "1Gi"}}},
     # httpx sends a Secure cookie only over https; the e2e reaches the api over plain port-forward.
     "auth": {"cookie": {"secure": False}},
-    "gateway": {
-        "enabled": True,
-        "hostname": "servtuner.localtest.me",
-        "parentRefs": [{"name": "eg", "namespace": NAMESPACE}],
-    },
-}
-
-GATEWAY = {
-    "apiVersion": "gateway.networking.k8s.io/v1",
-    "kind": "Gateway",
-    "metadata": {"name": "eg", "namespace": NAMESPACE},
-    "spec": {
-        "gatewayClassName": "eg",
-        "listeners": [
-            {
-                "name": "http",
-                "protocol": "HTTP",
-                "port": 80,
-                "allowedRoutes": {"namespaces": {"from": "Same"}},
-            }
-        ],
-    },
+    # The helmfile's servtuner-gateway release; the routes attach to it by default.
+    "gateway": {"hostname": "servtuner.localtest.me"},
 }
 
 # A datasheet as the operator would upload it (LiteLLM's format), pricing the mock's model.
@@ -299,14 +280,10 @@ def install(deploy: Path) -> None:
         "--kube-context",
         CONTEXT,
         "--state-values-set",
-        f"registry={REGISTRY}",
+        f"registry={REGISTRY},gateway.serviceType=ClusterIP",
         "sync",
         "--skip-deps",
     )
-    kubectl("apply", "-f", str(deploy / "helmfile" / "envoy-gateway-class.yaml"))
-    gateway = deploy / "gateway.json"
-    gateway.write_text(json.dumps(GATEWAY))
-    kubectl("apply", "-f", str(gateway))
     run(
         "helm",
         "--kube-context",
@@ -343,7 +320,7 @@ def install(deploy: Path) -> None:
         "wait",
         "pod",
         "-l",
-        "gateway.envoyproxy.io/owning-gateway-name=eg",
+        "gateway.envoyproxy.io/owning-gateway-name=servtuner",
         "--for=condition=Ready",
         "--timeout",
         "300s",
