@@ -106,10 +106,14 @@ type Generator struct {
 // that reaches the generator without a dataset was never expanded.
 var errNoDataset = errors.New("workload has no dataset: expand its preset first (spec.LoadRunSpec)")
 
-// sharedPrefixes holds each group's prefix text. A group's text is generated
-// once, at its first use, with the chars-per-token ratio of that moment, and
-// then kept: regenerating it after calibration moves would change its bytes
-// and defeat the prefix cache the workload exists to exercise.
+// sharedPrefixes holds each group's prefix text. A group's text is one seeded
+// word stream, and a request's prefix is the first tokens × chars-per-token
+// characters of it, at the ratio of that moment. Every cut is a prefix of the
+// same stream, so warmup requests, sized before calibration, share their
+// leading bytes with the stage requests, which are sized after it and share
+// all of theirs: the prefix cache sees real reuse, and the stage prefix has
+// its calibrated length (sizing it once, at first use, left it at the
+// uncalibrated ratio for the whole run).
 type sharedPrefixes struct {
 	tokens int
 	seed   uint64
@@ -117,7 +121,8 @@ type sharedPrefixes struct {
 }
 
 type sharedPrefix struct {
-	once sync.Once
+	mutex sync.Mutex
+	// text is the longest cut generated so far; shorter cuts are its prefixes.
 	text string
 }
 
@@ -132,14 +137,18 @@ func newSharedPrefixes(config *spec.SharedPrefix, seed uint64) *sharedPrefixes {
 	return &sharedPrefixes{tokens: config.Tokens, seed: seed ^ prefixSeedSalt, groups: make([]sharedPrefix, config.Groups)}
 }
 
-// text returns group's prefix, generating it on first use.
+// text returns group's prefix at charsPerToken. randomText draws words in
+// order from the group's own stream and stops at the length asked for, so a
+// longer cut regenerated from the same seed starts with every shorter one.
 func (p *sharedPrefixes) text(group int, charsPerToken float64) string {
+	chars := int(math.Round(float64(p.tokens) * charsPerToken))
 	entry := &p.groups[group]
-	entry.once.Do(func() {
-		rng := rand.New(rand.NewPCG(p.seed, uint64(group)))
-		entry.text = randomText(rng, int(math.Round(float64(p.tokens)*charsPerToken)))
-	})
-	return entry.text
+	entry.mutex.Lock()
+	defer entry.mutex.Unlock()
+	if len(entry.text) < chars {
+		entry.text = randomText(rand.New(rand.NewPCG(p.seed, uint64(group))), chars)
+	}
+	return entry.text[:chars]
 }
 
 var _ Source = (*Generator)(nil)

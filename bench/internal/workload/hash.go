@@ -12,7 +12,9 @@ import (
 // GeneratorName and GeneratorVersion identify the generator in
 // environment.json. Bump GeneratorVersion whenever a change alters the
 // requests produced for the same workload definition: the version is part of
-// the hash, so RPS is never compared across different generators.
+// the hash, so RPS is never compared across different generators. A change
+// confined to one optional feature is marked in that feature's canonical
+// block instead (sharedPrefixSizing), so other workloads keep their hashes.
 const (
 	GeneratorName    = "servtuner-synthetic"
 	GeneratorVersion = "1"
@@ -43,7 +45,22 @@ type canonicalWorkload struct {
 	Conversation *canonicalConversation `json:"conversation,omitempty"`
 	// SharedPrefix is omitted without one, so existing workloads keep their
 	// hashes.
-	SharedPrefix *spec.SharedPrefix `json:"shared_prefix,omitempty"`
+	SharedPrefix *canonicalSharedPrefix `json:"shared_prefix,omitempty"`
+}
+
+// sharedPrefixSizing marks how the prefix text is sized. It changes the hash
+// of every shared-prefix workload, and only those, when the sizing changes:
+// "calibrated" cuts each request's prefix at the current chars-per-token
+// ratio (generator.go); the unmarked first sizing kept the ratio of the
+// prefix's first use, usually before calibration. A change confined to one
+// feature is marked in that feature's block instead of bumping
+// GeneratorVersion, which would change every workload's hash.
+const sharedPrefixSizing = "calibrated"
+
+type canonicalSharedPrefix struct {
+	Tokens int    `json:"tokens"`
+	Groups int    `json:"groups"`
+	Sizing string `json:"sizing"`
 }
 
 type canonicalConversation struct {
@@ -77,13 +94,20 @@ func Hash(workload spec.Workload, options Options) (string, error) {
 		SetMinTokens: options.SetMinTokens,
 		PaddingBytes: workload.Dataset.PaddingBytes,
 		Conversation: canonicalConversationOf(workload.Conversation),
-		SharedPrefix: workload.Dataset.SharedPrefix,
+		SharedPrefix: canonicalSharedPrefixOf(workload.Dataset.SharedPrefix),
 	})
 	if err != nil {
 		return "", fmt.Errorf("canonicalize workload: %w", err)
 	}
 	sum := sha256.Sum256(canonical)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func canonicalSharedPrefixOf(config *spec.SharedPrefix) *canonicalSharedPrefix {
+	if config == nil {
+		return nil
+	}
+	return &canonicalSharedPrefix{Tokens: config.Tokens, Groups: config.Groups, Sizing: sharedPrefixSizing}
 }
 
 func canonicalConversationOf(config *spec.Conversation) *canonicalConversation {

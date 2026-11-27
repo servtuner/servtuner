@@ -61,18 +61,58 @@ func TestSharedPrefixGroupsRepeatByteForByte(t *testing.T) {
 	}
 }
 
-// TestSharedPrefixIsStableAfterCalibration: once a group's prefix exists, a
-// new chars-per-token ratio does not change its bytes.
-func TestSharedPrefixIsStableAfterCalibration(t *testing.T) {
+// TestSharedPrefixFollowsCalibration: a prefix first used before calibration
+// is sized at the calibrated ratio afterwards, starts with the earlier cut (so
+// the prefix cache still sees the shared bytes), and is then byte-identical
+// across requests at that ratio.
+func TestSharedPrefixFollowsCalibration(t *testing.T) {
 	calibrator := NewCalibrator(0)
 	generator := newTestGenerator(t, sharedPrefixWorkload(256, 1), calibrator, Options{})
 	before := prefixOf(t, generator, decodeBody(t, generator.Next())["prompt"].(string))
+	if want := 256 * DefaultCharsPerToken; float64(len(before)) != want {
+		t.Fatalf("uncalibrated prefix of %d chars, want %v", len(before), want)
+	}
 	for i := 0; i < 100; i++ {
 		calibrator.Observe("test-model", 10000, 1000) // 10 chars per token
 	}
 	after := prefixOf(t, generator, decodeBody(t, generator.Next())["prompt"].(string))
-	if before != after {
-		t.Error("the prefix changed after calibration")
+	if len(after) != 256*10 {
+		t.Fatalf("calibrated prefix of %d chars, want %d (256 tokens at 10 chars per token)", len(after), 256*10)
+	}
+	if !strings.HasPrefix(after, before) {
+		t.Error("the calibrated prefix must start with the uncalibrated one, or the cache loses the warmup's bytes")
+	}
+	for i := 0; i < 20; i++ {
+		if again := prefixOf(t, generator, decodeBody(t, generator.Next())["prompt"].(string)); again != after {
+			t.Fatal("requests at the same ratio must share the prefix byte for byte")
+		}
+	}
+}
+
+// TestSharedPrefixCutsAreOneStream: the property the sizing rests on, that a
+// shorter cut of a group's stream is the start of a longer one.
+func TestSharedPrefixCutsAreOneStream(t *testing.T) {
+	prefixes := newSharedPrefixes(&spec.SharedPrefix{Tokens: 300, Groups: 2}, 42)
+	long := prefixes.text(1, 7)
+	fresh := newSharedPrefixes(&spec.SharedPrefix{Tokens: 300, Groups: 2}, 42)
+	for _, ratio := range []float64{3, 4, 5.3, 7} {
+		if short := fresh.text(1, ratio); !strings.HasPrefix(long, short) {
+			t.Errorf("the cut at %v chars per token is not the start of the cut at 7", ratio)
+		}
+	}
+	if prefixes.text(0, 7) == long {
+		t.Error("groups must have their own text")
+	}
+}
+
+// TestSharedPrefixSizingChangedTheHash: the calibrated sizing sends different
+// prompts, so a shared-prefix workload must not keep the hash it had before it.
+func TestSharedPrefixSizingChangedTheHash(t *testing.T) {
+	const firstSizingHash = "bffc685e28bee43751e3ae1d4d65413c6d31194097a2a655f0fd45f45fbb7d5c" // sized at first use
+	workload := testWorkload(spec.WorkloadApiChat, true)
+	workload.Dataset.SharedPrefix = &spec.SharedPrefix{Tokens: 256, Groups: 2}
+	if newTestGenerator(t, workload, nil, Options{}).Info().Hash == firstSizingHash {
+		t.Error("a shared-prefix workload kept the hash of the first sizing")
 	}
 }
 
