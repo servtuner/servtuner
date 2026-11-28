@@ -9,7 +9,7 @@ import { TimeValue } from "../../components/TimeValue";
 import { HostForm } from "./HostForm";
 import { hardwareLine, priceLine } from "./summary";
 
-/** One host: what the machine is, what it costs, and the managed vLLMs on it. */
+/** One host: what the machine is, what it costs, and the managed servers on it. */
 export function HostPage() {
   const { hostId = "" } = useParams();
   const host = useHost(hostId);
@@ -19,7 +19,7 @@ export function HostPage() {
       <Stack>
         <QueryError title="Could not load the host" error={host.error} />
         <Anchor component={Link} to="/managed-targets">
-          Back to managed vLLM
+          Back to Managed Servers
         </Anchor>
       </Stack>
     );
@@ -40,7 +40,7 @@ function HostView({ host }: { host: Host }) {
   return (
     <Stack gap="lg">
       <Anchor component={Link} to="/managed-targets" size="sm">
-        Managed vLLM
+        Managed Servers
       </Anchor>
       <Group justify="space-between" align="end">
         <Stack gap={0}>
@@ -57,7 +57,7 @@ function HostView({ host }: { host: Host }) {
               variant="default"
               loading={read.isPending}
               disabled={!isUsed}
-              title={isUsed ? undefined : "No managed vLLM runs on it yet"}
+              title={isUsed ? undefined : "No managed server runs on it yet"}
               onClick={() => read.mutate()}
             >
               Read from the launcher
@@ -111,7 +111,7 @@ function HostView({ host }: { host: Host }) {
               <Table.Td>{priceLine(host)}</Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Th>Managed vLLM on it</Table.Th>
+              <Table.Th>Managed servers on it</Table.Th>
               <Table.Td>
                 {!isUsed
                   ? "None yet: pick this host on a host vLLM's form"
@@ -139,7 +139,7 @@ function HostView({ host }: { host: Host }) {
           title={`Delete ${host.name}?`}
           message={
             isUsed
-              ? "Managed vLLMs still run on it: point them at another host first."
+              ? "Managed servers still run on it: point them at another host first."
               : "Its hardware and price go. Past runs keep what they recorded."
           }
           confirmLabel="Delete"

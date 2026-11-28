@@ -33,7 +33,7 @@ type NavItem = [to: string, label: string];
 
 // The main job up top: deploy and tune a vLLM, then read the runs. The rest is one menu away.
 const NAV: NavItem[] = [
-  ["/managed-targets", "Managed vLLM"],
+  ["/managed-targets", "Managed Servers"],
   ["/tuning", "Tuning"],
   ["/runs", "Runs"],
   ["/experiments", "Experiments"],

@@ -52,7 +52,7 @@ export function NewSessionPage() {
   const presets = useWorkloadPresets();
   const create = useCreateTuningSession();
   const navigate = useNavigate();
-  // ?target=<id>: the managed vLLM page's Tune button picks the target.
+  // ?target=<id>: the managed server page's Tune button picks the target.
   const [searchParams] = useSearchParams();
   const [targetId, setTargetId] = useState<string | null>(searchParams.get("target"));
   const [preset, setPreset] = useState<string | null>(null);

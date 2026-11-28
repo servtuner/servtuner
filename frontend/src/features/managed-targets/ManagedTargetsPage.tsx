@@ -16,7 +16,7 @@ export function ManagedTargetsPage() {
   const targets = useManagedTargets();
   return (
     <Stack gap="lg">
-      <Title order={2}>Managed vLLM</Title>
+      <Title order={2}>Managed Servers</Title>
       <Text c="dimmed" maw={720} size="sm">
         servtuner deploys these itself: open one to deploy it with flags, watch it boot, read its log, benchmark it or
         free its GPU. A tuning session deploys one candidate after another on the same target. To benchmark a system
@@ -30,7 +30,7 @@ export function ManagedTargetsPage() {
       {targets.isError && <QueryError title="Could not load managed targets" error={targets.error} />}
       {targets.isSuccess && targets.data.length === 0 && (
         <Text size="sm" c="dimmed">
-          No managed vLLM yet.
+          No managed servers yet.
         </Text>
       )}
       {targets.isSuccess && targets.data.length > 0 && <ManagedTargetsTable targets={targets.data} />}
@@ -91,7 +91,7 @@ function DeploymentStateCell({ target }: { target: ManagedTarget }) {
 }
 
 /**
- * Adds a managed vLLM; the form is shared with the target's own page (edit). ?add=host or
+ * Adds a managed server; the form is shared with the target's own page (edit). ?add=host or
  * ?add=kubernetes opens it in that placement, and ?next=tuning goes on to New session with the
  * new target picked (Tuning's "Add a vLLM host").
  */
@@ -107,7 +107,7 @@ function AddManagedTarget() {
     return (
       <Group>
         <Button variant="default" onClick={() => setIsOpen(true)}>
-          Add a managed vLLM
+          Add a managed server
         </Button>
       </Group>
     );

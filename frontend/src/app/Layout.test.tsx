@@ -8,7 +8,7 @@ describe("navigation", () => {
     const user = userEvent.setup();
     const { router } = renderApp("/runs");
     const header = await screen.findByRole("banner");
-    for (const page of ["Managed vLLM", "Tuning", "Runs", "Experiments"])
+    for (const page of ["Managed Servers", "Tuning", "Runs", "Experiments"])
       expect(within(header).getByRole("link", { name: page })).toBeInTheDocument();
     expect(within(header).queryByRole("link", { name: "Planner" })).toBeNull();
 

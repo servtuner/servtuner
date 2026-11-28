@@ -352,12 +352,12 @@ describe("managed target page", () => {
   });
 });
 
-describe("managed vLLM list", () => {
+describe("managed server list", () => {
   it("points a vLLM with no GPU at the CPU build", async () => {
     const user = userEvent.setup();
     server.use(http.get(`${API}/managed-targets`, () => HttpResponse.json([])));
     renderApp("/managed-targets");
-    await user.click(await screen.findByRole("button", { name: "Add a managed vLLM" }));
+    await user.click(await screen.findByRole("button", { name: "Add a managed server" }));
     expect(screen.queryByText(/No GPU: vLLM needs its CPU build/)).toBeNull();
     const gpus = screen.getByLabelText(/^GPUs/);
     await user.clear(gpus);
@@ -377,7 +377,7 @@ describe("managed vLLM list", () => {
       ),
     );
     renderApp("/managed-targets");
-    await user.click(await screen.findByRole("button", { name: "Add a managed vLLM" }));
+    await user.click(await screen.findByRole("button", { name: "Add a managed server" }));
     expect(await screen.findByLabelText(/^Image/)).toHaveValue(
       "registry.example.internal:5000/vllm/vllm-openai:v0.34.0",
     );
@@ -408,13 +408,13 @@ describe("managed vLLM list", () => {
     expect(await screen.findByRole("link", { name: "qwen" })).toHaveAttribute("href", PAGE);
     expect(within(screen.getByRole("link", { name: "qwen" }).closest("tr")!).getByText("Not deployed")).toBeVisible();
     expect(within(screen.getByRole("link", { name: "llama" }).closest("tr")!).getByText("Deployed")).toBeVisible();
-    expect(screen.getAllByRole("link", { name: "Managed vLLM" })[0]).toHaveAttribute("href", "/managed-targets");
+    expect(screen.getAllByRole("link", { name: "Managed Servers" })[0]).toHaveAttribute("href", "/managed-targets");
     // The page says when a saved target is the right thing instead.
     expect(screen.getAllByRole("link", { name: "Targets" }).map((link) => link.getAttribute("href"))).toContain(
       "/targets",
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Add a managed vLLM" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add a managed server" }));
     await userEvent.type(screen.getByLabelText(/^Name(?!space)/), "llama");
     await userEvent.type(screen.getByLabelText(/^Namespace/), "servtuner-tune-llama");
     expect(screen.getByLabelText(/^Image/)).toHaveValue("vllm/vllm-openai:v0.34.0"); // the pinned version, prefilled
@@ -464,7 +464,7 @@ describe("managed vLLM list", () => {
       }),
     );
     renderApp("/managed-targets");
-    await user.click(await screen.findByRole("button", { name: "Add a managed vLLM" }));
+    await user.click(await screen.findByRole("button", { name: "Add a managed server" }));
     await user.click(screen.getByText("A host with servtuner launcher"));
     const fill = async (label: RegExp, value: string) => user.type(screen.getByLabelText(label), value);
     await fill(/^Name(?!space)/, "rtx");

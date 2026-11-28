@@ -272,7 +272,7 @@ function DeployRecommendation({ targetId, knobs }: { targetId: string; knobs: Vl
   );
 }
 
-/** The managed vLLM a session tunes, by name, linked to its page (its id while it loads). */
+/** The managed server a session tunes, by name, linked to its page (its id while it loads). */
 function TargetLink({ targetId }: { targetId: string }) {
   const target = useManagedTarget(targetId);
   return (

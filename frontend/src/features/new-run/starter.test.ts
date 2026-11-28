@@ -3,7 +3,7 @@ import { parse } from "yaml";
 import { managedTarget } from "../../test/fixtures";
 import { STARTER_SPEC, starterForManagedTarget, withRunDefaults } from "./starter";
 
-describe("New run for a managed vLLM", () => {
+describe("New run for a managed server", () => {
   it("points the template at the target and declares its deployed knobs", () => {
     const spec = parse(
       starterForManagedTarget({

@@ -1,6 +1,6 @@
 import type { ManagedTarget } from "../../api/types";
 
-/** Where a managed vLLM runs, in one line: a Kubernetes namespace or a host's launcher. */
+/** Where a managed server runs, in one line: a Kubernetes namespace or a host's launcher. */
 export function placementLine(target: Pick<ManagedTarget, "spec" | "namespace">): string {
   return target.spec.placement === "host"
     ? `Host, launcher ${target.spec.launcher_url}`

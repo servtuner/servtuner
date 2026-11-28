@@ -24,7 +24,7 @@ const running = {
 } as unknown as TuningSession;
 
 describe("overview", () => {
-  it("is the home page: managed vLLMs with their state, sessions and the newest runs", async () => {
+  it("is the home page: managed servers with their state, sessions and the newest runs", async () => {
     server.use(
       http.get(`${API}/managed-targets`, () => HttpResponse.json([deployed])),
       http.get(`${API}/tuning-sessions`, () => HttpResponse.json([running])),

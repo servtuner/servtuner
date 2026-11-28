@@ -8,7 +8,7 @@ import { renderApp } from "../../test/render";
 import { server, TEST_API_BASE_URL as API } from "../../test/server";
 
 describe("hosts", () => {
-  it("are listed with the managed vLLMs and added with an owned-hardware price", async () => {
+  it("are listed with the managed servers and added with an owned-hardware price", async () => {
     const user = userEvent.setup();
     let created: HostCreate | undefined;
     server.use(
@@ -70,7 +70,7 @@ describe("hosts", () => {
     expect(within(dialog).getByRole("button", { name: "Delete" })).toBeDisabled();
   });
 
-  it("cannot be read from a launcher before a managed vLLM runs on it", async () => {
+  it("cannot be read from a launcher before a managed server runs on it", async () => {
     server.use(http.get(`${API}/hosts/:id`, () => HttpResponse.json<Host>(host)));
     renderApp(`/hosts/${host.id}`);
     expect(await screen.findByRole("button", { name: "Read from the launcher" })).toBeDisabled();

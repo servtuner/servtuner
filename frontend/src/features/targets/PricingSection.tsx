@@ -44,7 +44,7 @@ export function PricingSection({
       {fields.hourly === "host" && (
         <Select
           label="Host"
-          description="Its hardware and price per hour, from Managed vLLM's Hosts"
+          description="Its hardware and price per hour, from the Hosts on Managed Servers"
           placeholder={hosts.data?.length === 0 ? "No hosts yet" : "Pick a host"}
           data={(hosts.data ?? []).map((host) => ({ value: host.id, label: host.name }))}
           value={fields.hostId || null}

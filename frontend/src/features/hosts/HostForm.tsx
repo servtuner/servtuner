@@ -39,7 +39,7 @@ export function HostForm({
         Hardware
       </Text>
       <Text size="xs" c="dimmed" mt={-8}>
-        Or leave it and read it from the machine's launcher once a managed vLLM runs on it.
+        Or leave it and read it from the machine's launcher once a managed server runs on it.
       </Text>
       <SimpleGrid cols={{ base: 1, md: 3 }} style={FIELD_GRID_STYLE}>
         <TextInput label="GPU model" placeholder="NVIDIA GeForce RTX 3070" {...field("gpuModel")} />

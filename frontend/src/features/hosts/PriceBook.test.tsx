@@ -46,7 +46,7 @@ describe("the price book form", () => {
 });
 
 describe("the prices section", () => {
-  it("prices GPUs from the managed vLLM page", async () => {
+  it("prices GPUs from the managed server page", async () => {
     const user = userEvent.setup();
     let saved: PriceBook | undefined;
     server.use(

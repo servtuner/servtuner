@@ -8,7 +8,7 @@ stacks. It lets them:
 - watch runs progress,
 - inspect one run in depth,
 - **compare runs across knobs**, to answer "which configuration is best?",
-- tune managed vLLM targets and plan capacity,
+- tune managed server targets and plan capacity,
 - and read sizing and cost recommendations.
 
 It is a pure client of `api`. It holds no business logic that the API doesn't
@@ -109,10 +109,10 @@ The one image is hosted under any context path with no rebuild. The rule:
   the real api with bench's null engine, and the dev server with
   `SERVTUNER_DEV_API` proxying `/api`. It creates and watches a run, opens its
   tabs, the runs list and the planner, deletes the run, and exercises a managed
-  vLLM's pages. Playwright uses the installed Chrome (`channel: "chrome"`);
+  server's pages. Playwright uses the installed Chrome (`channel: "chrome"`);
   `PLAYWRIGHT_CHANNEL=""` uses its own Chromium.
 - `just e2e-managed-ui` (root; kind, about 30 minutes): add, deploy, log,
-  redeploy, benchmark, free, tune and delete a managed vLLM in the browser.
+  redeploy, benchmark, free, tune and delete a managed server in the browser.
 
 ## Tests
 

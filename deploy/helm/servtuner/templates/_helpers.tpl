@@ -303,7 +303,7 @@ spec:
 {{- toJson (((.Values.rbac).tuning).namespaces | default list) -}}
 {{- end }}
 
-{{/* How Prometheus finds a managed vLLM; podmonitor when the values predate it. */}}
+{{/* How Prometheus finds a managed server; podmonitor when the values predate it. */}}
 {{- define "servtuner.tuningMonitor" -}}
 {{- ((.Values.tuning).monitor | default "podmonitor") -}}
 {{- end }}

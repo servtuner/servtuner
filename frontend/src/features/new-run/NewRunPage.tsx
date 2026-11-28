@@ -70,7 +70,7 @@ function CloneOrNewRun({ from }: { from: string | null }) {
   );
 }
 
-/** ?managed=<id>: benchmark a managed vLLM (its page's Benchmark button), around its last SLO-max. */
+/** ?managed=<id>: benchmark a managed server (its page's Benchmark button), around its last SLO-max. */
 function ManagedTargetRun({ managedId }: { managedId: string }) {
   const target = useManagedTarget(managedId);
   const runs = useRuns({ label: target.data ? runLabelFilter(target.data) : "" }, Boolean(target.data));

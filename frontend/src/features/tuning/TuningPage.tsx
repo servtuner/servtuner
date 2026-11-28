@@ -6,7 +6,7 @@ import { QueryError } from "../../components/QueryError";
 import { TimeValue } from "../../components/TimeValue";
 import { ADD_HOST_FOR_TUNING, STATUS_BADGE } from "./session";
 
-/** Tuning: sessions that search a managed vLLM's flags. */
+/** Tuning: sessions that search a managed server's flags. */
 export function TuningPage() {
   const sessions = useTuningSessions();
   const targets = useManagedTargets();
@@ -77,7 +77,7 @@ export function TuningPage() {
       )}
       {targets.isSuccess && targets.data.length === 0 && (
         <Text size="sm">
-          A session needs a managed vLLM to deploy:{" "}
+          A session needs a managed server to deploy:{" "}
           <Anchor component={Link} to="/managed-targets">
             add one first
           </Anchor>

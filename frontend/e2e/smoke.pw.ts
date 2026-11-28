@@ -43,12 +43,12 @@ test("create a run, watch it finish, and read it", async ({ page }) => {
   await expect(page.getByRole("link", { name: "smoke-run" })).toHaveCount(0);
 });
 
-// A managed vLLM from the nav's list to its own page. The smoke api has no
+// A managed server from the nav's list to its own page. The smoke api has no
 // Kubernetes runner, so Deploy must come back with the api's reason, shown.
-test("save a managed vLLM and open its page", async ({ page }) => {
+test("save a managed server and open its page", async ({ page }) => {
   await page.goto("runs");
-  await page.getByRole("link", { name: "Managed vLLM" }).click();
-  await page.getByRole("button", { name: "Add a managed vLLM" }).click();
+  await page.getByRole("link", { name: "Managed Servers" }).click();
+  await page.getByRole("button", { name: "Add a managed server" }).click();
   await page.getByRole("textbox", { name: /^Name(?!space)/ }).fill("smoke-vllm");
   await page.getByRole("textbox", { name: /^Namespace/ }).fill("servtuner-smoke");
   await page.getByRole("textbox", { name: /^Image/ }).fill("vllm/vllm-openai:v0.34.0");

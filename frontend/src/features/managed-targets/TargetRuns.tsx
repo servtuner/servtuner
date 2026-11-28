@@ -5,7 +5,7 @@ import { QueryError } from "../../components/QueryError";
 import { RunsTable } from "../runs/RunsTable";
 import { runLabelFilter } from "./summary";
 
-/** Every run that measured this managed vLLM, its benchmarks and its sessions' runs, to compare. */
+/** Every run that measured this managed server, its benchmarks and its sessions' runs, to compare. */
 export function TargetRuns({ target }: { target: ManagedTarget }) {
   const runs = useRuns({ label: runLabelFilter(target) });
   return (

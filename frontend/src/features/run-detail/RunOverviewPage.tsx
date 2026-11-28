@@ -281,14 +281,14 @@ function Overview({ run, events }: { run: RunDetail; events: ReturnType<typeof u
   );
 }
 
-/** The managed vLLM a run measured and the tuning session that started it, from its labels. */
+/** The managed server a run measured and the tuning session that started it, from its labels. */
 function MadeBy({ labels }: { labels: Record<string, string> }) {
   const targetId = idFromLabel(labels[MANAGED_TARGET_RUN_LABEL]);
   const sessionId = idFromLabel(labels[TUNING_SESSION_LABEL]);
   return (
     <>
       {targetId && (
-        <Field label="Managed vLLM">
+        <Field label="Managed server">
           <ManagedTargetLink targetId={targetId} />
         </Field>
       )}

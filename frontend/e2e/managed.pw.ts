@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { setKnobs } from "./knobs";
 
 // The deploy path entirely from the UI, on a real cluster (`just e2e-managed-ui`, or
-// `e2e/cluster.py ... --tuning-host --ui` for a GPU host): add a managed vLLM, deploy it, read its
+// `e2e/cluster.py ... --tuning-host --ui` for a GPU host): add a managed server, deploy it, read its
 // log, redeploy with other flags, benchmark it, free it, tune it, deploy the recommendation, and
 // delete it. e2e/tuning.py
 // passes the target as SERVTUNER_UI_TARGET (UiTarget); without it (the smoke run) this test skips.
@@ -39,7 +39,7 @@ test.skip(!target, "runs only on a cluster: e2e/cluster.py --tuning --ui");
 const nav = (page: Page, name: string) => page.getByRole("banner").getByRole("link", { name, exact: true });
 
 async function openTarget(page: Page, name: string) {
-  await nav(page, "Managed vLLM").click();
+  await nav(page, "Managed Servers").click();
   await page.getByRole("link", { name }).click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
 }
@@ -56,14 +56,14 @@ async function expectFreed(page: Page, ui: UiTarget) {
     await expect(page.getByText(/no pod: not deployed, or scaled to zero/)).toBeVisible({ timeout: BOOT_MS });
 }
 
-test("deploy, benchmark, tune and tear down a managed vLLM from the UI", async ({ page }) => {
+test("deploy, benchmark, tune and tear down a managed server from the UI", async ({ page }) => {
   const ui = target!;
   test.setTimeout(BOOT_MS * 6 + RUN_MS + SESSION_MS);
 
-  await test.step("add the managed vLLM", async () => {
+  await test.step("add the managed server", async () => {
     await page.goto("");
-    await nav(page, "Managed vLLM").click();
-    await page.getByRole("button", { name: "Add a managed vLLM" }).click();
+    await nav(page, "Managed Servers").click();
+    await page.getByRole("button", { name: "Add a managed server" }).click();
     if (ui.placement === "host") await page.getByText("A host with servtuner launcher").click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill(ui.name);
     for (const [label, value] of Object.entries(ui.fields)) {
@@ -137,11 +137,11 @@ test("deploy, benchmark, tune and tear down a managed vLLM from the UI", async (
     const freed = ui.placement === "host" ? "Stopped" : "Scaled to zero";
     await page.getByRole("button", { name: ui.placement === "host" ? "Stop vLLM" : "Scale to zero" }).click();
     await expectFreed(page, ui);
-    await nav(page, "Managed vLLM").click();
+    await nav(page, "Managed Servers").click();
     await expect(page.getByRole("row", { name: new RegExp(ui.name) }).getByText(freed)).toBeVisible();
     await page.getByRole("link", { name: ui.name }).click();
     await page.getByRole("button", { name: "Delete managed target" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(page.getByText("No managed vLLM yet.")).toBeVisible();
+    await expect(page.getByText("No managed servers yet.")).toBeVisible();
   });
 });
