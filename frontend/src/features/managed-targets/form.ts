@@ -65,6 +65,24 @@ export type FormState = {
 // image and its CPU build (for a target with no GPU, such as kind; deploy/kind/README.md).
 export const VLLM_GPU_IMAGE = "vllm/vllm-openai:v0.34.0";
 export const VLLM_CPU_IMAGE = "vllm/vllm-openai-cpu:v0.34.0-x86_64";
+// The SGLang version its knob catalog is read from, as its serving (runtime) image (deploy/release/images.lock).
+export const SGLANG_IMAGE = "lmsysorg/sglang:v0.5.23-runtime";
+
+/** The state with another server: a blank or default image follows it to that server's image. */
+export function withServer(state: FormState, server: ModelServer, registry?: string | null): FormState {
+  const defaults = [VLLM_GPU_IMAGE, VLLM_CPU_IMAGE, SGLANG_IMAGE].flatMap((image) => [
+    image,
+    withRegistry(image, registry),
+  ]);
+  const image = state.fields.image.trim();
+  const followsServer = image === "" || defaults.includes(image);
+  const next = server === "sglang" ? SGLANG_IMAGE : VLLM_GPU_IMAGE;
+  return {
+    ...state,
+    server,
+    fields: followsServer ? { ...state.fields, image: withRegistry(next, registry) } : state.fields,
+  };
+}
 
 /** An image under the install's registry (GET /run-defaults image_registry), named the way the
  * chart and `hauler store copy` name it: the registry replaces Docker Hub and the repository path is kept. */

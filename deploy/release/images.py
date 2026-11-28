@@ -44,6 +44,8 @@ IMAGE_FLAGS = re.compile(
 SERVTUNER_OWN = re.compile(r"^(?:(?:ghcr\.io/)?servtuner/)?servtuner-(api|bench|frontend):")
 # The optional vLLM archive: the managed vLLM images the UI offers (frontend managed-targets/form.ts).
 VLLM = ("docker.io/vllm/vllm-openai:v0.34.0", "docker.io/vllm/vllm-openai-cpu:v0.34.0-x86_64")
+# The optional SGLang archive: the managed SGLang image (its slimmer runtime variant, for serving).
+SGLANG = ("docker.io/lmsysorg/sglang:v0.5.23-runtime",)
 EXTRA: tuple[str, ...] = ()
 
 
@@ -143,6 +145,9 @@ def manifests(sections: dict[str, list[str]]) -> dict[Path, str]:
         HAULER / "vllm.yaml": hauler_manifest(
             "servtuner-vllm", "The optional vLLM archive: the managed vLLM images.", sections["vllm"]
         ),
+        HAULER / "sglang.yaml": hauler_manifest(
+            "servtuner-sglang", "The optional SGLang archive: the managed SGLang image.", sections["sglang"]
+        ),
     }
 
 
@@ -150,20 +155,26 @@ def lock(platform: str) -> None:
     third_party, _ = rendered_images(render())
     pinned = sorted(f"{without_digest(image)}@{digest_of(image, platform)}" for image in third_party)
     vllm = sorted(f"{image}@{digest_of(image, platform)}" for image in VLLM)
+    sglang = sorted(f"{image}@{digest_of(image, platform)}" for image in SGLANG)
     own = [f"servtuner/servtuner-{name}:{app_version()}" for name in ("api", "bench", "frontend")]
     LOCK.write_text(
         "# Every image servtuner's releases render, pinned by digest (deploy/release/images.py).\n"
         "# Generated: run `just images-lock` after changing a chart version or a value that names an image.\n"
-        "# [core] goes in the core archive, [servtuner] is built by `just release`, [vllm] is the optional archive.\n"
+        "# [core] goes in the core archive, [servtuner] is built by `just release`, [vllm] and [sglang] are\n"
+        "# the optional archives.\n"
         f"# Platform: {platform} (each digest is that platform's manifest).\n"
         "[core]\n" + "\n".join(pinned) + "\n\n"
         "[servtuner]\n" + "\n".join(own) + "\n\n"
-        "[vllm]\n" + "\n".join(vllm) + "\n"
+        "[vllm]\n" + "\n".join(vllm) + "\n\n"
+        "[sglang]\n" + "\n".join(sglang) + "\n"
     )
     HAULER.mkdir(exist_ok=True)
     for path, text in manifests(read_lock()).items():
         path.write_text(text)
-    print(f"wrote {LOCK}: {len(pinned)} images, {len(own)} of servtuner's, {len(vllm)} vLLM; and {HAULER}/")
+    print(
+        f"wrote {LOCK}: {len(pinned)} images, {len(own)} of servtuner's, {len(vllm)} vLLM,"
+        f" {len(sglang)} SGLang; and {HAULER}/"
+    )
 
 
 def check() -> int:

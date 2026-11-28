@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ManagedTarget } from "../../api/types";
 import { managedTarget } from "../../test/fixtures";
-import { buildBody, formError, initialState, parseKeyValues, parseTolerations } from "./form";
+import { buildBody, formError, initialState, parseKeyValues, parseTolerations, withServer } from "./form";
 
 const hostTarget: ManagedTarget = {
   ...managedTarget,
@@ -59,6 +59,15 @@ describe("managed target form body", () => {
     expect(initialState(hostTarget).server).toBe("vllm");
     state.fields = { ...state.fields, modelSource: "object_store", objectUri: "s3://models/q" };
     expect(formError(state)).toMatch(/SGLang cannot stream/);
+  });
+
+  it("moves a default image to the chosen server's, and keeps one the user typed", () => {
+    const state = initialState(undefined, "kubernetes", "registry.example.internal:5000");
+    const sglang = withServer(state, "sglang", "registry.example.internal:5000");
+    expect(sglang.fields.image).toBe("registry.example.internal:5000/lmsysorg/sglang:v0.5.23-runtime");
+    expect(withServer(sglang, "vllm", "registry.example.internal:5000").fields.image).toBe(state.fields.image);
+    const typed = { ...state, fields: { ...state.fields, image: "my/vllm:custom" } };
+    expect(withServer(typed, "sglang").fields.image).toBe("my/vllm:custom");
   });
 
   it("builds a new Kubernetes target, leaving cleared optional fields out", () => {

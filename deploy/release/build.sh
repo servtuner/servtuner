@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build a servtuner release:
 #
-#   deploy/release/build.sh VERSION [--with-vllm] [--with-flashinfer [--sm SM]...]
+#   deploy/release/build.sh VERSION [--with-vllm] [--with-sglang] [--with-flashinfer [--sm SM]...]
 #                               [--from-registry REGISTRY [--verify-identity REGEX]]
 #
 # By default servtuner's images are built here (just _image-api _image-frontend _image-mock). With --from-registry
@@ -14,6 +14,7 @@
 #   servtuner-VERSION.tar.zst          the core Hauler archive: servtuner's images, every image in
 #                                   deploy/release/images.lock [core], the deploy bundle and bench
 #   servtuner-vllm-VERSION.tar.zst     with --with-vllm: the managed vLLM images ([vllm])
+#   servtuner-sglang-VERSION.tar.zst   with --with-sglang: the managed SGLang image ([sglang])
 #   servtuner-flashinfer-*.tar.zst     with --with-flashinfer: FlashInfer's GPU kernels as wheels, for a
 #                                   host's vLLM or a custom image (flashinfer.sh; --sm narrows it)
 #   servtuner-deploy-VERSION.tar.gz   the deploy bundle (also inside the core archive)
@@ -24,10 +25,11 @@
 # environment installs with no chart repository. Needs docker, helm, hauler and network access.
 set -euo pipefail
 
-usage="usage: build.sh VERSION [--with-vllm] [--with-flashinfer [--sm SM]...] [--from-registry REGISTRY [--verify-identity REGEX]]"
+usage="usage: build.sh VERSION [--with-vllm] [--with-sglang] [--with-flashinfer [--sm SM]...] [--from-registry REGISTRY [--verify-identity REGEX]]"
 version="${1:?$usage}"
 shift
 with_vllm=""
+with_sglang=""
 with_flashinfer=""
 architectures=()
 from_registry=""
@@ -35,6 +37,7 @@ verify_identity=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --with-vllm) with_vllm="--with-vllm" ;;
+    --with-sglang) with_sglang="--with-sglang" ;;
     --with-flashinfer) with_flashinfer=1 ;;
     --sm) architectures+=("${2:?--sm needs an architecture, e.g. sm90a}"); shift ;;
     --from-registry) from_registry="${2:?--from-registry needs a registry, e.g. ghcr.io/servtuner}"; shift ;;
@@ -123,6 +126,12 @@ if [ "$with_vllm" = "--with-vllm" ]; then
   hauler store -s "$work/vllm-store" save -f "$out/servtuner-vllm-$version.tar.zst"
 fi
 
+if [ "$with_sglang" = "--with-sglang" ]; then
+  step "the SGLang archive"
+  hauler store -s "$work/sglang-store" sync -f "$deploy/hauler/sglang.yaml"
+  hauler store -s "$work/sglang-store" save -f "$out/servtuner-sglang-$version.tar.zst"
+fi
+
 if [ -n "$with_flashinfer" ]; then
   step "the FlashInfer kernel archive"
   "$deploy/release/flashinfer.sh" "$out" "${architectures[@]}"
@@ -134,6 +143,7 @@ step "notices, install guide and checksums"
   echo "Exact images"
   images core | sed 's/^/  /'
   [ "$with_vllm" = "--with-vllm" ] && images vllm | sed 's/^/  /'
+  [ "$with_sglang" = "--with-sglang" ] && images sglang | sed 's/^/  /'
   if [ -n "$with_flashinfer" ]; then
     echo
     echo "FlashInfer kernel wheels (the optional kernel archive)"

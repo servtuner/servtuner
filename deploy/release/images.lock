@@ -1,6 +1,7 @@
 # Every image servtuner's releases render, pinned by digest (deploy/release/images.py).
 # Generated: run `just images-lock` after changing a chart version or a value that names an image.
-# [core] goes in the core archive, [servtuner] is built by `just release`, [vllm] is the optional archive.
+# [core] goes in the core archive, [servtuner] is built by `just release`, [vllm] and [sglang] are
+# the optional archives.
 # Platform: linux/amd64 (each digest is that platform's manifest).
 [core]
 docker.io/envoyproxy/envoy:distroless-v1.40.2@sha256:16e0d4dac937ffa34103aa6ba1013dc2030b9de2a249273c8d23c7c5c2989664
@@ -29,3 +30,6 @@ servtuner/servtuner-frontend:0.1.0
 [vllm]
 docker.io/vllm/vllm-openai-cpu:v0.34.0-x86_64@sha256:b14c3a46a4b08852b32528643e070d57f3731cccb0fa33ef86d4f3b3f8ac36c4
 docker.io/vllm/vllm-openai:v0.34.0@sha256:cf5b2fdd087eb4f6d261736967cc5cde974bd22ff4df50365f8fa419b6b4c484
+
+[sglang]
+docker.io/lmsysorg/sglang:v0.5.23-runtime@sha256:354700f4404ab0b8dcb493bc61d5d11e7c2a91f3a7babb4efe741cb75d4b51c0

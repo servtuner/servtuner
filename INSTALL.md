@@ -50,8 +50,8 @@ helmfile -f deploy/helmfile.yaml.gotmpl -e eks sync     # or -e kind for a local
 
 ## 3. Without internet access
 
-You receive `servtuner-<version>.tar.zst` (and optionally `servtuner-vllm-<version>.tar.zst` and
-`servtuner-model-<name>.tar.zst`), `SHA256SUMS`, `THIRD_PARTY_NOTICES` and this guide.
+You receive `servtuner-<version>.tar.zst` (and optionally `servtuner-vllm-<version>.tar.zst`,
+`servtuner-sglang-<version>.tar.zst` for a managed SGLang, and `servtuner-model-<name>.tar.zst`), `SHA256SUMS`, `THIRD_PARTY_NOTICES` and this guide.
 
 ```
 sha256sum -c SHA256SUMS
