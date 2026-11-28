@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from servtuner_api.database import ManagedTargetRow
+from servtuner_api.deployer.redact import redact_secrets
 from servtuner_api.ids import new_ulid
 from servtuner_api.managed_targets.runs import (
     HOST_CREDENTIAL_FIELDS,
@@ -171,11 +172,12 @@ class ManagedTargetService:
             self._repository.update_managed_target(target_id, deployment=deployment)
 
     def logs(self, target_id: str, tail_lines: int) -> LogView:
-        """The newest vLLM instance's last lines (a crash-looping pod's last exit included)."""
+        """The newest vLLM instance's last lines (a crash-looping pod's last exit included), its
+        secrets redacted: SGLang logs its API key at startup."""
         row = self.get(target_id)
         spec = parse_spec(row.spec)
         log = self._require_deployer(spec).recent_log(row.name, row.namespace, spec, tail_lines)
-        return LogView(source=log.source, lines=log.text.splitlines())
+        return LogView(source=log.source, lines=redact_secrets(log.text).splitlines())
 
     def installed_vllm_version(self, target_id: str) -> str | None:
         """A host target's vLLM version as its launcher reports it, before any boot; None for a

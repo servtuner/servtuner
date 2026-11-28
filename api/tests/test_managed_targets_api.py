@@ -309,6 +309,14 @@ def test_logs_come_from_the_newest_pod(deploying: TestClient, cluster: FakeClust
         "lines": ["ValueError: No available memory for the cache blocks."],
     }
 
+    # SGLang logs its API key at startup; the panel never shows it.
+    cluster.logs = {
+        "qwen-new": "server_args={'api_key': 'sentinel-secret-api-key', 'port': 8000}\n"
+    }
+    assert deploying.get(logs).json()["lines"] == [
+        "server_args={'api_key': '[redacted]', 'port': 8000}"
+    ]
+
 
 def test_boot_probe_through_the_api(deploying: TestClient, cluster: FakeCluster) -> None:
     target = deploying.post("/managed-targets", json=QWEN).json()
