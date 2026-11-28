@@ -2977,8 +2977,9 @@ export interface components {
         };
         /**
          * HostTargetSpec
-         * @description A vLLM on a host outside Kubernetes, run by ``servtuner launcher`` there. The launcher's
-         *     token and vLLM's API key are Secrets in the runs namespace, by name only.
+         * @description A model server (vLLM, or SGLang) on a host outside Kubernetes, run by ``servtuner
+         *     launcher`` there. The launcher's token and the server's API key are Secrets in the runs
+         *     namespace, by name only.
          */
         HostTargetSpec: {
             auth?: components["schemas"]["servtuner_api__managed_targets__spec__SecretKeyRef"] | null;
@@ -3010,6 +3011,12 @@ export interface components {
             port: number;
             /** Served Model Name */
             served_model_name?: string | null;
+            /**
+             * Server
+             * @default vllm
+             * @enum {string}
+             */
+            server: "vllm" | "sglang";
         };
         /** HpaMetric */
         HpaMetric: {
@@ -3503,8 +3510,9 @@ export interface components {
         };
         /**
          * HostTargetSpec
-         * @description A vLLM on a host outside Kubernetes, run by ``servtuner launcher`` there. The launcher's
-         *     token and vLLM's API key are Secrets in the runs namespace, by name only.
+         * @description A model server (vLLM, or SGLang) on a host outside Kubernetes, run by ``servtuner
+         *     launcher`` there. The launcher's token and the server's API key are Secrets in the runs
+         *     namespace, by name only.
          */
         ManagedTargetCreate_HostTargetSpec: {
             /** @default null */
@@ -3544,6 +3552,12 @@ export interface components {
              * @default null
              */
             served_model_name: string | null;
+            /**
+             * Server
+             * @default vllm
+             * @enum {string}
+             */
+            server: "vllm" | "sglang";
         };
         /**
          * ManagedTargetSpec

@@ -9,6 +9,7 @@ const hostTarget: ManagedTarget = {
   namespace: "vllm-lan",
   spec: {
     placement: "host",
+    server: "vllm",
     launcher_url: "http://gpu-host.localtest.me:9123",
     launcher_token: { name: "launcher-token", key: "launcher" },
     endpoint: "http://gpu-host.localtest.me:8000/v1",
@@ -106,6 +107,13 @@ describe("managed target form body", () => {
       namespace: "vllm-lan",
       spec: hostTarget.spec,
     });
+  });
+
+  it("saves a host target's server, so the launcher can start SGLang", () => {
+    const sglang = { ...initialState(hostTarget), server: "sglang" as const };
+    expect(buildBody(sglang, hostTarget).spec).toMatchObject({ placement: "host", server: "sglang" });
+    const stored = { ...hostTarget, spec: { ...hostTarget.spec, server: "sglang" as const } };
+    expect(initialState(stored).server).toBe("sglang");
   });
 
   it("keeps a stored Secret key, issuer kind and storage class on edit", () => {

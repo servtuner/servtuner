@@ -4126,7 +4126,7 @@
       },
       "HostTargetSpec": {
         "additionalProperties": false,
-        "description": "A vLLM on a host outside Kubernetes, run by ``servtuner launcher`` there. The launcher's\ntoken and vLLM's API key are Secrets in the runs namespace, by name only.",
+        "description": "A model server (vLLM, or SGLang) on a host outside Kubernetes, run by ``servtuner\nlauncher`` there. The launcher's token and the server's API key are Secrets in the runs\nnamespace, by name only.",
         "properties": {
           "auth": {
             "anyOf": [
@@ -4220,6 +4220,15 @@
               }
             ],
             "title": "Served Model Name"
+          },
+          "server": {
+            "default": "vllm",
+            "enum": [
+              "vllm",
+              "sglang"
+            ],
+            "title": "Server",
+            "type": "string"
           }
         },
         "required": [
@@ -5487,7 +5496,7 @@
       },
       "ManagedTargetCreate_HostTargetSpec": {
         "additionalProperties": false,
-        "description": "A vLLM on a host outside Kubernetes, run by ``servtuner launcher`` there. The launcher's\ntoken and vLLM's API key are Secrets in the runs namespace, by name only.",
+        "description": "A model server (vLLM, or SGLang) on a host outside Kubernetes, run by ``servtuner\nlauncher`` there. The launcher's token and the server's API key are Secrets in the runs\nnamespace, by name only.",
         "properties": {
           "auth": {
             "anyOf": [
@@ -5585,6 +5594,15 @@
             ],
             "default": null,
             "title": "Served Model Name"
+          },
+          "server": {
+            "default": "vllm",
+            "enum": [
+              "vllm",
+              "sglang"
+            ],
+            "title": "Server",
+            "type": "string"
           }
         },
         "required": [

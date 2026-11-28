@@ -50,8 +50,13 @@ export type FormFields = {
   metricsNode: string;
 };
 
-/** The model server a Kubernetes target runs; a host target runs vLLM. */
+/** The model server a target runs, on Kubernetes or through a host's launcher. */
 export type ModelServer = "vllm" | "sglang";
+
+/** How the UI names a model server. */
+export function serverLabel(server: ModelServer): string {
+  return server === "sglang" ? "SGLang" : "vLLM";
+}
 
 export type FormState = {
   fields: FormFields;
@@ -171,7 +176,7 @@ export function initialState(
   if (spec.placement === "host")
     return {
       placement: "host",
-      server: "vllm",
+      server: spec.server ?? "vllm",
       gpus: DEFAULT_GPUS,
       transport: "plain",
       fields: {
@@ -237,7 +242,7 @@ export function buildBody(state: FormState, existing?: ManagedTarget): ManagedTa
     existing && existing.spec.placement === state.placement ? { ...existing.spec } : {};
   const baseFlags = fields.baseFlags.split("\n").map(trimmed).filter(Boolean);
   const env = pairsOrEmpty(fields.env);
-  const spec = state.placement === "host" ? hostSpec(fields, kept) : kubernetesSpec(state, kept);
+  const spec = state.placement === "host" ? hostSpec(fields, kept, state.server) : kubernetesSpec(state, kept);
   return {
     name: trimmed(fields.name),
     ...(fields.description.trim() ? { description: trimmed(fields.description) } : {}),
@@ -301,9 +306,10 @@ function kubernetesSpec(state: FormState, kept: Record<string, unknown>): Record
   };
 }
 
-function hostSpec(fields: FormFields, kept: Record<string, unknown>): Record<string, unknown> {
+function hostSpec(fields: FormFields, kept: Record<string, unknown>, server: ModelServer): Record<string, unknown> {
   return {
     placement: "host",
+    server,
     // Cleared on an edit: null, so the stored host goes (an absent field would keep it).
     host_id: fields.hostId || (kept.host_id ? null : undefined),
     launcher_url: trimmed(fields.launcherUrl),
