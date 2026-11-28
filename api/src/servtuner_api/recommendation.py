@@ -22,8 +22,8 @@ SERVER_COMMANDS = {"vllm": "vllm serve", "sglang": "python3 -m sglang.launch_ser
 
 
 def server_of(spec: ManagedTargetSpec | HostTargetSpec) -> str:
-    """The model server a target runs; a host target runs vLLM."""
-    return spec.server if isinstance(spec, ManagedTargetSpec) else "vllm"
+    """The model server a target runs."""
+    return spec.server
 
 
 def user_args(spec: ManagedTargetSpec | HostTargetSpec, knob_args: list[str]) -> list[str]:

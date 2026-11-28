@@ -90,7 +90,7 @@ def run_target(
         if spec.metrics.node:
             metrics["node"] = spec.metrics.node
         target: dict[str, Any] = {
-            "type": "vllm",
+            "type": spec.server,
             "endpoint": spec.endpoint,
             "model": spec.served_model_name or spec.model,
             "metrics": metrics,

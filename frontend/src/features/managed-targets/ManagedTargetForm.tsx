@@ -21,6 +21,7 @@ import type { HostCredentialSlot, ManagedTarget } from "../../api/types";
 import { FIELD_GRID_STYLE } from "../../components/layout";
 import { unknownFlags } from "../knobs/baseFlags";
 import {
+  serverLabel,
   type ModelServer,
   buildBody,
   type CertificateSource,
@@ -90,8 +91,8 @@ function FormBody({
     },
   });
   const isHost = state.placement === "host";
-  const server = isHost ? "vllm" : state.server;
-  const serverName = server === "sglang" ? "SGLang" : "vLLM";
+  const server = state.server;
+  const serverName = serverLabel(server);
   const knobCatalog = useKnobCatalog(server);
   const unknown = knobCatalog.data ? unknownFlags(state.fields.baseFlags.split("\n"), knobCatalog.data) : [];
   const problem = formError(state);
@@ -111,31 +112,30 @@ function FormBody({
         />
         <Text size="sm" c="dimmed">
           {isHost
-            ? "servtuner starts and stops vLLM through the launcher on that host, with the args it renders. The launcher's token is a Secret in the runs namespace."
+            ? `servtuner starts and stops ${serverName} through the launcher on that host, with the args it renders. The launcher's token is a Secret in the runs namespace.`
             : `servtuner creates this ${serverName} itself, in a namespace the chart granted (rbac.tuning.namespaces), and never touches objects it did not create. Pin the image to a version.`}
         </Text>
       </Stack>
-      {!isHost && (
-        <Stack gap={4}>
-          <Text size="sm" fw={500}>
-            Model server
+      <Stack gap={4}>
+        <Text size="sm" fw={500}>
+          Model server
+        </Text>
+        <SegmentedControl
+          value={state.server}
+          onChange={(value) => setState((current) => withServer(current, value as ModelServer, registry))}
+          data={[
+            { value: "vllm", label: "vLLM" },
+            { value: "sglang", label: "SGLang" },
+          ]}
+        />
+        {state.server === "sglang" && (
+          <Text size="sm" c="dimmed">
+            {isHost
+              ? "The launcher runs SGLang from the Python its sglang setting names. Its metrics are always on, and its knobs come from SGLang's own flags."
+              : "The image runs python3 -m sglang.launch_server: use an SGLang image (lmsysorg/sglang), pinned to a version. Its metrics are always on, and its knobs come from SGLang's own flags."}
           </Text>
-          <SegmentedControl
-            value={state.server}
-            onChange={(value) => setState((current) => withServer(current, value as ModelServer, registry))}
-            data={[
-              { value: "vllm", label: "vLLM" },
-              { value: "sglang", label: "SGLang" },
-            ]}
-          />
-          {state.server === "sglang" && (
-            <Text size="sm" c="dimmed">
-              The image runs python3 -m sglang.launch_server: use an SGLang image (lmsysorg/sglang), pinned to a
-              version. Its metrics are always on, and its knobs come from SGLang's own flags.
-            </Text>
-          )}
-        </Stack>
-      )}
+        )}
+      </Stack>
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
         <TextInput label="Name" required {...field("name")} />
         {!isHost && (
@@ -228,6 +228,7 @@ function KubernetesFields({
   registry: string | null | undefined;
 }) {
   const cpuImage = withRegistry(VLLM_CPU_IMAGE, registry);
+  const serverName = serverLabel(state.server);
   return (
     <>
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
@@ -269,7 +270,7 @@ function KubernetesFields({
         />
         <Select
           label="Weights"
-          description="Where vLLM gets the model (an install with no internet access: a mirror or a seeded claim)"
+          description={`Where ${serverName} gets the model (an install with no internet access: a mirror or a seeded claim)`}
           data={[
             { value: "hub", label: "Download from Hugging Face" },
             { value: "mirror", label: "Download from an internal mirror" },
@@ -290,7 +291,7 @@ function KubernetesFields({
         {state.fields.modelSource === "mirror" && (
           <TextInput
             label="Mirror URL"
-            description="A Hugging Face mirror vLLM can reach (HF_ENDPOINT)"
+            description={`A Hugging Face mirror ${serverName} can reach (HF_ENDPOINT)`}
             placeholder="https://hf-mirror.example.internal"
             spellCheck={false}
             {...field("mirrorEndpoint")}
@@ -393,6 +394,7 @@ function HostFields({
   setHostId: (hostId: string) => void;
 }) {
   const hosts = useHosts();
+  const serverName = serverLabel(state.server);
   const isSet = (slot: HostCredentialSlot) => existing?.credentials?.[slot]?.is_set ?? false;
   const credentialHint = (slot: HostCredentialSlot, what: string) =>
     isSet(slot) ? `Set. Paste a new one to replace it; servtuner never shows it.` : what;
@@ -426,14 +428,17 @@ function HostFields({
           {...field("launcherToken")}
         />
         <TextInput
-          label="vLLM endpoint"
-          description="The base URL runs reach, ending in /v1: the launcher's host and vLLM's port unless a port proxy is between"
+          label={`${serverName} endpoint`}
+          description={`The base URL runs reach, ending in /v1: the launcher's host and ${serverName}'s port unless a port proxy is between`}
           required
           {...field("endpoint")}
         />
         <PasswordInput
-          label="vLLM API key"
-          description={credentialHint("api_key", "Optional: the key vLLM was given (its api key file), sent by runs.")}
+          label={`${serverName} API key`}
+          description={credentialHint(
+            "api_key",
+            `Optional: the key ${serverName} was given (the launcher's api key file), sent by runs.`,
+          )}
           autoComplete="off"
           {...field("apiKey")}
         />
@@ -472,7 +477,7 @@ function HostFields({
                 {...field("launcherTokenSecret")}
               />
               <TextInput
-                label="vLLM API key Secret"
+                label={`${serverName} API key Secret`}
                 description="Instead of pasting: a Secret in the runs namespace, key token"
                 {...field("apiKeySecret")}
               />
