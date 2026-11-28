@@ -43,16 +43,32 @@ Every binary and image reports the release version (`servtuner --version`, `serv
    git push origin v0.1.0-rc.1
    ```
 
-   The workflow reruns every CI gate on the tagged commit, then publishes. Install the pre-release on a fresh kind
-   cluster from what was published (the chart, the images, the Release's archive) and run the quickstart with the
-   downloaded CLI.
-3. **Release.** When the candidate is good, tag the same commit `v0.1.0` and push it.
+   The workflow reruns every CI gate on the tagged commit, then publishes. Make the packages public (a package
+   published for the first time starts private), then verify the candidate the way a public user installs it,
+   from what was published only:
+
+   ```sh
+   just verify-release 0.1.0-rc.1 --cluster
+   git worktree add ../servtuner-v0.1.0-rc.1 v0.1.0-rc.1      # the air-gapped run uses the tag's own e2e
+   (cd ../servtuner-v0.1.0-rc.1 && just verify-release 0.1.0-rc.1 --airgap)
+   ```
+
+   Each step passes or says why it was skipped. A failure is fixed on `main`, in the app, the chart or the docs,
+   and goes into the next candidate.
+3. **Release.** When the candidate is good, tag the same commit `v0.1.0`, push it, and run
+   `just verify-release 0.1.0 --cluster` before announcing it.
 4. **Docs.** In servtuner/docs: `npm run cut-version -- <servtuner checkout> v0.1.0`, review, push the branch.
 
 A tag that is not on `main` is refused. If a step fails, fix it on `main` and tag the next pre-release; never
 move or reuse a pushed tag.
 
 ## Verify a release
+
+`just verify-release <version>` (`e2e/verify_release.py`) runs these checks and more with an empty `HOME` and
+no registry logins: the signed checksums and every download, the CLI's and the mock's versions, every image (both
+platforms) and chart signed, and a quickstart run. `--cluster` adds a new kind cluster (`servtuner-verify`, its own
+kubeconfig) installed from the deploy bundle, with the UI, the API, `GET /version` and a benchmark through the
+Gateway; `--airgap` adds the air-gapped archive. By hand:
 
 ```sh
 identity='^https://github\.com/servtuner/servtuner/\.github/workflows/release\.yml@refs/tags/v'

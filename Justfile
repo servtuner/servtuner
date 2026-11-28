@@ -86,6 +86,11 @@ e2e-gateway-mutual-tls:
 e2e-airgap version *flags:
     PYTHONPATH=api uv run --project api python e2e/airgap.py {{version}} {{flags}}
 
+# Verify a published release the way a public user installs it (e2e/verify_release.py): downloads, signatures,
+# the quickstart; --cluster adds a kind trial from the deploy bundle, --airgap the archive (from a checkout at the tag).
+verify-release version *flags:
+    PYTHONPATH=api uv run --project api python e2e/verify_release.py {{version}} {{flags}}
+
 # The managed vLLM from the UI on kind (Playwright, needs node and Chrome): add the mock as a
 # managed vLLM, deploy, read its log, redeploy, benchmark, tune and delete it. About 30 minutes.
 e2e-managed-ui:
