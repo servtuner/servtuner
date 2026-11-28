@@ -112,7 +112,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [mutual-tls, tls-off]
+        # sglang: the mock as SGLang and a null-engine run against it (tls-off).
+        mode: [mutual-tls, tls-off, sglang]
     env:
       MODE: ${{ matrix.mode }}
     steps:
