@@ -13,16 +13,18 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false # nothing here pushes with git
 
       # .tool-versions is the only place toolchain versions are defined.
       - uses: ./.github/actions/setup
         id: pins
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: ${{ steps.pins.outputs.go }}
           cache: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ steps.pins.outputs.nodejs }}
       # helm, helmfile and hauler at the pinned versions, checksum-verified: gen-check renders every
@@ -32,6 +34,8 @@ jobs:
       - run: just setup
       - run: just gen-check
       - run: just lint
+        env:
+          GH_TOKEN: ${{ github.token }} # zizmor's online audits (just lint-workflows)
       - run: just test
 
       # Local end to end, no cluster: a Postgres container, the api and the real bench binary.
@@ -52,7 +56,9 @@ jobs:
       matrix:
         mode: [mutual-tls, tls-off]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false # nothing here pushes with git
 
       - uses: ./.github/actions/setup
 

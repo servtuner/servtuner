@@ -3,6 +3,7 @@
 
 components := "schema bench api frontend deploy"
 jscpd_version := `awk '$1 == "jscpd" {print $2}' .tool-versions`
+zizmor_version := `awk '$1 == "zizmor" {print $2}' .tool-versions`
 # One tag for every image. Not "latest": the chart's IfNotPresent pull policy must find an image loaded into kind.
 image_tag := env("SERVTUNER_IMAGE_TAG", "e2e")
 # The version stamped into the images (bench_version in every bundle); a release sets it from its tag.
@@ -17,8 +18,8 @@ setup: (_each "setup")
 # Regenerate generated code in every present component.
 gen: (_each "gen")
 
-# Lint every present component, then check duplication across the repo.
-lint: (_each "lint") jscpd large-files
+# Lint every present component, then check duplication across the repo and the workflows' security.
+lint: (_each "lint") jscpd large-files lint-workflows
 
 # Run the tests of every present component.
 test: (_each "test")
@@ -32,6 +33,12 @@ gen-check: gen images-check
 # No tracked file over 1 MiB: build output (a 14 MB mock binary once) does not belong in git.
 large-files:
     @large="$(git ls-files -z | xargs -0 -r stat --format '%s %n' | awk '$1 > 1048576')"; if [ -n "$large" ]; then echo "tracked files over 1 MiB:"; echo "$large"; exit 1; fi
+
+# Security lint of .github (config in .github/zizmor.yml): actions pinned to commit SHAs, no dangerous triggers
+# such as pull_request_target, no credentials left in checkouts. Offline without GH_TOKEN; CI sets it, which adds
+# the online audits (for example that each pinned SHA belongs to the action's own repository).
+lint-workflows:
+    uvx zizmor@{{zizmor_version}} {{ if env("GH_TOKEN", "") == "" { "--offline" } else { "" } }} --format plain .github
 
 # Duplication check across languages; threshold lives in .jscpd.json.
 jscpd:

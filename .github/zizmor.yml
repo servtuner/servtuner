@@ -1,0 +1,10 @@
+# zizmor (just lint-workflows): the workflow security lint. Its version is pinned in .tool-versions.
+rules:
+  # Every action, first-party included, is pinned to a full commit SHA: a tag can be moved, a SHA cannot.
+  unpinned-uses:
+    config:
+      policies:
+        "*": hash-pin
+  # Suggests a self-repository `uses:` syntax; the relative ./ form is what GitHub documents and runs.
+  self-repository:
+    disable: true
