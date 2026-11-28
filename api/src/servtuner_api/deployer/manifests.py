@@ -105,8 +105,39 @@ def object_store_env(source: ObjectStoreModel) -> list[dict[str, Any]]:
     return env
 
 
+def serving_command(spec: ManagedTargetSpec) -> list[str]:
+    """The container command: vLLM's CLI, or SGLang's documented server entry point."""
+    if spec.server == "sglang":
+        return ["python3", "-m", "sglang.launch_server"]
+    return ["vllm", "serve"]
+
+
+def sglang_serving_args(name: str, spec: ManagedTargetSpec, knob_args: list[str]) -> list[str]:
+    """An SGLang server's args: the model, where it listens, its metrics (always on: the catalog
+    and the analysis read them), TLS, then the base flags, then the knobs. SGLang never asks
+    for a client certificate, so TLS is the server certificate only, reloaded on rotation."""
+    args = [
+        f"--model-path={spec.model}",
+        "--host=0.0.0.0",
+        f"--port={SERVING_PORT}",
+        f"--download-dir={MODEL_CACHE_MOUNT}/hf",
+        "--enable-metrics",
+    ]
+    if spec.served_model_name:
+        args.append(f"--served-model-name={spec.served_model_name}")
+    if tls_secret_name(name, spec) is not None:
+        args += [
+            f"--ssl-certfile={TLS_MOUNT}/tls.crt",
+            f"--ssl-keyfile={TLS_MOUNT}/tls.key",
+            "--enable-ssl-refresh",
+        ]
+    return args + spec.base_flags + knob_args
+
+
 def serving_args(name: str, spec: ManagedTargetSpec, knob_args: list[str]) -> list[str]:
     """The container args: what the deployer owns, then the base flags, then the knobs."""
+    if spec.server == "sglang":
+        return sglang_serving_args(name, spec, knob_args)
     source = spec.model_source
     if isinstance(source, ObjectStoreModel):
         # vLLM serves the store's path; the model's own name stays what clients ask for.
@@ -224,7 +255,7 @@ def render_manifests(
             {
                 "name": CONTAINER,
                 "image": spec.image,
-                "command": ["vllm", "serve"],
+                "command": serving_command(spec),
                 "args": args,
                 "ports": [{"name": "http", "containerPort": SERVING_PORT}],
                 "env": env,

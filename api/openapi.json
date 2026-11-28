@@ -5564,7 +5564,7 @@
       },
       "ManagedTargetCreate_ManagedTargetSpec": {
         "additionalProperties": false,
-        "description": "A vLLM on Kubernetes: the image, model and resources the deployer creates, and the\nflags never tuned.",
+        "description": "A model server (vLLM, or SGLang) on Kubernetes: the image, model and resources the\ndeployer creates, and the flags never tuned.",
         "properties": {
           "base_flags": {
             "items": {
@@ -5682,6 +5682,15 @@
             ],
             "default": null,
             "title": "Served Model Name"
+          },
+          "server": {
+            "default": "vllm",
+            "enum": [
+              "vllm",
+              "sglang"
+            ],
+            "title": "Server",
+            "type": "string"
           },
           "shm_size": {
             "anyOf": [
@@ -6076,7 +6085,7 @@
       },
       "ManagedTargetSpec": {
         "additionalProperties": false,
-        "description": "A vLLM on Kubernetes: the image, model and resources the deployer creates, and the\nflags never tuned.",
+        "description": "A model server (vLLM, or SGLang) on Kubernetes: the image, model and resources the\ndeployer creates, and the flags never tuned.",
         "properties": {
           "base_flags": {
             "items": {
@@ -6191,6 +6200,15 @@
               }
             ],
             "title": "Served Model Name"
+          },
+          "server": {
+            "default": "vllm",
+            "enum": [
+              "vllm",
+              "sglang"
+            ],
+            "title": "Server",
+            "type": "string"
           },
           "shm_size": {
             "anyOf": [

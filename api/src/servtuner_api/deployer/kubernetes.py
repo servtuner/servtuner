@@ -51,7 +51,7 @@ DEFECT_WAITING_REASONS = frozenset(
 @dataclass
 class Deployer(BootProbes):
     cluster: ManagedCluster
-    render_knobs: Callable[[Mapping[str, Any]], list[str]]
+    render_knobs: Callable[[Mapping[str, Any], str], list[str]]
     checker: Checker
     store: SecretStore | None
     prometheus: dict[str, Any] | None = None
@@ -74,7 +74,7 @@ class Deployer(BootProbes):
                     "community chart's servtuner-targets job cannot verify the target's certificate"
                 ]
             )
-        args = serving_args(name, spec, self.render_knobs(knobs))
+        args = serving_args(name, spec, self.render_knobs(knobs, spec.server))
         manifests = render_manifests(
             name, namespace, spec, args, self.monitor, self.image_pull_secrets, self.offline
         )

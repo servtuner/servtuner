@@ -33,7 +33,8 @@ servtuner presets                    # the embedded workload presets as a JSON a
 servtuner spaces                     # the embedded starting search spaces (schema/search-spaces) as a JSON array (GET /search-spaces)
 servtuner knobs [--server sglang]   # every vllm serve (or SGLang server) flag that is a knob (KnobCatalog; one value, not servtuner's own): label, kind, default, limits and vLLM's own
                                  # description from internal/target/vllm_catalog.json (generated: just vllm-catalog; GET /knobs)
-servtuner vllm-args --knobs <knobs.json>  # the vLLM container args for a knob set, as JSON, from the knob table (the api's deployer)
+servtuner vllm-args --knobs <knobs.json>  # the vLLM container args for a knob set, as JSON, from the knob table
+servtuner server-args --server vllm|sglang --knobs <knobs.json>  # the same for either server (SGLang: its catalog); the api's deployer uses it
 servtuner boot-probe --input <boot-probe-request.json> [--secrets-dir DIR]  # a booted vLLM's num_gpu_blocks and c_kv, as a tuningBootResult
 servtuner launcher [--config F] [--listen ADDR --token-file F --tls true|false [--client-auth required|optional|none]] [--api-key-file F] [--vllm PATH] [--log-dir D]
                                  # runs vllm serve for the tuning loop on a host outside Kubernetes (internal/launcher);

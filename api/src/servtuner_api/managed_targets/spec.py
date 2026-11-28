@@ -257,6 +257,28 @@ def checked_env(env: dict[str, str]) -> dict[str, str]:
     return env
 
 
+# The flags the deployer sets on an SGLang server (manifests.serving_args), kept out of its base
+# flags for the same reason.
+SGLANG_OWNED_FLAGS = frozenset(
+    {
+        "--model-path",
+        "--model",
+        "--served-model-name",
+        "--host",
+        "--port",
+        "--download-dir",
+        "--enable-metrics",
+        "--ssl-keyfile",
+        "--ssl-certfile",
+        "--ssl-ca-certs",
+        "--enable-ssl-refresh",
+    }
+)
+
+# The model servers a managed target can run.
+ModelServer = Literal["vllm", "sglang"]
+
+
 def checked_base_flags(flags: list[str]) -> list[str]:
     """Flags never tuned, and none the deployer sets itself."""
     owned = sorted({flag.split("=", 1)[0] for flag in flags} & SERVTUNER_OWNED_FLAGS)
@@ -266,12 +288,14 @@ def checked_base_flags(flags: list[str]) -> list[str]:
 
 
 class ManagedTargetSpec(BaseModel):
-    """A vLLM on Kubernetes: the image, model and resources the deployer creates, and the
-    flags never tuned."""
+    """A model server (vLLM, or SGLang) on Kubernetes: the image, model and resources the
+    deployer creates, and the flags never tuned."""
 
     model_config = ConfigDict(extra="forbid")
 
     placement: Literal["kubernetes"] = "kubernetes"
+    # Which server the image runs; targets stored before SGLang support are vLLM.
+    server: ModelServer = "vllm"
     image: str = Field(pattern=IMAGE, max_length=512)
     model: str = Field(min_length=1, max_length=256)
     served_model_name: str | None = Field(default=None, min_length=1, max_length=256)
@@ -307,6 +331,19 @@ class ManagedTargetSpec(BaseModel):
             flag.split("=", 1)[0] == "--load-format" for flag in self.base_flags
         ):
             raise ValueError("an object_store model source sets --load-format itself")
+        return self
+
+    @model_validator(mode="after")
+    def _sglang_flags(self) -> ManagedTargetSpec:
+        if self.server != "sglang":
+            return self
+        if isinstance(self.model_source, ObjectStoreModel):
+            raise ValueError(
+                "an SGLang target cannot stream from an object store: use hub, mirror or pvc"
+            )
+        owned = sorted({flag.split("=", 1)[0] for flag in self.base_flags} & SGLANG_OWNED_FLAGS)
+        if owned:
+            raise ValueError(f"servtuner sets {', '.join(owned)} itself")
         return self
 
     @model_validator(mode="after")

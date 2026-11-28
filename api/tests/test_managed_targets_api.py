@@ -173,7 +173,7 @@ def test_no_tuning_namespace_means_nothing_can_be_stored(engine: Engine, data_di
 # --- deploying, through the API with a fake cluster
 
 
-def render_or_refuse(knobs: Mapping[str, Any]) -> list[str]:
+def render_or_refuse(knobs: Mapping[str, Any], server: str = "vllm") -> list[str]:
     if "vllm.nope" in knobs:
         raise DeployInputError(['knob "vllm.nope" is not a known vLLM knob'])
     return [f"--max-num-seqs={knobs['vllm.max_num_seqs']}"] if "vllm.max_num_seqs" in knobs else []

@@ -3535,8 +3535,8 @@ export interface components {
         };
         /**
          * ManagedTargetSpec
-         * @description A vLLM on Kubernetes: the image, model and resources the deployer creates, and the
-         *     flags never tuned.
+         * @description A model server (vLLM, or SGLang) on Kubernetes: the image, model and resources the
+         *     deployer creates, and the flags never tuned.
          */
         ManagedTargetCreate_ManagedTargetSpec: {
             /** Base Flags */
@@ -3576,6 +3576,12 @@ export interface components {
              * @default null
              */
             served_model_name: string | null;
+            /**
+             * Server
+             * @default vllm
+             * @enum {string}
+             */
+            server: "vllm" | "sglang";
             /**
              * Shm Size
              * @default null
@@ -3745,8 +3751,8 @@ export interface components {
         };
         /**
          * ManagedTargetSpec
-         * @description A vLLM on Kubernetes: the image, model and resources the deployer creates, and the
-         *     flags never tuned.
+         * @description A model server (vLLM, or SGLang) on Kubernetes: the image, model and resources the
+         *     deployer creates, and the flags never tuned.
          */
         ManagedTargetSpec: {
             /** Base Flags */
@@ -3781,6 +3787,12 @@ export interface components {
             placement: "kubernetes";
             /** Served Model Name */
             served_model_name?: string | null;
+            /**
+             * Server
+             * @default vllm
+             * @enum {string}
+             */
+            server: "vllm" | "sglang";
             /** Shm Size */
             shm_size?: string | null;
             /** Tolerations */

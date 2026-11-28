@@ -21,7 +21,7 @@ from servtuner_api.database import (
     create_session_factory,
     upgrade_database,
 )
-from servtuner_api.deployer.base import bench_vllm_args
+from servtuner_api.deployer.base import bench_server_args
 from servtuner_api.deployer.kubernetes import Deployer, LightkubeManagedCluster
 from servtuner_api.deployer.launcher import LauncherDeployer
 from servtuner_api.kubernetes_runner.cluster import LightkubeCluster
@@ -160,7 +160,7 @@ def build_deployer(
         return None
     return Deployer(
         cluster=LightkubeManagedCluster(),
-        render_knobs=bench_vllm_args(settings.bench_binary),
+        render_knobs=bench_server_args(settings.bench_binary),
         checker=checker,
         store=secret_store,
         prometheus=default_prometheus(settings),
@@ -182,7 +182,7 @@ def build_host_deployer(
     if settings.bench_binary is None or secret_store is None:
         return None
     return LauncherDeployer(
-        render_knobs=bench_vllm_args(settings.bench_binary),
+        render_knobs=bench_server_args(settings.bench_binary),
         checker=checker,
         store=secret_store,
         prometheus=default_prometheus(settings),

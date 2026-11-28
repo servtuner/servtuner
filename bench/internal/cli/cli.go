@@ -27,7 +27,7 @@ func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.SetArgs(args)
-	root.AddCommand(newRunCommand(streams), newValidateCommand(streams), newAnalyzeCommand(streams), newPlanCommand(streams), newCompareCommand(streams), newCheckTargetCommand(streams), newProposeCommand(streams), newPresetsCommand(streams), newSpacesCommand(streams), newKnobsCommand(streams), newVLLMArgsCommand(streams), newBootProbeCommand(streams), newLauncherCommand(streams))
+	root.AddCommand(newRunCommand(streams), newValidateCommand(streams), newAnalyzeCommand(streams), newPlanCommand(streams), newCompareCommand(streams), newCheckTargetCommand(streams), newProposeCommand(streams), newPresetsCommand(streams), newSpacesCommand(streams), newKnobsCommand(streams), newVLLMArgsCommand(streams), newServerArgsCommand(streams), newBootProbeCommand(streams), newLauncherCommand(streams))
 
 	err := root.ExecuteContext(ctx)
 	if err == nil {
