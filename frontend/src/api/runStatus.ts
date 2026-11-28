@@ -24,6 +24,7 @@ export const TARGET_TYPE_LABELS = {
   litellm: "LiteLLM",
   bifrost: "Bifrost",
   "openai-compatible": "OpenAI-compatible",
+  sglang: "SGLang",
 } satisfies Record<TargetType, string>;
 
 // The API accepts any target_type string, so unknown values show as they are.

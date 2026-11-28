@@ -93,6 +93,8 @@ func AdapterFor(targetType spec.TargetType) (TargetAdapter, error) {
 		return newLiteLLMAdapter(), nil
 	case spec.TargetTypeOpenaiCompatible:
 		return newOpenAICompatibleAdapter(), nil
+	case spec.TargetTypeSglang:
+		return newSGLangAdapter(), nil
 	default:
 		return nil, fmt.Errorf("no target adapter for type %q", targetType)
 	}

@@ -10636,6 +10636,7 @@ type TargetType string
 const TargetTypeBifrost TargetType = "bifrost"
 const TargetTypeLitellm TargetType = "litellm"
 const TargetTypeOpenaiCompatible TargetType = "openai-compatible"
+const TargetTypeSglang TargetType = "sglang"
 const TargetTypeVllm TargetType = "vllm"
 
 var enumValues_TargetType = []interface{}{
@@ -10643,6 +10644,7 @@ var enumValues_TargetType = []interface{}{
 	"litellm",
 	"bifrost",
 	"openai-compatible",
+	"sglang",
 }
 
 // UnmarshalJSON implements json.Unmarshaler.

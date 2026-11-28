@@ -13367,7 +13367,8 @@
           "vllm",
           "litellm",
           "bifrost",
-          "openai-compatible"
+          "openai-compatible",
+          "sglang"
         ],
         "title": "TargetType",
         "type": "string"

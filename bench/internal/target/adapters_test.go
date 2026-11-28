@@ -251,7 +251,7 @@ func TestBifrostInfoReportsAuthFailuresButKeepsTheVersion(t *testing.T) {
 }
 
 func TestModelsAdaptersReadTheModelList(t *testing.T) {
-	for _, adapter := range []TargetAdapter{newLiteLLMAdapter(), newOpenAICompatibleAdapter()} {
+	for _, adapter := range []TargetAdapter{newLiteLLMAdapter(), newOpenAICompatibleAdapter(), newSGLangAdapter()} {
 		t.Run(string(adapter.Type()), func(t *testing.T) {
 			forEachTransportMode(t, serveFixtures(t, map[string]string{"/v1/models": "openai-models.json"}, ""), func(t *testing.T, endpoint Endpoint) {
 				info, err := adapter.Info(context.Background(), endpoint)
@@ -281,6 +281,7 @@ func TestAdapterForCoversEveryTargetTypeWithItsCatalogs(t *testing.T) {
 		spec.TargetTypeBifrost:          {CatalogBifrost, CatalogKubernetes},
 		spec.TargetTypeLitellm:          {CatalogLiteLLM, CatalogKubernetes},
 		spec.TargetTypeOpenaiCompatible: {CatalogKubernetes},
+		spec.TargetTypeSglang:           {CatalogKubernetes},
 	}
 	for targetType, catalogs := range want {
 		adapter, err := AdapterFor(targetType)
