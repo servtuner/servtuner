@@ -57,7 +57,7 @@ const ladderRelativeTolerance = 1e-6
 // for model servers, RPS per core for routers, and SLO-max RPS otherwise.
 func DefaultObjective(targetType spec.TargetType) spec.ObjectiveName {
 	switch targetType {
-	case spec.TargetTypeVllm:
+	case spec.TargetTypeVllm, spec.TargetTypeSglang:
 		return spec.ObjectiveNameSloRpsPerGpu
 	case spec.TargetTypeBifrost, spec.TargetTypeLitellm:
 		return spec.ObjectiveNameSloRpsPerCore

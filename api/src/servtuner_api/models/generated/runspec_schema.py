@@ -193,6 +193,7 @@ class TargetType(Enum):
     litellm = "litellm"
     bifrost = "bifrost"
     openai_compatible = "openai-compatible"
+    sglang = "sglang"
 
 
 class EngineType(Enum):

@@ -378,3 +378,18 @@ func TestTheSharedPresetIsNamed(t *testing.T) {
 		}
 	}
 }
+
+// Model servers compare by SLO RPS per GPU, routers per core, anything else by SLO-max RPS.
+func TestDefaultObjectivePerTargetType(t *testing.T) {
+	for targetType, want := range map[spec.TargetType]spec.ObjectiveName{
+		spec.TargetTypeVllm:             spec.ObjectiveNameSloRpsPerGpu,
+		spec.TargetTypeSglang:           spec.ObjectiveNameSloRpsPerGpu,
+		spec.TargetTypeBifrost:          spec.ObjectiveNameSloRpsPerCore,
+		spec.TargetTypeLitellm:          spec.ObjectiveNameSloRpsPerCore,
+		spec.TargetTypeOpenaiCompatible: spec.ObjectiveNameSloMaxRps,
+	} {
+		if got := DefaultObjective(targetType); got != want {
+			t.Errorf("%s: objective %s, want %s", targetType, got, want)
+		}
+	}
+}

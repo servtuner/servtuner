@@ -22,8 +22,8 @@ Each folder has its own `CLAUDE.md` that covers its purpose and design.
 
 ## Core concepts (shared vocabulary)
 
-- **Target**: the system under test. A target has a type (`vllm`, `litellm`,
-  `bifrost`, `openai-compatible`), an endpoint, and a reference to its
+- **Target**: the system under test. A target has a type (`vllm`, `sglang`,
+  `litellm`, `bifrost`, `openai-compatible`), an endpoint, and a reference to its
   Kubernetes workload so that its configuration and resources can be captured.
 - **RunSpec**: the complete, immutable description of a benchmark. It covers
   the target, workload, load profile, engine, Prometheus queries and SLOs.

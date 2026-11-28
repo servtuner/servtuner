@@ -202,7 +202,7 @@ function SpecForm({
       <SimpleGrid cols={{ base: 1, md: 3 }} style={FIELD_GRID_STYLE}>
         <Select
           label="Type"
-          data={["vllm", "bifrost", "litellm", "openai-compatible"]}
+          data={["vllm", "sglang", "bifrost", "litellm", "openai-compatible"]}
           value={text(["target", "type"])}
           onChange={(value) => value && edit(["target", "type"], value)}
         />

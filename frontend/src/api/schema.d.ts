@@ -6403,7 +6403,7 @@ export interface components {
          * TargetType
          * @enum {string}
          */
-        TargetType: "vllm" | "litellm" | "bifrost" | "openai-compatible";
+        TargetType: "vllm" | "litellm" | "bifrost" | "openai-compatible" | "sglang";
         /**
          * TemporaryPassword
          * @description Shown once; the user must change it at their next sign-in.

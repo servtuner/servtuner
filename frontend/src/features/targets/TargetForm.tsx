@@ -27,6 +27,8 @@ const TYPE_HELP: Record<string, string> = {
   litellm: "A LiteLLM proxy. The API key is its master key or a virtual key.",
   bifrost: "A Bifrost gateway. Add an admin credential if /api/config sits behind auth.",
   "openai-compatible": "Any OpenAI-compatible server. Only client-side metrics are measured.",
+  sglang:
+    "An SGLang server. For now servtuner reads its model list and Kubernetes workload; its metrics and settings come next.",
 };
 
 /** The form's own fields; anything else in an existing target (upstreams, …) is kept as it is. */
@@ -152,7 +154,7 @@ export function TargetForm({
           <TextInput label="Name" description="Lower case, digits and dashes" required {...field("name")} />
           <Select
             label="Type"
-            data={["vllm", "litellm", "bifrost", "openai-compatible"]}
+            data={["vllm", "sglang", "litellm", "bifrost", "openai-compatible"]}
             value={state.type}
             onChange={(value) => value && set("type")(value)}
             description={TYPE_HELP[state.type]}
