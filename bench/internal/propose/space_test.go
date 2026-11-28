@@ -18,7 +18,7 @@ func TestInvalidSearchSpaces(t *testing.T) {
 	cases := map[string]struct{ document, want string }{
 		"unknown field":      {`{"knobz": []}`, "knobz"},
 		"bad tier":           {`knobs: [{name: vllm.max_num_seqs, tier: soon, values: [1]}]`, "tier"},
-		"not a vllm knob":    {`knobs: [{name: bifrost.concurrency, tier: scheduler, values: [1]}]`, "vLLM knob"},
+		"not a vllm knob":    {`knobs: [{name: bifrost.concurrency, tier: scheduler, values: [1]}]`, "not a vLLM or SGLang knob"},
 		"bounds on a flag":   {`knobs: [{name: vllm.stream_interval, tier: fine_tuning, min: 1, max: 4}]`, "needs values"},
 		"values and bounds":  {`knobs: [{name: vllm.max_num_seqs, tier: scheduler, values: [1], min: 1, max: 2}]`, "not both"},
 		"neither":            {`knobs: [{name: vllm.max_num_seqs, tier: scheduler}]`, "values or bounds"},

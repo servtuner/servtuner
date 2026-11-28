@@ -2,9 +2,11 @@ import { parseDocument, stringify } from "yaml";
 import { LADDER_FACTORS } from "../new-run/presets";
 import type { ManagedTarget, SearchSpaceTemplate } from "../../api/types";
 
-/** Whether a starting space suits the target: its placement, and a Kubernetes target's GPUs. */
+/** Whether a starting space suits the target: its server, its placement, and a Kubernetes target's GPUs. */
 export function fitsTarget(template: SearchSpaceTemplate, target: ManagedTarget): boolean {
   const { fits } = template;
+  const server = target.spec.placement === "host" ? "vllm" : (target.spec.server ?? "vllm");
+  if (!(fits.servers ?? ["vllm"]).includes(server)) return false;
   if (!fits.placements.includes(target.spec.placement ?? "kubernetes")) return false;
   if (target.spec.placement === "host") return true; // a host declares no GPU count
   const gpus = target.spec.gpus;

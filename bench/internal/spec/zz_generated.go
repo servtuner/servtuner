@@ -8849,9 +8849,11 @@ func (j *ScrapedJob) UnmarshalJSON(value []byte) error {
 }
 
 // space.yaml, the input of servtuner propose: what a tuning session may change and
-// how. Beyond the schema, servtuner propose checks that every knob is a vLLM knob,
-// that a knob lists values or bounds but not both, that only max_num_seqs,
-// max_num_batched_tokens and max_model_len take bounds, and that no knob is both
+// how. Beyond the schema, servtuner propose checks that every knob is a vLLM or an
+// SGLang knob and the space tunes one server, that a knob lists values or bounds
+// but not both, that only the range-tuned knobs (vLLM's max_num_seqs,
+// max_num_batched_tokens and max_model_len; SGLang's max_running_requests,
+// chunked_prefill_size and context_length) take bounds, and that no knob is both
 // in base and tuned. Defaults: objective slo_rps_per_gpu, noise_floor 0.05,
 // confirm top 3 and repeats 3; ladder probe_rps 1 to 128 doubling, screen_factors
 // [0.7, 0.85, 1, 1.15, 1.3], full_factors [0.5, 0.7, 0.85, 0.95, 1, 1.05, 1.15,
@@ -8918,6 +8920,9 @@ type SearchSpaceTemplateFits struct {
 
 	// Placements corresponds to the JSON schema field "placements".
 	Placements []SearchSpaceTemplateFitsPlacementsElem `json:"placements"`
+
+	// The model servers it tunes (its knobs are theirs); vLLM when absent.
+	Servers []SearchSpaceTemplateFitsServersElem `json:"servers,omitempty,omitzero"`
 }
 
 type SearchSpaceTemplateFitsPlacementsElem string
@@ -8950,6 +8955,36 @@ func (j *SearchSpaceTemplateFitsPlacementsElem) UnmarshalJSON(value []byte) erro
 	return nil
 }
 
+type SearchSpaceTemplateFitsServersElem string
+
+const SearchSpaceTemplateFitsServersElemSglang SearchSpaceTemplateFitsServersElem = "sglang"
+const SearchSpaceTemplateFitsServersElemVllm SearchSpaceTemplateFitsServersElem = "vllm"
+
+var enumValues_SearchSpaceTemplateFitsServersElem = []interface{}{
+	"vllm",
+	"sglang",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SearchSpaceTemplateFitsServersElem) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_SearchSpaceTemplateFitsServersElem {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_SearchSpaceTemplateFitsServersElem, v)
+	}
+	*j = SearchSpaceTemplateFitsServersElem(v)
+	return nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler.
 func (j *SearchSpaceTemplateFits) UnmarshalJSON(value []byte) error {
 	var raw map[string]interface{}
@@ -8972,6 +9007,14 @@ func (j *SearchSpaceTemplateFits) UnmarshalJSON(value []byte) error {
 	}
 	if plain.Placements != nil && len(plain.Placements) < 1 {
 		return fmt.Errorf("field %s length: must be >= %d", "placements", 1)
+	}
+	if v, ok := raw["servers"]; !ok || v == nil {
+		plain.Servers = []SearchSpaceTemplateFitsServersElem{
+			"vllm",
+		}
+	}
+	if plain.Servers != nil && len(plain.Servers) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "servers", 1)
 	}
 	*j = SearchSpaceTemplateFits(plain)
 	return nil

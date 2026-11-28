@@ -128,8 +128,21 @@ def test_search_spaces_come_from_bench(validate_client: TestClient) -> None:
     response = validate_client.get("/search-spaces")
     assert response.status_code == 200
     spaces = {space["name"]: space for space in response.json()}
-    assert set(spaces) == {"single-gpu", "memory-bound", "two-gpu-tensor-parallel", "no-gpu"}
-    assert spaces["no-gpu"]["fits"] == {"placements": ["kubernetes"], "min_gpus": 0, "max_gpus": 0}
+    assert set(spaces) == {
+        "single-gpu",
+        "memory-bound",
+        "two-gpu-tensor-parallel",
+        "no-gpu",
+        "sglang-single-gpu",
+    }
+    assert spaces["sglang-single-gpu"]["fits"]["servers"] == ["sglang"]
+    assert spaces["single-gpu"]["fits"]["servers"] == ["vllm"]
+    assert spaces["no-gpu"]["fits"] == {
+        "placements": ["kubernetes"],
+        "min_gpus": 0,
+        "max_gpus": 0,
+        "servers": ["vllm"],
+    }
     assert spaces["no-gpu"]["space"]["objective"] == "slo_max_rps"
     assert "host" in spaces["memory-bound"]["fits"]["placements"]
 

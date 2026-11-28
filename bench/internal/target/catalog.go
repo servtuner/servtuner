@@ -139,22 +139,28 @@ var servtunerOwnedFields = map[string]bool{
 	"ssl_cert_reqs": true, "ssl_ciphers": true, "enable_ssl_refresh": true,
 }
 
-// rangeTunedKnobs are the knobs the tuning advisors (V1 to V5) move and the grid varies, so a
-// search space may give them as bounds (servtuner propose).
+// rangeTunedKnobs are the knobs the tuning advisors (vLLM's V1 to V5, SGLang's S2 and S3) move and
+// the coordinate step varies, so a search space may give them as bounds (servtuner propose).
 var rangeTunedKnobs = map[string]bool{
-	KnobVLLMMaxNumSeqs:          true,
-	KnobVLLMMaxNumBatchedTokens: true,
-	KnobVLLMMaxModelLen:         true,
+	KnobVLLMMaxNumSeqs:           true,
+	KnobVLLMMaxNumBatchedTokens:  true,
+	KnobVLLMMaxModelLen:          true,
+	KnobSGLangMaxRunningRequests: true,
+	KnobSGLangChunkedPrefillSize: true,
+	KnobSGLangContextLength:      true,
 }
 
 // IsRangeTunedKnob reports whether a search space may give the knob as min and max.
 func IsRangeTunedKnob(name string) bool { return rangeTunedKnobs[name] }
 
-// IsWholeNumberKnob reports whether vLLM parses the knob as a whole number (an integer or a
-// size), from its catalog kind or, for a knob without a flag, its table kind.
+// IsWholeNumberKnob reports whether the server parses the knob as a whole number (an integer or a
+// size), from its catalog kind (vLLM's or SGLang's) or, for a vLLM knob without a flag, its table kind.
 func IsWholeNumberKnob(name string) bool {
 	if kind, listed := catalogKindsByName()[name]; listed {
 		return kind == spec.KnobKindInteger || kind == spec.KnobKindSize
+	}
+	if flag, listed := sglangKnobsByName()[name]; listed {
+		return flag.Kind == spec.KnobKindInteger || flag.Kind == spec.KnobKindSize
 	}
 	for _, field := range compilationConfigKnobs {
 		if field.knob == name {

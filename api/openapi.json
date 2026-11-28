@@ -3159,6 +3159,18 @@
             "minItems": 1,
             "title": "Placements",
             "type": "array"
+          },
+          "servers": {
+            "default": [
+              "vllm"
+            ],
+            "description": "The model servers it tunes (its knobs are theirs); vLLM when absent.",
+            "items": {
+              "$ref": "#/components/schemas/Server"
+            },
+            "minItems": 1,
+            "title": "Servers",
+            "type": "array"
           }
         },
         "required": [

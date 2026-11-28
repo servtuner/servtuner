@@ -145,15 +145,45 @@ func (s SearchSpace) validate() error {
 		}
 	}
 	for name := range s.Base {
-		if !target.IsVLLMKnob(name) {
-			add("base knob %q is not a vLLM knob (target/knobs.go)", name)
+		if target.ServerOfKnob(name) == "" {
+			add("base knob %q is not a vLLM or SGLang knob", name)
 		}
+	}
+	if servers := s.servers(); len(servers) > 1 {
+		add("the space mixes vLLM and SGLang knobs: a session tunes one server")
 	}
 	if len(problems) == 0 {
 		return nil
 	}
 	sort.Strings(problems)
 	return errors.New("invalid search space: " + strings.Join(problems, "; "))
+}
+
+// servers are the model servers the space's knobs belong to.
+func (s SearchSpace) servers() []spec.KnobCatalogServer {
+	seen := map[spec.KnobCatalogServer]bool{}
+	var servers []spec.KnobCatalogServer
+	note := func(name string) {
+		if server := target.ServerOfKnob(name); server != "" && !seen[server] {
+			seen[server] = true
+			servers = append(servers, server)
+		}
+	}
+	for name := range s.Base {
+		note(name)
+	}
+	for _, knob := range s.Knobs {
+		note(knob.Name)
+	}
+	return servers
+}
+
+// Server is the model server the space tunes: SGLang when its knobs are SGLang's, else vLLM.
+func (s SearchSpace) Server() spec.KnobCatalogServer {
+	for _, server := range s.servers() {
+		return server
+	}
+	return spec.KnobCatalogServerVllm
 }
 
 func isWhole(value KnobValue) bool {
@@ -163,13 +193,13 @@ func isWhole(value KnobValue) bool {
 
 func (k KnobSpec) problems() []string {
 	var problems []string
-	if !target.IsVLLMKnob(k.Name) {
-		problems = append(problems, "not a vLLM knob (target/knobs.go)")
+	if target.ServerOfKnob(k.Name) == "" {
+		problems = append(problems, "not a vLLM or SGLang knob")
 	}
 	if k.Tier == TierFeasibility && len(k.Values) == 0 {
 		problems = append(problems, "a feasibility knob needs values: the boot probes enumerate them")
 	}
-	if target.IsWholeNumberKnob(k.Name) { // vLLM rejects 64.5 sequences
+	if target.IsWholeNumberKnob(k.Name) { // a server rejects 64.5 sequences
 		candidates := append([]KnobValue{}, k.Values...)
 		for _, bound := range []*float64{k.Min, k.Max} {
 			if bound != nil {

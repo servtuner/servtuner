@@ -13,6 +13,11 @@ class Placement(Enum):
     host = "host"
 
 
+class Server(Enum):
+    vllm = "vllm"
+    sglang = "sglang"
+
+
 class Fits(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -28,6 +33,13 @@ class Fits(BaseModel):
     max_gpus: Annotated[
         int | None, Field(description="The most GPUs a Kubernetes target may request.", ge=0)
     ] = None
+    servers: Annotated[
+        list[Server],
+        Field(
+            description="The model servers it tunes (its knobs are theirs); vLLM when absent.",
+            min_length=1,
+        ),
+    ] = [Server.vllm]
 
 
 class SearchSpaceTemplate(BaseModel):

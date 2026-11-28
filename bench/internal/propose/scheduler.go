@@ -3,7 +3,9 @@ package propose
 import (
 	"fmt"
 
+	"github.com/servtuner/servtuner/bench/internal/analyze/advisors/sglang"
 	"github.com/servtuner/servtuner/bench/internal/analyze/advisors/vllm"
+	"github.com/servtuner/servtuner/bench/internal/spec"
 	"github.com/servtuner/servtuner/bench/internal/target"
 )
 
@@ -36,6 +38,48 @@ var advisorMoves = map[string]advisorMove{
 	vllm.RuleDecodeHeavy:   {knob: target.KnobVLLMMaxNumBatchedTokens, direction: -1},
 }
 
+// sglangAdvisorMoves are the SGLang rules the scheduler tier follows: S3 raises
+// max_running_requests (bounded by the KV cache), S2 lowers it, and S1 gives the
+// KV pool more memory. None names a value, only a direction.
+var sglangAdvisorMoves = map[string]advisorMove{
+	sglang.RuleRunningCap: {knob: target.KnobSGLangMaxRunningRequests, direction: +1, capByCKV: true},
+	sglang.RuleRetraction: {knob: target.KnobSGLangMaxRunningRequests, direction: -1},
+	sglang.RuleKVBound:    {knob: target.KnobSGLangMemFractionStatic, direction: +1},
+}
+
+// serverProfile is what the scheduler tier knows of a model server: the knob
+// that caps requests running at once (bounded by C_kv), the prefill chunk the
+// coordinate step moves second, the advisor moves, and the rules whose Max
+// bounds the running cap.
+type serverProfile struct {
+	runningCap, prefillChunk string
+	moves                    map[string]advisorMove
+	ceilingRules             map[string]bool
+}
+
+var (
+	vllmProfile = serverProfile{
+		runningCap: target.KnobVLLMMaxNumSeqs, prefillChunk: target.KnobVLLMMaxNumBatchedTokens,
+		moves: advisorMoves, ceilingRules: map[string]bool{vllm.RuleSeqCapBound: true, vllm.RuleKVBound: true},
+	}
+	sglangProfile = serverProfile{
+		runningCap: target.KnobSGLangMaxRunningRequests, prefillChunk: target.KnobSGLangChunkedPrefillSize,
+		moves: sglangAdvisorMoves, ceilingRules: map[string]bool{},
+	}
+)
+
+// profile is the server the space tunes.
+func (s *state) profile() serverProfile {
+	if s.space.Server() == spec.KnobCatalogServerSglang {
+		return sglangProfile
+	}
+	return vllmProfile
+}
+
+// coordinateKnobs are the knobs the coordinate step moves, in order: concurrency first, since it
+// moves capacity most, then the prefill chunk.
+func (p serverProfile) coordinateKnobs() []string { return []string{p.runningCap, p.prefillChunk} }
+
 // schedulerStep follows the advisors on the leader, then takes coordinate
 // steps on max_num_seqs and max_num_batched_tokens around it, then A/Bs the
 // other scheduler knobs (chunked prefill, gpu_memory_utilization).
@@ -56,8 +100,9 @@ func (s *state) schedulerStep() ([]Proposed, string, []string) {
 
 func (s *state) followAdvisors(b *batch) {
 	leader := s.leader
+	moves := s.profile().moves
 	for _, advice := range s.adviceOf(leader) {
-		move, ok := advisorMoves[advice.Rule]
+		move, ok := moves[advice.Rule]
 		if !ok || advice.Knob != move.knob {
 			continue
 		}
@@ -105,24 +150,22 @@ func (s *state) currentValue(config *configuration, knob KnobSpec) (float64, boo
 	return value, ok
 }
 
-// ceiling is the most max_num_seqs may reach on a configuration: the C_kv of
-// the boot probe and the maximum of its V1 and V2 advice (the requests the
-// measured KV usage could hold), the smaller. The advisor step and the grid
+// ceiling is the most the running cap (vLLM's max_num_seqs, SGLang's
+// max_running_requests) may reach on a configuration: the C_kv of the boot probe
+// and, for vLLM, the maximum of its V1 and V2 advice (the requests the measured
+// KV usage could hold), the smaller. The advisor step and the coordinate step
 // both use it.
 func (s *state) ceiling(config *configuration) *float64 {
+	profile := s.profile()
 	ceiling := s.boots.ckv(config.knobs)
 	for _, advice := range s.adviceOf(config) {
-		isKVRule := advice.Rule == vllm.RuleSeqCapBound || advice.Rule == vllm.RuleKVBound
-		if isKVRule && advice.Knob == target.KnobVLLMMaxNumSeqs && advice.Max != nil && (ceiling == nil || *advice.Max < *ceiling) {
+		isKVRule := profile.ceilingRules[advice.Rule]
+		if isKVRule && advice.Knob == profile.runningCap && advice.Max != nil && (ceiling == nil || *advice.Max < *ceiling) {
 			ceiling = advice.Max
 		}
 	}
 	return ceiling
 }
-
-// coordinateKnobs are the knobs the coordinate step moves, in order: concurrency first, since it
-// moves capacity most, then the prefill chunk.
-var coordinateKnobs = []string{target.KnobVLLMMaxNumSeqs, target.KnobVLLMMaxNumBatchedTokens}
 
 // coordinateStep proposes one step of a coordinate search around the leader, once the advisors
 // are spent (it replaced a 3x3 grid, 2026-11-24, which spent 8 runs and tried cells in a fixed
@@ -134,7 +177,8 @@ var coordinateKnobs = []string{target.KnobVLLMMaxNumSeqs, target.KnobVLLMMaxNumB
 func (s *state) coordinateStep(b *batch) {
 	// Both knobs, as the grid this replaced required: a space tuning only one of them leaves it
 	// to the advisors.
-	for _, name := range coordinateKnobs {
+	profile := s.profile()
+	for _, name := range profile.coordinateKnobs() {
 		if _, inSpace := s.space.knob(name); !inSpace {
 			return
 		}
@@ -146,7 +190,7 @@ func (s *state) coordinateStep(b *batch) {
 		return
 	}
 	ceiling := s.ceiling(s.leader)
-	for _, name := range coordinateKnobs {
+	for _, name := range profile.coordinateKnobs() {
 		knob, _ := s.space.knob(name)
 		at, known := s.currentValue(s.leader, knob)
 		if !known {
@@ -154,7 +198,7 @@ func (s *state) coordinateStep(b *batch) {
 			continue
 		}
 		var knobCeiling *float64
-		if name == target.KnobVLLMMaxNumSeqs {
+		if name == profile.runningCap {
 			knobCeiling = ceiling
 		}
 		for _, direction := range s.directions(knob, at) {
@@ -175,7 +219,9 @@ func (s *state) coordinateStep(b *batch) {
 			if direction < 0 {
 				position = PositionDown
 			}
-			if name == target.KnobVLLMMaxNumSeqs {
+			// The cell names vLLM's knobs; for SGLang they stand for the running cap and the
+			// prefill chunk.
+			if name == profile.runningCap {
 				cell.MaxNumSeqs = position
 			} else {
 				cell.MaxNumBatchedTokens = position
