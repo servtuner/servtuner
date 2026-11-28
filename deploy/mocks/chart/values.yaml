@@ -15,6 +15,8 @@ mock:
   outputTokens: 32
   honorMaxTokens: true
   roleOnlyFirstChunk: false
+  # Also answer as another server: "" (none) or sglang (SGLang's /server_info, /model_info and sglang: metrics).
+  emulate: ""
   # Fault knobs (deploy/mocks/README.md "Fault knobs"): all off by default, so each advisor rule
   # can be triggered on kind by turning one on.
   faults:

@@ -50,6 +50,9 @@ spec:
             - {name: OPENAI_MOCK_OUTPUT_TOKENS, value: {{ .Values.mock.outputTokens | quote }}}
             - {name: OPENAI_MOCK_HONOR_MAX_TOKENS, value: {{ .Values.mock.honorMaxTokens | quote }}}
             - {name: OPENAI_MOCK_ROLE_ONLY_FIRST_CHUNK, value: {{ .Values.mock.roleOnlyFirstChunk | quote }}}
+            {{- with .Values.mock.emulate }}
+            - {name: OPENAI_MOCK_EMULATE, value: {{ . | quote }}}
+            {{- end }}
             {{- /* Every knob has its own default: a release upgraded with --reuse-values keeps its old values and
                    never sees new chart defaults, so a missing key must not render as "<nil>". */}}
             {{- $faults := .Values.mock.faults | default dict }}

@@ -44,6 +44,10 @@ read_by_mock="$(grep -oE 'env\.[A-Za-z]+\("[A-Z_]+"' "$here/openai-mock/config.g
 unread="$(grep -oE 'OPENAI_MOCK_[A-Z_]+' <<<"$rendered" | sort -u | comm -23 - <(echo "$read_by_mock"))"
 check "every OPENAI_MOCK_* variable the chart sets is read by the mock ${unread:+(unread: $unread)}" "$([ -z "$unread" ] && echo 0 || echo 1)"
 check "fault knobs are passed, off by default" "$([ "$(count 'OPENAI_MOCK_(EXTRA_LATENCY|LATENCY_PER_IN_FLIGHT|MAX_CONCURRENCY|OVER_CAPACITY|ERROR_RATE|ERROR_STATUS|MEMORY_[A-Z_]+), value')" -eq 9 ] && [ "$(count 'OPENAI_MOCK_ERROR_RATE, value: "0"')" -eq 1 ] && echo 0 || echo 1)"
+check "no emulation by default" "$([ "$(count 'OPENAI_MOCK_EMULATE')" -eq 0 ] && echo 0 || echo 1)"
+rendered="$(render -f "$chart/ci/tls-off.yaml" --set mock.emulate=sglang)"
+check "emulate sglang is passed" "$([ "$(count 'OPENAI_MOCK_EMULATE, value: "sglang"')" -eq 1 ] && echo 0 || echo 1)"
+rendered="$(render -f "$chart/ci/tls-off.yaml")"
 
 # helm upgrade --reuse-values keeps a release's old values and skips new chart defaults: a release
 # that predates the fault knobs, given one of them, must still render every knob as a real value.
