@@ -344,3 +344,50 @@ func TestFramebufferFreeIsOfTheFullestTargetGPU(t *testing.T) {
 		t.Errorf("used = %v, want the fullest target GPU", got)
 	}
 }
+
+// SGLang's series stand in for vLLM's when a run has no vLLM series. TP ranks
+// of one group report the same batch and count once; DP groups and pods add.
+func TestSGLangSeriesStandInForVLLMsAndCountEachGroupOnce(t *testing.T) {
+	rank := func(pod, dp, tp string, values ...float64) input.Series {
+		return input.Series{Labels: map[string]string{"pod": pod, "dp_rank": dp, "tp_rank": tp}, Samples: samples(values...)}
+	}
+	plain := func(pod string, values ...float64) input.Series {
+		return input.Series{Labels: map[string]string{"pod": pod}, Samples: samples(values...)}
+	}
+	matrix := input.MapMatrix{
+		SGLangRunning: {rank("vllm-0", "0", "1", 4, 6), rank("vllm-0", "0", "0", 4, 6), rank("vllm-0", "1", "2", 1, 2), rank("vllm-1", "", "0", 3, 3), rank("other-0", "", "0", 90, 90)},
+		SGLangQueue:   {rank("vllm-0", "0", "0", 0, 5), rank("vllm-0", "0", "1", 0, 5)},
+		SGLangTokenUsage: {
+			rank("vllm-0", "0", "0", 0.2, 0.9), rank("vllm-1", "", "0", 0.6, 0.3),
+		},
+		SGLangRetracted: {rank("vllm-0", "0", "0", 0, 3), rank("vllm-0", "0", "1", 0, 3)},
+		SGLangPrompt:    {plain("vllm-0", 0, 1000)},
+		SGLangCached:    {plain("vllm-0", 0, 600)},
+	}
+	d := derive(matrix)
+	if got := signal(t, d, input.RequestsRunning); !equal(got, []float64{8, 11}) {
+		t.Errorf("running = %v, want [8 11] (one TP rank per group, groups and pods summed)", got)
+	}
+	if got := signal(t, d, input.RequestsWaiting); !equal(got, []float64{0, 5}) {
+		t.Errorf("waiting = %v", got)
+	}
+	if got := signal(t, d, input.KVCacheUsage); !equal(got, []float64{0.6, 0.9}) {
+		t.Errorf("KV usage = %v", got)
+	}
+	if got := signal(t, d, input.Preemptions); !equal(got, []float64{0, 3}) {
+		t.Errorf("retractions = %v, want [0 3] (counted once, not per rank)", got)
+	}
+	if hits, queries := signal(t, d, input.PrefixCacheHits), signal(t, d, input.PrefixCacheQueries); !equal(hits, []float64{0, 600}) || !equal(queries, []float64{0, 1000}) {
+		t.Errorf("prefix hits %v over queries %v", hits, queries)
+	}
+}
+
+func TestVLLMSeriesWinOverSGLangs(t *testing.T) {
+	pod := func(name string, values ...float64) input.Series {
+		return input.Series{Labels: map[string]string{"pod": name}, Samples: samples(values...)}
+	}
+	matrix := input.MapMatrix{VLLMWaiting: {pod("vllm-0", 1, 1)}, SGLangQueue: {pod("vllm-0", 9, 9)}}
+	if got := signal(t, derive(matrix), input.RequestsWaiting); !equal(got, []float64{1, 1}) {
+		t.Errorf("waiting = %v, want vLLM's", got)
+	}
+}
