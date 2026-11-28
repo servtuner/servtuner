@@ -87,13 +87,25 @@ spec:
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- /* The kubelet's HTTP probe speaks neither TLS nor client certificates, so with TLS probe the port. */}}
+          {{- /* The kubelet's HTTP probe speaks neither TLS nor client certificates, so with TLS probe the port.
+                 The api listens only after it has reached Postgres and run the migrations; on a fresh install
+                 Postgres can take a minute or more. The startup probe gives it 5 minutes (60 checks, 5 s apart)
+                 before liveness and readiness start counting, so liveness never kills an api that is still
+                 starting (it once did, and a run launched in the shutdown window failed). */}}
           {{- if $apiTls }}
+          startupProbe:
+            tcpSocket: {port: api}
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             tcpSocket: {port: api}
           livenessProbe:
             tcpSocket: {port: api}
           {{- else }}
+          startupProbe:
+            httpGet: {path: /healthz, port: api}
+            periodSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             httpGet: {path: /healthz, port: api}
           livenessProbe:

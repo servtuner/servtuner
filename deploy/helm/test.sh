@@ -31,6 +31,8 @@ for values in mutual-tls-cert-manager mutual-tls-secret tls-off tls-server-only 
   helm lint "$chart" -f "$file" -f "$chart/ci/lint-overlay.yaml" >/dev/null || lint_status=$?
   check "lint $values" "$lint_status"
   check "$values: api and frontend drain before stopping (preStop sleep)" "$([ "$(count 'sleep: \{seconds: 5\}')" -eq 2 ] && echo 0 || echo 1)"
+  # The api listens only after Postgres and the migrations: liveness must wait for the startup probe.
+  check "$values: the api has a startup probe with a 5-minute budget" "$([ "$(count '^ +startupProbe:$')" -eq 1 ] && [ "$(count '^ +failureThreshold: 60$')" -eq 1 ] && echo 0 || echo 1)"
 
   case "$values" in
     mutual-tls-cert-manager)
