@@ -88,7 +88,9 @@ class Runner(Protocol):
   the api through `--tls-ca-file` with the `ca.crt` of `SERVTUNER_TLS_CA_SECRET`.
   `SERVTUNER_ENGINE_OVERRIDE=null` (dev and e2e only, never set by the chart) makes it
   pass `--engine-override null`, so a run needs no real load engine. `just
-  e2e-local-mutual-tls` and `just e2e-local-tls-off` use it (`e2e/local.py`).
+  e2e-local-mutual-tls` uses it; `just e2e-local-tls-off` is the happy path instead: the
+  real loadgen engine sends about 15 requests at 1 RPS to the repository's mock
+  (`e2e/local.py`). CI never runs a load test.
 
 - **Sharded runs** (`engine.shards` N > 1): the Kubernetes runner
   makes the Job `Indexed` with N completions and parallelism, passes
