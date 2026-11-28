@@ -81,6 +81,10 @@ e2e-forward-header:
 
 # Through Envoy Gateway instead of ingress-nginx: HTTPRoutes, Envoy's external auth for
 # forward-header auth, and with mutual TLS the gateway's client certificate and a BackendTLSPolicy name check.
+# An SGLang target on kind: the mock as SGLang and one null-engine run read by bench's adapter (no load).
+e2e-sglang:
+    PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --sglang --image-tag {{image_tag}}
+
 e2e-gateway-forward-header:
     PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --gateway --forward-header --image-tag {{image_tag}}
 

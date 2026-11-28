@@ -43,6 +43,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 from types import FrameType
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx2
@@ -95,6 +96,13 @@ JOBS_VALUES = REPOSITORY / "deploy" / "kind" / "e2e-jobs-values.yaml"
 TUNING_VALUES = REPOSITORY / "deploy" / "kind" / "e2e-tuning-values.yaml"
 TUNING_IMAGE_NAME = "servtuner-mock"
 TUNING_IMAGE_RECIPE = "_image-mock"
+# --sglang: the mock as SGLang (--emulate sglang) in the release namespace, and one null-engine run
+# against it, so bench's SGLang adapter reads /server_info on a real cluster. No load is offered.
+MOCK_CHART = REPOSITORY / "deploy" / "mocks" / "chart"
+SGLANG_MOCK_RELEASE = "openai-mock"  # the chart names its Service and labels after it
+SGLANG_MOCK_PORT = 8000  # the mock chart's service.port
+SGLANG_MOCK_VERSION = "0.5.23"  # the SGLang release the mock emulates (openai-mock/sglang.go)
+SGLANG_SERVER_INFO = "sglang-server-info.json"  # bench's config document (target/sglang.go)
 # --tuning-host: a real GPU host running `servtuner launcher`. Addresses and secrets come
 # from the environment only, never from a committed file (deploy/CLAUDE.md "Constraints").
 HOST_ENV_VARS = (
@@ -188,6 +196,8 @@ class Deployment:
     forward_header: bool = False
     # Route through Envoy Gateway (Gateway API HTTPRoutes) instead of ingress-nginx.
     gateway: bool = False
+    # An SGLang target: the mock as SGLang and one null-engine run against it (--sglang, tls-off).
+    sglang: bool = False
     # Cleanup that did not fully work; reported loudly at the end and fails the run.
     problems: list[str] = field(default_factory=list)
 
@@ -199,6 +209,7 @@ class Deployment:
         suffix += "-tuning-host" if self.tuning_host else ""
         suffix += "-fwd" if self.forward_header else ""
         suffix += "-gw" if self.gateway else ""
+        suffix += "-sgl" if self.sglang else ""
         namespace = f"servtuner-e2e-{self.mode.value}{suffix}"
         # The release is named like the namespace and the chart cuts its names to this length
         # (servtuner.fullname), so a longer one would name resources unlike the release.
@@ -227,14 +238,14 @@ class Deployment:
     def images(self) -> list[str]:
         """The images loaded into kind; bench's too when it runs as a Job."""
         names = (*IMAGE_NAMES, *BUILD_ONLY_IMAGE_NAMES) if self.runs_jobs else IMAGE_NAMES
-        if self.tuning:
+        if self.tuning or self.sglang:
             names = (*names, TUNING_IMAGE_NAME)
         return [f"{name}:{self.image_tag}" for name in names]
 
     @property
     def built_images(self) -> list[str]:
         """Every local tag this run builds, so local cleanup removes all of them."""
-        extra = (TUNING_IMAGE_NAME,) if self.tuning else ()
+        extra = (TUNING_IMAGE_NAME,) if self.tuning or self.sglang else ()
         return [
             f"{name}:{self.image_tag}" for name in (*IMAGE_NAMES, *BUILD_ONLY_IMAGE_NAMES, *extra)
         ]
@@ -337,7 +348,7 @@ def build_and_load_images(deployment: Deployment, stack: ExitStack) -> None:
             str(REPOSITORY / "Justfile"),
             f"image_tag={deployment.image_tag}",
             *IMAGE_RECIPES,
-            *((TUNING_IMAGE_RECIPE,) if deployment.tuning else ()),
+            *((TUNING_IMAGE_RECIPE,) if deployment.tuning or deployment.sglang else ()),
         ]
     )
     run_command(
@@ -442,6 +453,9 @@ def install_chart(
         settings["bench.image.tag"] = deployment.image_tag
     if deployment.tuning:
         settings["rbac.tuning.namespaces[0]"] = deployment.target_namespace
+    if deployment.sglang:
+        # bench snapshots the mock, which runs in the release namespace.
+        settings["rbac.bench.targetNamespaces[0]"] = deployment.namespace
     if deployment.mode is Security.MUTUAL_TLS:
         settings["tls.certManager.issuerRef.name"] = CLUSTER_ISSUER
     else:
@@ -698,6 +712,93 @@ def api_path_from_config(deployment: Deployment, ui: httpx2.Client) -> str:
     path = urlparse(resolved).path.rstrip("/")
     print(f"ok   config.json apiBaseUrl {api_base_url!r} resolves to {path}", flush=True)
     return path
+
+
+def install_sglang_mock(deployment: Deployment, stack: ExitStack) -> None:
+    """--sglang: the mock chart, plain HTTP, answering as SGLang, from the image just loaded."""
+    if not deployment.keep:
+        stack.callback(
+            lambda: run_command(
+                [
+                    "helm",
+                    "--kube-context",
+                    deployment.context,
+                    "uninstall",
+                    SGLANG_MOCK_RELEASE,
+                    "--namespace",
+                    deployment.namespace,
+                ],
+                check_exit=False,
+            )
+        )
+    run_command(
+        [
+            "helm",
+            "--kube-context",
+            deployment.context,
+            "upgrade",
+            "--install",
+            SGLANG_MOCK_RELEASE,
+            str(MOCK_CHART),
+            "--namespace",
+            deployment.namespace,
+            "--wait",
+            f"--timeout={CLEANUP_TIMEOUT}",
+            f"--set-string=image.repository={TUNING_IMAGE_NAME}",
+            f"--set-string=image.tag={deployment.image_tag}",
+            "--set=tls.enabled=false",
+            "--set-string=mock.emulate=sglang",
+        ]
+    )
+
+
+def sglang_runspec(deployment: Deployment) -> dict[str, Any]:
+    """A RunSpec against the mock as SGLang: null engine, so only the snapshot talks to it."""
+    return {
+        "apiVersion": "servtuner.dev/v2",
+        "kind": "RunSpec",
+        "name": "e2e-sglang",
+        "target": {
+            "type": "sglang",
+            "endpoint": f"http://{SGLANG_MOCK_RELEASE}.{deployment.namespace}.svc:{SGLANG_MOCK_PORT}/v1",
+            "model": "mock-model",
+            "workload": {
+                "namespace": deployment.namespace,
+                "selector": {"app.kubernetes.io/name": SGLANG_MOCK_RELEASE},
+            },
+            "tls": {"enabled": False},
+        },
+        "engine": {"type": "loadgen"},
+        "workload": {
+            "streaming": True,
+            "dataset": {
+                "type": "synthetic",
+                "input_tokens": {"mean": 32},
+                "output_tokens": {"mean": 8},
+            },
+        },
+        "load": {"stages": [{"rate": 1, "duration": "5s"}]},
+    }
+
+
+def check_sglang_bundle(api: httpx2.Client, run_id: str) -> None:
+    """The snapshot read the mock as SGLang: its version, and /server_info kept redacted."""
+    files = [entry["path"] for entry in api.get(f"/runs/{run_id}/files").json()]
+    documents = [path for path in files if path.endswith(SGLANG_SERVER_INFO)]
+    check(bool(documents), f"the bundle keeps SGLang's /server_info ({', '.join(documents)})")
+    server_info = api.get(f"/runs/{run_id}/files/{documents[0]}").json()
+    check(
+        server_info.get("max_total_num_tokens", 0) > 0 and "launch_command" in server_info,
+        "the stored /server_info carries the KV pool size and the launch command",
+    )
+    snapshot = api.get(f"/runs/{run_id}/files/target/snapshot-pre.json").json()
+    versions = [
+        (workload.get("target_info") or {}).get("version") for workload in snapshot["workloads"]
+    ]
+    check(
+        SGLANG_MOCK_VERSION in versions,
+        f"the snapshot records SGLang {SGLANG_MOCK_VERSION} ({versions})",
+    )
 
 
 def check_bundle_in_pod(deployment: Deployment, run_id: str) -> None:
@@ -1126,6 +1227,8 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
         if deployment.forward_header:
             extra_values += (install_forward_auth_stub(deployment, scratch),)
         install_chart(deployment, stack, extra_values)
+        if deployment.sglang:
+            install_sglang_mock(deployment, stack)
 
         step(4, "wait for Postgres, the api and the frontend")
         wait_until_ready(deployment)
@@ -1291,6 +1394,20 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
 
                     exercise_run(api, mode, check_sharded, document=json.dumps(sharded).encode())
 
+                    if deployment.sglang:
+                        step(6, "an SGLang target: the mock as SGLang, read by bench's adapter")
+
+                        def check_sglang(run_id: str) -> None:
+                            check_bundle_in_pod(deployment, run_id)
+                            check_sglang_bundle(api, run_id)
+
+                        exercise_run(
+                            api,
+                            mode,
+                            check_sglang,
+                            document=json.dumps(sglang_runspec(deployment)).encode(),
+                        )
+
             step(7, "check the UI lists the run")
             check_ui_lists_run(deployment, ui, api_path, run_id)
 
@@ -1376,6 +1493,11 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
         help="route through Envoy Gateway (HTTPRoutes) instead of ingress-nginx",
     )
     parser.add_argument(
+        "--sglang",
+        action="store_true",
+        help="an SGLang target: the mock as SGLang and one null-engine run against it (tls-off)",
+    )
+    parser.add_argument(
         "--keep",
         action="store_true",
         help="skip cleanup (helm release and namespace) for debugging",
@@ -1400,6 +1522,7 @@ def main(argv: list[str]) -> int:
         ui=arguments.ui,
         forward_header=arguments.forward_header,
         gateway=arguments.gateway,
+        sglang=arguments.sglang,
     )
     missing = [
         name for name in HOST_ENV_VARS if deployment.tuning_host and not os.environ.get(name)
@@ -1424,6 +1547,15 @@ def main(argv: list[str]) -> int:
             "e2e-cluster: --forward-header needs tls-off, without --tuning",
             file=sys.stderr,
         )
+        return 2
+    if deployment.sglang and (
+        deployment.mode is not Security.TLS_OFF
+        or deployment.load
+        or deployment.tuning
+        or deployment.tuning_host
+    ):
+        # The mock runs plain HTTP; the SGLang check is a null-engine run, not a load or tuning run.
+        print("e2e-cluster: --sglang needs tls-off, without --load or --tuning", file=sys.stderr)
         return 2
     if deployment.ui and not (deployment.tuning or deployment.tuning_host):
         print("e2e-cluster: --ui needs --tuning or --tuning-host", file=sys.stderr)
