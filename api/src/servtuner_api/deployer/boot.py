@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from servtuner_api.deployer.redact import redact_secrets
+
 # T0: the root cause is logged well before the generic last
 # line, so the classifier reads a window, not the tail.
 LOG_TAIL_LINES = 200
@@ -288,7 +290,8 @@ def classify_boot_failure(
     """What a failed boot of vLLM (or SGLang, ``server``) says about the configuration."""
     name = "SGLang" if server == "sglang" else "vLLM"
     rules = SGLANG_BOOT_RULES if server == "sglang" else BOOT_RULES
-    lines = log.splitlines()[-LOG_TAIL_LINES:]
+    # Excerpts are stored and shown: SGLang's startup line carries its API key.
+    lines = redact_secrets(log).splitlines()[-LOG_TAIL_LINES:]
     window = "\n".join(lines)
     if reason == "OOMKilled":
         return BootFailure(
