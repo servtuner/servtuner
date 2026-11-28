@@ -22,8 +22,8 @@ var errNoCacheConfig = errors.New("the target's /metrics has no vllm:cache_confi
 // c_kv = num_gpu_blocks x block_size / tokens per request. Only a booted target gets here: one that did not boot is the
 // deployer's infeasible result, not a probe.
 func BootProbe(ctx context.Context, secretsDir string, request spec.BootProbeRequest) (spec.TuningBootResult, error) {
-	if request.Target.Type != spec.TargetTypeVllm {
-		return spec.TuningBootResult{}, fmt.Errorf("target.type %s: a boot probe reads vLLM's cache config", request.Target.Type)
+	if request.Target.Type != spec.TargetTypeVllm && request.Target.Type != spec.TargetTypeSglang {
+		return spec.TuningBootResult{}, fmt.Errorf("target.type %s: a boot probe reads vLLM's or SGLang's KV capacity", request.Target.Type)
 	}
 	if secretsDir == "" {
 		secretsDir = DefaultSecretsDir
@@ -53,6 +53,9 @@ func BootProbe(ctx context.Context, secretsDir string, request spec.BootProbeReq
 	// does not make the KV capacity unknown, so their errors count only when
 	// the cache config is missing too.
 	info, infoErr := adapter.Info(ctx, endpoint)
+	if request.Target.Type == spec.TargetTypeSglang {
+		return sglangBootResult(request, info, infoErr)
+	}
 	blocks, blockOK := wholeNumber(info.TargetInfo.CacheConfig["num_gpu_blocks"])
 	blockSize, sizeOK := wholeNumber(info.TargetInfo.CacheConfig["block_size"])
 	if !blockOK || !sizeOK {
@@ -74,4 +77,28 @@ func BootProbe(ctx context.Context, secretsDir string, request spec.BootProbeReq
 func wholeNumber(text string) (int, bool) {
 	value, err := strconv.Atoi(text)
 	return value, err == nil && value >= 0
+}
+
+// errNoKVPool: SGLang's /server_info gave no max_total_num_tokens, so its KV
+// capacity is unknown.
+var errNoKVPool = errors.New("the target's /server_info has no max_total_num_tokens")
+
+// sglangBootResult is SGLang's KV capacity: max_total_num_tokens is the pool
+// in tokens, so c_kv = max_total_num_tokens / tokens per request. The pool in
+// pages (tokens / page_size) is reported as num_gpu_blocks, so propose folds
+// boots of equal capacity as it does vLLM's.
+func sglangBootResult(request spec.BootProbeRequest, info target.Info, infoErr error) (spec.TuningBootResult, error) {
+	tokens, ok := wholeNumber(info.TargetInfo.CacheConfig[target.SGLangMaxTotalNumTokens])
+	if !ok {
+		return spec.TuningBootResult{}, errors.Join(errNoKVPool, infoErr)
+	}
+	pageSize, ok := wholeNumber(info.TargetInfo.CacheConfig[target.SGLangPageSize])
+	if !ok || pageSize == 0 {
+		pageSize = 1 // SGLang's default page size
+	}
+	pages := tokens / pageSize
+	cKV := float64(tokens) / request.TokensPerRequest
+	return spec.TuningBootResult{
+		Knobs: request.Knobs, Outcome: spec.TuningBootOutcomeFeasible, NumGpuBlocks: &pages, CKv: &cKV,
+	}, nil
 }

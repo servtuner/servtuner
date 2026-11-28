@@ -136,7 +136,10 @@ class TargetInfo(BaseModel):
     ] = None
     models: Annotated[list[Model] | None, Field(description="Model ids from /v1/models.")] = None
     cache_config: Annotated[
-        dict[str, str] | None, Field(description="vLLM cache_config_info labels.")
+        dict[str, str] | None,
+        Field(
+            description="vLLM cache_config_info labels, or SGLang's KV pool from /server_info (max_total_num_tokens, page_size)."
+        ),
     ] = None
 
 

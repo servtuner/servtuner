@@ -284,7 +284,7 @@
           }
         },
         "cache_config": {
-          "description": "vLLM cache_config_info labels.",
+          "description": "vLLM cache_config_info labels, or SGLang's KV pool from /server_info (max_total_num_tokens, page_size).",
           "type": "object",
           "additionalProperties": {
             "type": "string"

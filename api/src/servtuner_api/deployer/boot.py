@@ -158,6 +158,67 @@ BOOT_RULES: tuple[BootRule, ...] = (
 )
 
 
+# SGLang v0.5.23's boot-failure messages (from its source; checked live by #33's recording). The
+# argument parser, the hub, offline and certificate rules are vLLM's own words too, so they are
+# shared. SGLang reports a dead scheduler with its exit code, -9 meaning the OS OOM killer.
+SGLANG_BOOT_RULES: tuple[BootRule, ...] = (
+    BootRule(
+        "unknown-flag",
+        "render_bug",
+        re.compile(r"error: unrecognized arguments: (.+)"),
+        "SGLang refused a flag servtuner rendered: a rendering bug, not a configuration result",
+    ),
+    BootRule(
+        "bad-flag-value",
+        "render_bug",
+        re.compile(
+            r"error: argument (--[a-z0-9-]+).*: "
+            r"(invalid (int|float|choice) value|expected one argument)"
+        ),
+        "SGLang refused a flag value servtuner rendered: a rendering bug",
+    ),
+    # model_executor/pool_configurator.py: the KV pool would hold no token.
+    BootRule(
+        "kv-pool-empty",
+        "infeasible",
+        re.compile(r"Not enough memory\. Please try to increase --mem-fraction-static"),
+        "no GPU memory was left for the KV pool: mem_fraction_static is too low",
+    ),
+    # model_executor/runner_backend_utils: CUDA graph capture ran out of memory.
+    BootRule(
+        "cuda-graph-oom",
+        "infeasible",
+        re.compile(r"set --mem-fraction-static to a smaller value"),
+        "CUDA graph capture ran out of memory: mem_fraction_static or cuda_graph_max_bs_decode"
+        " is too high",
+    ),
+    BootRule(
+        "cuda-oom",
+        "infeasible",
+        re.compile(r"(CUDA out of memory|torch\.OutOfMemoryError)"),
+        "CUDA ran out of memory loading the weights or capturing graphs",
+    ),
+    # configs/model_config.py: a context length above the model's, without the override.
+    BootRule(
+        "context-length-too-long",
+        "infeasible",
+        re.compile(r"context_length \(\d+\) is greater than the derived context_length"),
+        "context_length is longer than the model supports",
+    ),
+    BootRule(
+        "scheduler-oom-killed",
+        "deploy_defect",
+        re.compile(r"scheduler died during initialization \(exit code: -9\)"),
+        "the kernel killed SGLang's scheduler for host memory: raise the target's memory",
+    ),
+    *(
+        rule
+        for rule in BOOT_RULES
+        if rule.rule in ("model-not-in-offline-cache", "hub-unreachable", "certificate-files")
+    ),
+)
+
+
 @dataclass(frozen=True)
 class BootFailure:
     kind: FailureKind
@@ -221,19 +282,23 @@ def parse_kv_sizing(log: str) -> dict[str, Any] | None:
     }
 
 
-def classify_boot_failure(log: str, exit_code: int | None, reason: str | None) -> BootFailure:
-    """What a failed boot says about the configuration."""
+def classify_boot_failure(
+    log: str, exit_code: int | None, reason: str | None, server: str = "vllm"
+) -> BootFailure:
+    """What a failed boot of vLLM (or SGLang, ``server``) says about the configuration."""
+    name = "SGLang" if server == "sglang" else "vLLM"
+    rules = SGLANG_BOOT_RULES if server == "sglang" else BOOT_RULES
     lines = log.splitlines()[-LOG_TAIL_LINES:]
     window = "\n".join(lines)
     if reason == "OOMKilled":
         return BootFailure(
             "deploy_defect",
             "host-oom-killed",
-            "the kernel killed vLLM for host memory: raise the target's memory",
+            f"the kernel killed {name} for host memory: raise the target's memory",
             lines[-EXCERPT_LINES:],
             exit_code,
         )
-    for rule in BOOT_RULES:
+    for rule in rules:
         if rule.pattern.search(window) is None:
             continue
         at = next((i for i, line in enumerate(lines) if rule.pattern.search(line)), len(lines) - 1)
@@ -243,14 +308,14 @@ def classify_boot_failure(log: str, exit_code: int | None, reason: str | None) -
         return BootFailure(
             "render_bug",
             "argparse",
-            "vLLM's argument parser refused the args",
+            f"{name}'s argument parser refused the args",
             lines[-EXCERPT_LINES:],
             exit_code,
         )
     return BootFailure(
         "unknown",
         "unrecognized",
-        "vLLM exited without a known cause",
+        f"{name} exited without a known cause",
         lines[-EXCERPT_LINES:],
         exit_code,
     )

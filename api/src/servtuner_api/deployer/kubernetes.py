@@ -95,7 +95,7 @@ class Deployer(BootProbes):
             return Readiness("failed", "the Deployment does not exist: deploy first")
         pods = self.cluster.pods(namespace, {MANAGED_TARGET_LABEL: name})
         for pod in pods:
-            outcome = self._boot_outcome(namespace, pod)
+            outcome = self._boot_outcome(namespace, pod, spec.server)
             if outcome is not None:
                 return outcome
         status = deployment.get("status") or {}
@@ -240,7 +240,7 @@ class Deployer(BootProbes):
         text = self.cluster.log(namespace, pod_name, CONTAINER, tail_lines)
         return VllmLog(source=f"pod {pod_name}", text=text)
 
-    def _boot_outcome(self, namespace: str, pod: dict[str, Any]) -> Readiness | None:
+    def _boot_outcome(self, namespace: str, pod: dict[str, Any], server: str) -> Readiness | None:
         status = _container_status(pod)
         if status is None:
             return None
@@ -256,7 +256,9 @@ class Deployer(BootProbes):
         if not terminated or terminated.get("exitCode", 0) == 0:
             return None
         log = self.cluster.log(namespace, pod["metadata"]["name"], CONTAINER, LOG_TAIL_LINES)
-        failure = classify_boot_failure(log, terminated.get("exitCode"), terminated.get("reason"))
+        failure = classify_boot_failure(
+            log, terminated.get("exitCode"), terminated.get("reason"), server
+        )
         state_name = "infeasible" if failure.kind == "infeasible" else "failed"
         return Readiness(state_name, f"{failure.rule}: {failure.message}", failure=failure)
 

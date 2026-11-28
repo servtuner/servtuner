@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/servtuner/servtuner/bench/internal/spec"
@@ -120,6 +122,7 @@ func (sglangAdapter) Info(ctx context.Context, endpoint Endpoint) (Info, error) 
 	if version, ok := serverInfo["version"].(string); ok && version != "" {
 		info.TargetInfo.Version = &version
 	}
+	info.TargetInfo.CacheConfig = sglangCacheConfig(serverInfo)
 	for _, flag := range sglangFlags {
 		kind := flag.kind
 		if kind == knobSwitch {
@@ -178,3 +181,26 @@ func sglangKnobsFromArgs(args []string) Knobs {
 	}
 	return knobs
 }
+
+// sglangCacheConfig is the KV pool SGLang reports in /server_info, kept as
+// the snapshot's cache_config: max_total_num_tokens (the pool in tokens, the
+// tuning loop's capacity) and page_size (tokens per page). Nil when SGLang
+// reports neither.
+func sglangCacheConfig(serverInfo map[string]any) spec.TargetInfoCacheConfig {
+	config := spec.TargetInfoCacheConfig{}
+	for _, field := range []string{SGLangMaxTotalNumTokens, SGLangPageSize} {
+		if number, ok := serverInfo[field].(float64); ok && number >= 0 && number == math.Trunc(number) {
+			config[field] = strconv.FormatInt(int64(number), 10)
+		}
+	}
+	if len(config) == 0 {
+		return nil
+	}
+	return config
+}
+
+// The cache_config keys an SGLang snapshot carries (sglangCacheConfig).
+const (
+	SGLangMaxTotalNumTokens = "max_total_num_tokens"
+	SGLangPageSize          = "page_size"
+)

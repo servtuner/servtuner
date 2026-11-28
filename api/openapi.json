@@ -13088,7 +13088,7 @@
                 "type": "null"
               }
             ],
-            "description": "vLLM cache_config_info labels.",
+            "description": "vLLM cache_config_info labels, or SGLang's KV pool from /server_info (max_total_num_tokens, page_size).",
             "title": "Cache Config"
           },
           "models": {
@@ -13999,6 +13999,7 @@
                 "type": "null"
               }
             ],
+            "description": "The KV cache's size in vLLM blocks, or SGLang's KV pool in pages (max_total_num_tokens / page_size): boots of equal size are one configuration.",
             "title": "Num Gpu Blocks"
           },
           "outcome": {

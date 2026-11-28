@@ -198,7 +198,12 @@ class BootProbes:
             }
             result = self.checker.boot_probe(request)
             if result.get("outcome") == "feasible":
-                sizing = parse_kv_sizing(self.boot_log(name, namespace, spec))
+                # vLLM's sizing lines; SGLang's pool comes whole from /server_info.
+                sizing = (
+                    parse_kv_sizing(self.boot_log(name, namespace, spec))
+                    if run_target(name, namespace, spec)["type"] == "vllm"
+                    else None
+                )
                 if sizing is not None:
                     result = {**result, "kv_sizing": sizing}
             return readiness, result
