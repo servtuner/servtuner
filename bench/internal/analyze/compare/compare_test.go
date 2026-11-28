@@ -30,7 +30,10 @@ type fixture struct {
 	// targetType defaults to bifrost; model and hardware to none.
 	targetType spec.TargetType
 	model      string
-	hardware   string
+	// hardware is the GPU model of the run's hardware profile (gpus of them);
+	// profileID its id, which defaults to the GPU model.
+	hardware  string
+	profileID string
 }
 
 func (f fixture) run() Run {
@@ -75,7 +78,13 @@ func (f fixture) run() Run {
 		targetType = spec.TargetTypeBifrost
 	}
 	if f.hardware != "" {
-		analysis.HardwareProfileId = &f.hardware
+		id := f.profileID
+		if id == "" {
+			id = f.hardware
+		}
+		gpus := f.gpus
+		analysis.HardwareProfileId = &id
+		analysis.HardwareProfile = &spec.HardwareProfile{HardwareProfileId: &id, Accelerator: f.hardware, GpuCountPerPod: &gpus}
 	}
 	runSpec := spec.RunSpec{Experiment: &experiment, Knobs: f.knobs, Target: spec.Target{Type: targetType, Model: f.model}, Load: spec.Load{Pacing: spec.PacingPoisson}}
 	if f.targetRPS > 0 {
@@ -407,7 +416,7 @@ func TestDefaultObjectivePerTargetType(t *testing.T) {
 // vLLM against SGLang: the same workload, model, hardware and SLOs make the
 // server a compared dimension, a varied knob.
 func serverFixture(id string, server spec.TargetType, sloMax float64) fixture {
-	return fixture{id: id, sloMax: sloMax, gpus: 1, targetType: server, model: "qwen-0.5b", hardware: "rtx-3070x1"}
+	return fixture{id: id, sloMax: sloMax, gpus: 1, targetType: server, model: "qwen-0.5b", hardware: "NVIDIA-GeForce-RTX-3070"}
 }
 
 func TestVLLMAndSGLangCompareAsTheServerDimension(t *testing.T) {
@@ -443,7 +452,7 @@ func TestVLLMAndSGLangNeedTheSameModelAndKnownHardware(t *testing.T) {
 		t.Errorf("different models: %+v", result.Comparability)
 	}
 	otherGPU := serverFixture("B", spec.TargetTypeSglang, 140)
-	otherGPU.hardware = "a100x1"
+	otherGPU.hardware = "NVIDIA-A100-SXM4-80GB"
 	result = mustCompare(t, runs(serverFixture("A", spec.TargetTypeVllm, 100), otherGPU), "")
 	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
 		t.Errorf("different hardware: %+v", result.Comparability)
@@ -453,6 +462,31 @@ func TestVLLMAndSGLangNeedTheSameModelAndKnownHardware(t *testing.T) {
 	result = mustCompare(t, runs(unknownA, unknownB), "")
 	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
 		t.Errorf("unknown hardware: %+v", result.Comparability)
+	}
+}
+
+func TestVLLMAndSGLangMatchOnGPUModelAndCountOnly(t *testing.T) {
+	// A Kubernetes run (a node label) against one declared from a host record
+	// (nvidia-smi's name), with different drivers and so different profile ids.
+	onCluster := serverFixture("A", spec.TargetTypeVllm, 100)
+	onCluster.profileID = "hw-cluster"
+	declared := serverFixture("B", spec.TargetTypeSglang, 140)
+	declared.hardware, declared.profileID = "NVIDIA GeForce RTX 3070", "hw-declared"
+	result := mustCompare(t, runs(onCluster, declared), "")
+	if !result.Comparability.IsComparable || hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
+		t.Fatalf("the same GPU model and count: %+v", result.Comparability)
+	}
+	twoGPUs := declared
+	twoGPUs.gpus = 2
+	result = mustCompare(t, runs(onCluster, twoGPUs), "")
+	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
+		t.Errorf("one GPU against two: %+v", result.Comparability)
+	}
+	unnamed := declared
+	unnamed.hardware = "unknown"
+	result = mustCompare(t, runs(onCluster, unnamed), "")
+	if result.Comparability.IsComparable {
+		t.Errorf("a GPU no label names is unknown hardware: %+v", result.Comparability)
 	}
 }
 

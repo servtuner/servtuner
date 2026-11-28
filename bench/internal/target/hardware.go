@@ -84,6 +84,28 @@ func buildHardwareProfile(pods []corev1.Pod, nodes []nodeObservation) *spec.Hard
 	return profile
 }
 
+// DeclaredHardwareProfile is the profile of a target outside Kubernetes, built
+// from the RunSpec's target.hardware (its host record): the host's name stands
+// in for the instance type, and the GPUs it declares are one replica's.
+func DeclaredHardwareProfile(declared spec.DeclaredHardware) *spec.HardwareProfile {
+	host := declared.Host
+	profile := &spec.HardwareProfile{
+		Accelerator:      declared.Accelerator,
+		NodeInstanceType: &host,
+		DriverVersion:    declared.DriverVersion,
+		CpuModel:         declared.CpuModel,
+		CpuCores:         declared.CpuCores,
+	}
+	if declared.GpuCount > 0 {
+		count := declared.GpuCount
+		profile.GpuCountPerPod = &count
+		profile.GpuMemoryBytes = declared.GpuMemoryBytes
+	}
+	hardwareProfileID := hardwareProfileID(*profile)
+	profile.HardwareProfileId = &hardwareProfileID
+	return profile
+}
+
 // gpusPerPod is the most GPUs any pod asks for. A limit wins over a request,
 // because Kubernetes requires the two to be equal for extended resources.
 func gpusPerPod(pods []corev1.Pod) int {

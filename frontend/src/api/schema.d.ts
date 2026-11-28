@@ -1618,11 +1618,15 @@ export interface components {
             /** Analyzer Version */
             analyzer_version: string;
             capacity: components["schemas"]["CapacityModel"];
+            /** @description The hardware the results are scoped to: the target's profile from the snapshot, or, for a target outside Kubernetes, one built from the RunSpec's target.hardware (hardware_source). Absent when neither is known. */
+            hardware_profile?: components["schemas"]["HardwareProfile"] | null;
             /**
              * Hardware Profile Id
-             * @description The hardware profile the results are scoped to; matches target-snapshot hardware_profile_id.
+             * @description The hardware profile the results are scoped to: hardware_profile's id.
              */
             hardware_profile_id?: string | null;
+            /** @description Where hardware_profile came from: captured from the Kubernetes nodes the target runs on, or declared in the RunSpec. */
+            hardware_source?: components["schemas"]["HardwareSource"] | null;
             quality: components["schemas"]["RunQuality"];
             /** Stages */
             stages: components["schemas"]["StageAggregate"][];
@@ -2783,6 +2787,11 @@ export interface components {
              */
             node_instance_type?: string | null;
         };
+        /**
+         * HardwareSource
+         * @enum {string}
+         */
+        HardwareSource: "captured" | "declared";
         /** Headroom */
         Headroom: {
             /** Gpu */

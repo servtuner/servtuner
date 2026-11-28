@@ -17,7 +17,7 @@ import (
 
 // AnalyzerVersion is written into analysis.json and recommendations.json. Change it whenever a result
 // can differ for the same bundle, so a stale analysis.json is recognisable.
-const AnalyzerVersion = "1.24.0" // 1.24.0: token cost says when and where its datasheet came from (datasheet_fetched_at, datasheet_source)
+const AnalyzerVersion = "1.25.0" // 1.25.0: the hardware profile itself, captured or declared (hardware_profile, hardware_source)
 
 // Analyze turns the raw data of one run into analysis.json's content: the
 // quality gate, the per-stage client aggregates
@@ -115,7 +115,10 @@ func Analyze(run input.Run) (spec.AnalysisResult, error) {
 	if err != nil {
 		return spec.AnalysisResult{}, fmt.Errorf("capacity model: %w", err)
 	}
-	result.HardwareProfileId = hardwareProfileID(firstSnapshot(run))
+	if profile, source := hardwareProfile(run); profile != nil {
+		result.HardwareProfile, result.HardwareSource = profile, &source
+		result.HardwareProfileId = profile.HardwareProfileId
+	}
 
 	if err := SelfCheck(result); err != nil {
 		return spec.AnalysisResult{}, err
@@ -189,16 +192,21 @@ func firstSnapshot(run input.Run) *spec.TargetSnapshot {
 	return run.PostSnapshot
 }
 
-func hardwareProfileID(snapshot *spec.TargetSnapshot) *string {
-	if snapshot == nil {
-		return nil
-	}
-	for _, workload := range snapshot.Workloads {
-		if workload.Role == spec.WorkloadRoleTarget && workload.HardwareProfile != nil {
-			return workload.HardwareProfile.HardwareProfileId
+// hardwareProfile is the hardware the run's results are scoped to: the target's
+// profile from the snapshot, or, for a target outside Kubernetes, the one its
+// RunSpec declares. A captured profile always wins.
+func hardwareProfile(run input.Run) (*spec.HardwareProfile, spec.AnalysisResultHardwareSource) {
+	if snapshot := firstSnapshot(run); snapshot != nil {
+		for _, workload := range snapshot.Workloads {
+			if workload.Role == spec.WorkloadRoleTarget && workload.HardwareProfile != nil {
+				return workload.HardwareProfile, spec.AnalysisResultHardwareSourceCaptured
+			}
 		}
 	}
-	return nil
+	if declared := run.Spec.Target.Hardware; declared != nil {
+		return target.DeclaredHardwareProfile(*declared), spec.AnalysisResultHardwareSourceDeclared
+	}
+	return nil, ""
 }
 
 // bifrostConcurrencyKnob is the knob that sets the router's concurrency ceiling.

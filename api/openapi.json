@@ -264,6 +264,17 @@
           "capacity": {
             "$ref": "#/components/schemas/CapacityModel"
           },
+          "hardware_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HardwareProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The hardware the results are scoped to: the target's profile from the snapshot, or, for a target outside Kubernetes, one built from the RunSpec's target.hardware (hardware_source). Absent when neither is known."
+          },
           "hardware_profile_id": {
             "anyOf": [
               {
@@ -274,8 +285,19 @@
                 "type": "null"
               }
             ],
-            "description": "The hardware profile the results are scoped to; matches target-snapshot hardware_profile_id.",
+            "description": "The hardware profile the results are scoped to: hardware_profile's id.",
             "title": "Hardware Profile Id"
+          },
+          "hardware_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HardwareSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where hardware_profile came from: captured from the Kubernetes nodes the target runs on, or declared in the RunSpec."
           },
           "quality": {
             "$ref": "#/components/schemas/RunQuality"
@@ -3571,6 +3593,14 @@
         ],
         "title": "HardwareProfile2",
         "type": "object"
+      },
+      "HardwareSource": {
+        "enum": [
+          "captured",
+          "declared"
+        ],
+        "title": "HardwareSource",
+        "type": "string"
       },
       "Headroom": {
         "additionalProperties": false,
