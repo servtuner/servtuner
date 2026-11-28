@@ -17,9 +17,18 @@
       "minLength": 1
     },
     "hardware_profile_id": {
-      "description": "The hardware profile the results are scoped to; matches target-snapshot hardware_profile_id.",
+      "description": "The hardware profile the results are scoped to: hardware_profile's id.",
       "type": "string",
       "minLength": 1
+    },
+    "hardware_profile": {
+      "description": "The hardware the results are scoped to: the target's profile from the snapshot, or, for a target outside Kubernetes, one built from the RunSpec's target.hardware (hardware_source). Absent when neither is known.",
+      "$ref": "target-snapshot.schema.json#/definitions/hardwareProfile"
+    },
+    "hardware_source": {
+      "description": "Where hardware_profile came from: captured from the Kubernetes nodes the target runs on, or declared in the RunSpec.",
+      "type": "string",
+      "enum": ["captured", "declared"]
     },
     "quality": {
       "$ref": "#/definitions/runQuality"

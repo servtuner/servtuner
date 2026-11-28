@@ -6,6 +6,12 @@ from enum import Enum
 from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 from .. import common_schema
+from . import target_snapshot_schema
+
+
+class HardwareSource(Enum):
+    captured = "captured"
+    declared = "declared"
 
 
 class QualityGrade(Enum):
@@ -283,8 +289,20 @@ class AnalysisResult(BaseModel):
     hardware_profile_id: Annotated[
         str | None,
         Field(
-            description="The hardware profile the results are scoped to; matches target-snapshot hardware_profile_id.",
+            description="The hardware profile the results are scoped to: hardware_profile's id.",
             min_length=1,
+        ),
+    ] = None
+    hardware_profile: Annotated[
+        target_snapshot_schema.HardwareProfile | None,
+        Field(
+            description="The hardware the results are scoped to: the target's profile from the snapshot, or, for a target outside Kubernetes, one built from the RunSpec's target.hardware (hardware_source). Absent when neither is known."
+        ),
+    ] = None
+    hardware_source: Annotated[
+        HardwareSource | None,
+        Field(
+            description="Where hardware_profile came from: captured from the Kubernetes nodes the target runs on, or declared in the RunSpec."
         ),
     ] = None
     quality: RunQuality

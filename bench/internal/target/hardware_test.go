@@ -3,6 +3,8 @@ package target
 import (
 	"testing"
 
+	"github.com/servtuner/servtuner/bench/internal/spec"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -85,5 +87,22 @@ func TestHardwareProfileOnMixedNodesJoinsModelsAndDropsDisagreeingNumbers(t *tes
 func TestHardwareProfileNeedsNodes(t *testing.T) {
 	if buildHardwareProfile([]corev1.Pod{podWithGPUs("1")}, nil) != nil {
 		t.Error("no nodes must give no profile")
+	}
+}
+
+func TestDeclaredHardwareProfileIsStableAndScopedToTheHost(t *testing.T) {
+	declared := spec.DeclaredHardware{Host: "gpu-box", Accelerator: "NVIDIA GeForce RTX 3070", GpuCount: 1}
+	first, second := DeclaredHardwareProfile(declared), DeclaredHardwareProfile(declared)
+	if *first.HardwareProfileId != *second.HardwareProfileId || *first.NodeInstanceType != "gpu-box" || *first.GpuCountPerPod != 1 {
+		t.Fatalf("profiles %+v %+v", first, second)
+	}
+	other := declared
+	other.Host = "other-box"
+	if *DeclaredHardwareProfile(other).HardwareProfileId == *first.HardwareProfileId {
+		t.Errorf("another host is another profile")
+	}
+	cpuOnly := DeclaredHardwareProfile(spec.DeclaredHardware{Host: "cpu-box", Accelerator: "none"})
+	if cpuOnly.GpuCountPerPod != nil {
+		t.Errorf("a host with no GPU declares no count: %+v", cpuOnly)
 	}
 }

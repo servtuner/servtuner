@@ -33,6 +33,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/servtuner/servtuner/bench/internal/spec"
 )
@@ -316,8 +317,8 @@ func comparability(all, included []Run) spec.Comparability {
 		// vLLM against SGLang: comparable only on the same model and hardware
 		// (the workload and SLOs are checked below, as for any comparison).
 		breaking(spec.ComparisonIssueCodeTargetTypeDiffers, "models (vLLM and SGLang runs must serve the same model)", func(run Run) string { return run.Spec.Target.Model })
-		isUnknown := func(run Run) bool { return hardware(run) == unknownHardware }
-		if values := distinct(included, hardware); len(values) > 1 || slices.ContainsFunc(included, isUnknown) {
+		isUnknown := func(run Run) bool { return gpuSetup(run) == unknownHardware }
+		if values := distinct(included, gpuSetup); len(values) > 1 || slices.ContainsFunc(included, isUnknown) {
 			result.IsComparable = false
 			result.Issues = append(result.Issues, issue(spec.ComparisonIssueCodeHardwareDiffers,
 				"vLLM and SGLang runs must run on the same, known hardware (GPU model and count): %s", strings.Join(values, "; ")))
@@ -385,6 +386,33 @@ func workloadHash(run Run) string {
 
 // unknownHardware is a run without a hardware profile.
 const unknownHardware = "unknown"
+
+// gpuSetup is what a vLLM-against-SGLang comparison needs to match: the GPU model and
+// how many one replica uses, from a profile captured on Kubernetes or declared for
+// a target outside it. Driver, CUDA, CPU and instance type may differ. Model names
+// are compared without case or punctuation, so a node label (NVIDIA-A100-SXM4-80GB)
+// matches the name nvidia-smi reports (NVIDIA A100-SXM4-80GB).
+func gpuSetup(run Run) string {
+	profile := run.Analysis.HardwareProfile
+	if profile == nil || profile.Accelerator == acceleratorUnknown {
+		return unknownHardware
+	}
+	count := 0
+	if profile.GpuCountPerPod != nil {
+		count = *profile.GpuCountPerPod
+	}
+	return fmt.Sprintf("%d x %s", count, normalizedAccelerator(profile.Accelerator))
+}
+
+// acceleratorUnknown is a profile's accelerator for GPUs no node label names.
+const acceleratorUnknown = "unknown"
+
+func normalizedAccelerator(name string) string {
+	words := strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	return strings.Join(words, "-")
+}
 
 func hardware(run Run) string {
 	if run.Analysis.HardwareProfileId == nil {

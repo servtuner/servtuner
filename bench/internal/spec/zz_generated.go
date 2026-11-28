@@ -237,15 +237,53 @@ type AnalysisResult struct {
 	// Capacity corresponds to the JSON schema field "capacity".
 	Capacity CapacityModel `json:"capacity"`
 
-	// The hardware profile the results are scoped to; matches target-snapshot
-	// hardware_profile_id.
+	// The hardware the results are scoped to: the target's profile from the snapshot,
+	// or, for a target outside Kubernetes, one built from the RunSpec's
+	// target.hardware (hardware_source). Absent when neither is known.
+	HardwareProfile *HardwareProfile `json:"hardware_profile,omitempty,omitzero"`
+
+	// The hardware profile the results are scoped to: hardware_profile's id.
 	HardwareProfileId *string `json:"hardware_profile_id,omitempty,omitzero"`
+
+	// Where hardware_profile came from: captured from the Kubernetes nodes the target
+	// runs on, or declared in the RunSpec.
+	HardwareSource *AnalysisResultHardwareSource `json:"hardware_source,omitempty,omitzero"`
 
 	// Quality corresponds to the JSON schema field "quality".
 	Quality RunQuality `json:"quality"`
 
 	// Stages corresponds to the JSON schema field "stages".
 	Stages []StageAggregate `json:"stages"`
+}
+
+type AnalysisResultHardwareSource string
+
+const AnalysisResultHardwareSourceCaptured AnalysisResultHardwareSource = "captured"
+const AnalysisResultHardwareSourceDeclared AnalysisResultHardwareSource = "declared"
+
+var enumValues_AnalysisResultHardwareSource = []interface{}{
+	"captured",
+	"declared",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *AnalysisResultHardwareSource) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_AnalysisResultHardwareSource {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_AnalysisResultHardwareSource, v)
+	}
+	*j = AnalysisResultHardwareSource(v)
+	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -1792,10 +1830,11 @@ func (j *Dataset) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// The machine a target outside Kubernetes runs on, as its host record says: there
-// are no nodes to read it from. The analysis scopes and prices the run by it when
-// the snapshot has no hardware profile for the target; a captured profile always
-// wins.
+// The machine a target outside Kubernetes runs on, as its host record (or the
+// RunSpec's author) says: there are no nodes to read it from. The analysis scopes
+// and prices the run by it, and a vLLM-against-SGLang comparison matches its GPU
+// model and count, when the snapshot has no hardware profile for the target; a
+// captured profile always wins.
 type DeclaredHardware struct {
 	// The GPU model, or none.
 	Accelerator string `json:"accelerator"`
