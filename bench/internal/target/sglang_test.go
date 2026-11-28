@@ -11,23 +11,24 @@ import (
 	"github.com/servtuner/servtuner/bench/internal/spec"
 )
 
-// The /server_info fixture is shaped from the SGLang v0.5.23 source (flat
-// resolved ServerArgs fields plus the scheduler's startup facts); a live
-// recording replaces it once one exists.
+// The /server_info fixture is SGLang v0.5.23's own body, recorded live on an
+// RTX 3070 (#33) with --api-key set, the key replaced by the sentinel: flat
+// resolved ServerArgs fields plus the scheduler's startup facts.
 func sglangFixtures() map[string]string {
 	return map[string]string{
 		"/v1/models":   "openai-models.json",
-		"/server_info": "sglang-server-info.json",
+		"/server_info": "sglang/server-info.json",
 	}
 }
 
 func wantSGLangKnobs() Knobs {
 	return Knobs{
-		KnobSGLangTPSize:                  1.0,
-		KnobSGLangDPSize:                  1.0,
-		KnobSGLangPPSize:                  1.0,
-		KnobSGLangMemFractionStatic:       0.82,
-		KnobSGLangChunkedPrefillSize:      8192.0,
+		KnobSGLangTPSize: 1.0,
+		KnobSGLangDPSize: 1.0,
+		KnobSGLangPPSize: 1.0,
+		// SGLang chose both for an 8 GB GPU; they were not on the command line.
+		KnobSGLangMemFractionStatic:       0.504,
+		KnobSGLangChunkedPrefillSize:      2048.0,
 		KnobSGLangMaxPrefillTokens:        16384.0,
 		KnobSGLangSchedulePolicy:          "fcfs",
 		KnobSGLangScheduleConservativness: 1.0,
@@ -37,10 +38,11 @@ func wantSGLangKnobs() Knobs {
 		KnobSGLangAttentionBackend:        "flashinfer",
 		KnobSGLangPageSize:                1.0,
 		KnobSGLangStreamInterval:          1.0,
-		KnobSGLangCudaGraphMaxBSDecode:    160.0,
 		KnobSGLangEnableMetrics:           true,
 		// null fields (max_running_requests, context_length, quantization,
-		// speculative_*) are absent: unset, never compared.
+		// cuda_graph_max_bs_decode, speculative_*) are absent: unset, never
+		// compared. SGLang keeps the resolved CUDA graph sizes in the nested
+		// cuda_graph_config instead.
 	}
 }
 
@@ -60,7 +62,7 @@ func TestSGLangInfoInBothTransportModes(t *testing.T) {
 			t.Errorf("knobs = %v\nwant %v", info.Knobs, wantSGLangKnobs())
 		}
 		// The KV pool, for the boot probe: tokens, and tokens per page.
-		if info.TargetInfo.CacheConfig[SGLangMaxTotalNumTokens] != "412345" || info.TargetInfo.CacheConfig[SGLangPageSize] != "1" {
+		if info.TargetInfo.CacheConfig[SGLangMaxTotalNumTokens] != "215916" || info.TargetInfo.CacheConfig[SGLangPageSize] != "1" {
 			t.Errorf("cache_config = %v", info.TargetInfo.CacheConfig)
 		}
 	})
@@ -83,7 +85,7 @@ func TestSGLangServerInfoIsStoredRedacted(t *testing.T) {
 		if err := json.Unmarshal(document, &stored); err != nil {
 			t.Fatal(err)
 		}
-		if stored["max_total_num_tokens"] != 412345.0 {
+		if stored["max_total_num_tokens"] != 215916.0 {
 			t.Errorf("max_total_num_tokens = %v", stored["max_total_num_tokens"])
 		}
 		command, _ := stored["launch_command"].(string)
@@ -94,13 +96,13 @@ func TestSGLangServerInfoIsStoredRedacted(t *testing.T) {
 }
 
 func TestSGLangFallsBackToTheDeprecatedServerInfoPath(t *testing.T) {
-	fixtures := map[string]string{"/v1/models": "openai-models.json", "/get_server_info": "sglang-server-info.json"}
+	fixtures := map[string]string{"/v1/models": "openai-models.json", "/get_server_info": "sglang/server-info.json"}
 	forEachTransportMode(t, serveFixtures(t, fixtures, ""), func(t *testing.T, endpoint Endpoint) {
 		info, err := newSGLangAdapter().Info(context.Background(), endpoint)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if info.Knobs[KnobSGLangMemFractionStatic] != 0.82 {
+		if info.Knobs[KnobSGLangMemFractionStatic] != 0.504 {
 			t.Errorf("knobs = %v", info.Knobs)
 		}
 	})

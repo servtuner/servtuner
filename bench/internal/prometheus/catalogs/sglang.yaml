@@ -53,11 +53,15 @@ queries:
   - name: num_aborted_requests_total
     query: sglang:num_aborted_requests_total{<<.Selector>>}
   # Counters, raw (scheduler): retraction is SGLang's preemption, a running
-  # request sent back to the queue when the KV cache runs out.
+  # request sent back to the queue when the KV cache runs out. SGLang creates
+  # these labelled counters at the first retraction (seen live, #33), so a run
+  # that never retracted has none: empty is a normal state.
   - name: num_retracted_requests_total
     query: sglang:num_retracted_requests_total{<<.Selector>>}
+    may_be_empty: true
   - name: num_retracted_input_tokens_total
     query: sglang:num_retracted_input_tokens_total{<<.Selector>>}
+    may_be_empty: true
 
   # Gauges (scheduler): the raw series, then the peak and the 95th percentile
   # over a rolling stage window, for sizing.

@@ -32,6 +32,9 @@ const (
 	sglangMockBootSec    = 3
 	sglangArgparseExit   = 2
 	sglangFailureExit    = 1
+	// A scheduler that fails at startup makes SGLang kill its own process tree (SIGKILL: 128+9),
+	// as SGLang 0.5.23 did live when the KV pool would hold nothing.
+	sglangSelfKilledExit = 137
 )
 
 // sglangServeArgs are SGLang's flags: --name -> value; a bare switch has "true".
@@ -97,8 +100,9 @@ func runSGLang(args []string, environment func(string) string, stdout, stderr io
 	for _, flag := range strings.Split(environment("SGLANG_MOCK_UNKNOWN_FLAGS"), ",") {
 		if flag = strings.TrimSpace(flag); flag != "" {
 			if _, ok := parsed[flag]; ok {
-				fmt.Fprintln(stderr, "usage: launch_server.py [-h] --model-path MODEL_PATH [options]")
-				fmt.Fprintf(stderr, "launch_server.py: error: unrecognized arguments: %s\n", flag)
+				// SGLang 0.5.23's parser calls itself `sglang serve` under either entry point.
+				fmt.Fprintln(stderr, "usage: sglang serve [-h] --model-path MODEL_PATH [options]")
+				fmt.Fprintf(stderr, "sglang serve: error: unrecognized arguments: %s\n", flag)
 				return sglangArgparseExit
 			}
 		}
@@ -111,9 +115,15 @@ func runSGLang(args []string, environment func(string) string, stdout, stderr io
 	sleep(time.Duration(bootSeconds) * time.Second)
 	for _, set := range strings.Split(environment("SGLANG_MOCK_INFEASIBLE"), ";") {
 		if set = strings.TrimSpace(set); set != "" && parsed.matchesAll(set) {
-			fmt.Fprintln(stderr, "RuntimeError: Not enough memory. Please try to increase --mem-fraction-static.")
-			fmt.Fprintln(stderr, "Initialization failed. Please see the error messages above.")
-			return sglangFailureExit
+			// SGLang 0.5.23's words, recorded live (bench/internal/target/testdata/sglang/).
+			fraction := parsed["--mem-fraction-static"]
+			if fraction == "" {
+				fraction = "0.82"
+			}
+			fmt.Fprintf(stderr, "ValueError: Loaded weights leave no GPU memory for the KV cache under --mem-fraction-static=%s."+
+				" Raise --mem-fraction-static above 0.147 (minimum viable = 1 - available/pre = 0.1460).\n", fraction)
+			fmt.Fprintln(stderr, "Received sigquit from a child process. It usually means the child failed.")
+			return sglangSelfKilledExit
 		}
 	}
 	cfg, err := sglangServeConfig(parsed, environment)

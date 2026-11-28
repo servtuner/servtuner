@@ -135,8 +135,8 @@ func registerSGLangMetrics(m *metrics, emulation SGLangEmulation, model string) 
 		gauge("sglang:cache_hit_rate", "The prefix cache hit rate.", scheduler, zero),
 		gauge("sglang:max_total_num_tokens", "The KV pool size in tokens.", scheduler, func() float64 { return capacity }),
 		gauge("sglang:context_len", "The context length.", scheduler, func() float64 { return float64(emulation.ContextLength) }),
-		counter("sglang:num_retracted_requests_total", "Retracted requests.", scheduler, zero),
-		counter("sglang:num_retracted_input_tokens_total", "Input tokens of retracted requests.", scheduler, zero),
+		// No retraction counters: SGLang creates them at the first retraction, and the mock never
+		// retracts, so like a live server it has none.
 		counter("sglang:prompt_tokens_total", "Number of prefill tokens processed.", streaming, func() float64 { return read(m.promptTokens) }),
 		counter("sglang:generation_tokens_total", "Number of generation tokens processed.", streaming, func() float64 { return read(m.outputTokens) }),
 		counter("sglang:cached_tokens_total", "Number of cached prompt tokens by source.", device, zero),
