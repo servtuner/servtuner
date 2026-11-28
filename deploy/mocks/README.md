@@ -84,7 +84,18 @@ v0.5.23 server, so an `sglang` target runs on kind without a GPU:
   `pp_rank`, `moe_ep_rank`), and the token, cached-token and abort counters (tokenizer series). The latency
   histograms are not emulated; the client measures latency.
 
-Starting as `sglang serve` for a managed SGLang is not emulated yet.
+The image also installs the binary as `/usr/local/bin/python3`. Invoked as
+`python3 -m sglang.launch_server --flag=value ...` (what servtuner's deployer runs for a managed SGLang), it
+emulates SGLang's boot as the vLLM mode does vLLM's:
+
+- it listens on `--host` and `--port` (30000 by default) only after `SGLANG_MOCK_BOOT_SECONDS` (default 3);
+- a flag named in `SGLANG_MOCK_UNKNOWN_FLAGS` fails like SGLang's argument parser (`error: unrecognized
+  arguments`, exit 2);
+- args holding every `--flag=value` of a set in `SGLANG_MOCK_INFEASIBLE` fail like an empty KV pool
+  (`Not enough memory. Please try to increase --mem-fraction-static.`, then `Initialization failed.`, exit 1);
+- `--ssl-certfile` and `--ssl-keyfile` serve TLS asking for no client certificate;
+- the endpoints and metrics above, with `max_total_num_tokens` = 400000 x `--tp-size` x
+  `--mem-fraction-static` / 0.82, and `--max-running-requests` capping requests in service (the rest queue).
 
 ### Fault knobs
 

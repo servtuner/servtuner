@@ -17,11 +17,20 @@ from servtuner_api.managed_targets.spec import HostTargetSpec, ManagedTargetSpec
 PATCH_CONTAINER = "vllm"
 
 
+# How the user starts each server: the command before its args.
+SERVER_COMMANDS = {"vllm": "vllm serve", "sglang": "python3 -m sglang.launch_server"}
+
+
+def server_of(spec: ManagedTargetSpec | HostTargetSpec) -> str:
+    """The model server a target runs; a host target runs vLLM."""
+    return spec.server if isinstance(spec, ManagedTargetSpec) else "vllm"
+
+
 def user_args(spec: ManagedTargetSpec | HostTargetSpec, knob_args: list[str]) -> list[str]:
-    """The args a user's own vLLM needs: the model, the flags never tuned, then the tuned
-    ones. servtuner's deploy-only flags (host, port, cache path, certificates) are left out:
-    the user's Deployment has its own."""
-    args = [spec.model]
+    """The args a user's own server needs: the model, the flags never tuned, then the tuned
+    ones. servtuner's deploy-only flags (host, port, cache path, certificates, SGLang's
+    metrics switch) are left out: the user's Deployment has its own."""
+    args = [f"--model-path={spec.model}"] if server_of(spec) == "sglang" else [spec.model]
     if spec.served_model_name:
         args.append(f"--served-model-name={spec.served_model_name}")
     return args + spec.base_flags + knob_args
@@ -76,7 +85,9 @@ def recommend(
         if key in best
     }
     return {
-        "command": "vllm serve " + " ".join(shlex.quote(arg) for arg in args),
+        "command": SERVER_COMMANDS[server_of(spec)]
+        + " "
+        + " ".join(shlex.quote(arg) for arg in args),
         "args": args,
         "knobs": dict(best["knobs"]),
         "confirmed": confirmed,

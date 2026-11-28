@@ -25,6 +25,9 @@ func main() {
 	if filepath.Base(os.Args[0]) == vllmCommand {
 		os.Exit(runVLLM(os.Args[1:], osEnvironment, os.Stdout, os.Stderr, time.Sleep))
 	}
+	if filepath.Base(os.Args[0]) == sglangPython {
+		os.Exit(runSGLang(os.Args[1:], osEnvironment, os.Stdout, os.Stderr, time.Sleep))
+	}
 	if versionRequested(os.Args[1:]) {
 		fmt.Println(version)
 		return

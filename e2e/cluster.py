@@ -188,6 +188,8 @@ class Deployment:
     runspecs: tuple[Path, ...] = ()
     # A tuning session on the mock as a managed vLLM (--tuning; Job runner, tls-off).
     tuning: bool = False
+    # The server the --tuning session's managed target runs: vllm or sglang (--tuning-server).
+    tuning_server: str = "vllm"
     # A tuning session on a real GPU host through its launcher (--tuning-host).
     tuning_host: bool = False
     # With --tuning: drive the managed vLLM from the UI with Playwright instead of the api (--ui).
@@ -205,6 +207,7 @@ class Deployment:
     def namespace(self) -> str:
         suffix = ("-load" if self.load else "") + ("-jobs" if self.runs_jobs else "")
         suffix += "-tuning" if self.tuning else ""
+        suffix += "-sgl" if self.tuning and self.tuning_server == "sglang" else ""
         suffix += "-ui" if self.ui else ""
         suffix += "-tuning-host" if self.tuning_host else ""
         suffix += "-fwd" if self.forward_header else ""
@@ -1328,15 +1331,18 @@ def run_e2e(deployment: Deployment, stack: ExitStack) -> None:
                         vllm_key_secret=VLLM_KEY_SECRET,
                     )
                 elif deployment.tuning:
+                    server_name = "SGLang" if deployment.tuning_server == "sglang" else "vLLM"
                     step(
                         6,
-                        "tune the mock as a managed vLLM: boot probes, runs, a recommendation",
+                        f"tune the mock as a managed {server_name}: boot probes, runs,"
+                        " a recommendation",
                     )
                     run_id = exercise_tuning(
                         api,
                         image=f"{TUNING_IMAGE_NAME}:{deployment.image_tag}",
                         target_namespace=deployment.target_namespace,
                         kubectl_output=partial(kubectl_stdout, deployment),
+                        server=deployment.tuning_server,
                     )
                 elif deployment.calibrate:
                     step(6, "run the calibration ladders against the mock")
@@ -1471,6 +1477,12 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
         help="tune the mock as a managed vLLM (needs --runner kubernetes, tls-off)",
     )
     parser.add_argument(
+        "--tuning-server",
+        choices=["vllm", "sglang"],
+        default="vllm",
+        help="with --tuning: the mock runs as a managed vLLM (the default) or SGLang",
+    )
+    parser.add_argument(
         "--tuning-host",
         action="store_true",
         help="tune a GPU host's vLLM through servtuner launcher (needs --runner kubernetes, "
@@ -1518,6 +1530,7 @@ def main(argv: list[str]) -> int:
         runner=arguments.runner,
         runspecs=tuple(path.resolve() for path in arguments.runspec),
         tuning=arguments.tuning,
+        tuning_server=arguments.tuning_server,
         tuning_host=arguments.tuning_host,
         ui=arguments.ui,
         forward_header=arguments.forward_header,
