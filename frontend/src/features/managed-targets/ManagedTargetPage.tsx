@@ -211,7 +211,9 @@ function DeployForm({
   onDeploy: (knobs: VllmKnobs) => void;
 }) {
   const [entries, setEntries] = useState(() => entriesOf(target.deployment?.knobs));
-  const { query: knobCatalog, catalog } = useKnobsByName();
+  const { query: knobCatalog, catalog } = useKnobsByName(
+    target.spec.placement === "kubernetes" ? (target.spec.server ?? "vllm") : "vllm",
+  );
   const knobs = knobsOf(entries, catalog);
   return (
     <Stack gap="sm">

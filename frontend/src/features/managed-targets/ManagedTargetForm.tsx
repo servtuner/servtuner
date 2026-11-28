@@ -21,6 +21,7 @@ import type { HostCredentialSlot, ManagedTarget } from "../../api/types";
 import { FIELD_GRID_STYLE } from "../../components/layout";
 import { unknownFlags } from "../knobs/baseFlags";
 import {
+  type ModelServer,
   buildBody,
   type CertificateSource,
   DEFAULT_GPUS,
@@ -88,7 +89,9 @@ function FormBody({
     },
   });
   const isHost = state.placement === "host";
-  const knobCatalog = useKnobCatalog();
+  const server = isHost ? "vllm" : state.server;
+  const serverName = server === "sglang" ? "SGLang" : "vLLM";
+  const knobCatalog = useKnobCatalog(server);
   const unknown = knobCatalog.data ? unknownFlags(state.fields.baseFlags.split("\n"), knobCatalog.data) : [];
   const problem = formError(state);
   return (
@@ -108,9 +111,30 @@ function FormBody({
         <Text size="sm" c="dimmed">
           {isHost
             ? "servtuner starts and stops vLLM through the launcher on that host, with the args it renders. The launcher's token is a Secret in the runs namespace."
-            : "servtuner creates this vLLM itself, in a namespace the chart granted (rbac.tuning.namespaces), and never touches objects it did not create. Pin the image to a version."}
+            : `servtuner creates this ${serverName} itself, in a namespace the chart granted (rbac.tuning.namespaces), and never touches objects it did not create. Pin the image to a version.`}
         </Text>
       </Stack>
+      {!isHost && (
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>
+            Model server
+          </Text>
+          <SegmentedControl
+            value={state.server}
+            onChange={(value) => update({ server: value as ModelServer })}
+            data={[
+              { value: "vllm", label: "vLLM" },
+              { value: "sglang", label: "SGLang" },
+            ]}
+          />
+          {state.server === "sglang" && (
+            <Text size="sm" c="dimmed">
+              The image runs python3 -m sglang.launch_server: use an SGLang image (lmsysorg/sglang), pinned to a
+              version. Its metrics are always on, and its knobs come from SGLang's own flags.
+            </Text>
+          )}
+        </Stack>
+      )}
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
         <TextInput label="Name" required {...field("name")} />
         {!isHost && (
@@ -153,8 +177,8 @@ function FormBody({
       {unknown.length > 0 && (
         // A warning, not a refusal: the image may be a newer vLLM than the catalog.
         <Text size="xs" c="yellow.8" mt={-8}>
-          vLLM {knobCatalog.data?.version} has no {unknown.join(", ")}: check the spelling, unless the image runs a
-          newer vLLM.
+          {serverName} {knobCatalog.data?.version} has no {unknown.join(", ")}: check the spelling, unless the image
+          runs a newer {serverName}.
         </Text>
       )}
       <Textarea

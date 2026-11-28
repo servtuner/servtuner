@@ -50,9 +50,13 @@ export type FormFields = {
   metricsNode: string;
 };
 
+/** The model server a Kubernetes target runs; a host target runs vLLM. */
+export type ModelServer = "vllm" | "sglang";
+
 export type FormState = {
   fields: FormFields;
   placement: Placement;
+  server: ModelServer;
   gpus: number;
   transport: CertificateSource;
 };
@@ -131,6 +135,7 @@ export function initialState(
     return {
       fields: { ...BLANK, image: withRegistry(VLLM_GPU_IMAGE, registry) },
       placement,
+      server: "vllm",
       gpus: DEFAULT_GPUS,
       transport: "plain",
     };
@@ -148,6 +153,7 @@ export function initialState(
   if (spec.placement === "host")
     return {
       placement: "host",
+      server: "vllm",
       gpus: DEFAULT_GPUS,
       transport: "plain",
       fields: {
@@ -167,6 +173,7 @@ export function initialState(
   const tls = spec.transport?.enabled ? spec.transport : undefined;
   return {
     placement: "kubernetes",
+    server: spec.server ?? "vllm",
     gpus: spec.gpus,
     transport: tls ? (tls.issuer ? "issuer" : "secret") : "plain",
     fields: {
@@ -236,6 +243,7 @@ function kubernetesSpec(state: FormState, kept: Record<string, unknown>): Record
   const keptIssuer = ((kept.transport as { issuer?: object } | undefined)?.issuer ?? {}) as Record<string, unknown>;
   return {
     placement: "kubernetes",
+    server: state.server,
     image: trimmed(fields.image),
     gpus: state.gpus,
     cpu: trimmed(fields.cpu),
@@ -389,6 +397,8 @@ export function formError(state: FormState): string | undefined {
     if (modelSource === "mirror" && !/^https?:\/\/\S+$/.test(mirrorEndpoint.trim()))
       return "The mirror's URL starts with http:// or https://";
     if (modelSource === "pvc" && !modelClaim.trim()) return "Name the claim seeded with the model";
+    if (modelSource === "object_store" && state.server === "sglang")
+      return "SGLang cannot stream weights from an object store: use Hugging Face, a mirror or a seeded claim";
     if (modelSource === "object_store" && !/^(s3|gs|az):\/\/[^/\s]+/.test(state.fields.objectUri.trim()))
       return "The weights' location starts with s3://, gs:// or az://";
     checks.push(parseKeyValues(state.fields.nodeSelector), parseTolerations(state.fields.tolerations));

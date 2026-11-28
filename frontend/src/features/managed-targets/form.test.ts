@@ -47,6 +47,20 @@ describe("managed target form body", () => {
     ]);
   });
 
+  it("runs SGLang when chosen, round-trips it on edit, and refuses SGLang streaming from a store", () => {
+    const state = initialState();
+    expect(state.server).toBe("vllm");
+    state.fields = { ...state.fields, name: "s", namespace: "n", model: "m", image: "lmsysorg/sglang:v0.5.23" };
+    state.server = "sglang";
+    const spec = buildBody(state).spec as Record<string, unknown>;
+    expect(spec.server).toBe("sglang");
+    const stored = { ...managedTarget, spec: { ...managedTarget.spec, server: "sglang" } } as ManagedTarget;
+    expect(initialState(stored).server).toBe("sglang");
+    expect(initialState(hostTarget).server).toBe("vllm");
+    state.fields = { ...state.fields, modelSource: "object_store", objectUri: "s3://models/q" };
+    expect(formError(state)).toMatch(/SGLang cannot stream/);
+  });
+
   it("builds a new Kubernetes target, leaving cleared optional fields out", () => {
     const state = initialState();
     state.fields = {
@@ -62,6 +76,7 @@ describe("managed target form body", () => {
       namespace: "servtuner-tune-qwen",
       spec: {
         placement: "kubernetes",
+        server: "vllm",
         image: "vllm/vllm-openai:v0.34.0",
         model: "Qwen/Qwen3-32B",
         gpus: 1,

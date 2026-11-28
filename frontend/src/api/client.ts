@@ -31,6 +31,7 @@ import type {
   PriceBookResource,
   InFlightChart,
   KnobCatalog,
+  KnobServer,
   LatencyHistograms,
   LauncherCheck,
   ListRunEventsResponse,
@@ -190,7 +191,7 @@ export interface ApiClient {
   uploadDatasheet(file: Blob): Promise<PriceBookResource>;
   deleteDatasheet(): Promise<void>;
   listSearchSpaces(): Promise<SearchSpaceTemplate[]>;
-  getKnobCatalog(): Promise<KnobCatalog>;
+  getKnobCatalog(server?: KnobServer): Promise<KnobCatalog>;
   getRunDefaults(): Promise<RunDefaults>;
   createManagedTarget(body: ManagedTargetCreate): Promise<ManagedTarget>;
   getManagedTarget(id: string): Promise<ManagedTarget>;
@@ -352,7 +353,7 @@ export function createApiClient(baseUrl: string): ApiClient {
     },
     readHostMachine: (id) => post<Host>(`/hosts/${encodeURIComponent(id)}/read-machine`, {}),
     listSearchSpaces: () => get<SearchSpaceTemplate[]>("/search-spaces"),
-    getKnobCatalog: () => get<KnobCatalog>("/knobs"),
+    getKnobCatalog: (server = "vllm") => get<KnobCatalog>(`/knobs?server=${server}`),
     getRunDefaults: () => get<RunDefaults>("/run-defaults"),
     getPriceBook: () => get<PriceBookResource>("/price-book"),
     savePriceBook: async (body) => (await (await send("PUT", "/price-book", body)).json()) as PriceBookResource,
