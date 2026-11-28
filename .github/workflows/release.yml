@@ -41,6 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false # nothing here pushes with git
           fetch-depth: 0 # every tag and main, to place this one
       - id: version
         run: |
@@ -91,6 +92,8 @@ jobs:
       mock: ${{ steps.digests.outputs.mock }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # nothing here pushes with git
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           platforms: arm64
@@ -216,6 +219,8 @@ jobs:
       PUBLISH: ${{ needs.prepare.outputs.publish }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # nothing here pushes with git
       - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
       - run: |
           helm lint deploy/helm/servtuner
@@ -262,6 +267,8 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # nothing here pushes with git
       - run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -294,6 +301,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false # nothing here pushes with git
           fetch-depth: 0 # GoReleaser reads the tags and the changelog
       - id: pins
         run: |
@@ -302,7 +310,9 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: ${{ steps.pins.outputs.go }}
-          cache-dependency-path: bench/go.sum
+          # No module or build cache: a tag build restores caches that other refs' runs saved, so a poisoned
+          # cache could end up in the published CLI. GoReleaser builds from a clean module download.
+          cache: false
       - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
         with:
           cosign-release: ${{ steps.pins.outputs.cosign }}

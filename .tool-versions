@@ -6,6 +6,7 @@ nodejs 24
 just 1.21.0
 uv 0.13.6
 jscpd 5.4.2
+zizmor 1.32.0
 # Release tools (.github/workflows/release.yml; .github/scripts/install-release-tools.sh installs the first three).
 helm 4.2.3
 helmfile 1.8.5

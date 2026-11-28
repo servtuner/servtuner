@@ -89,7 +89,8 @@ Root recipes run the same-named recipe of every component, in the order
 - `just setup`: toolchains and dependencies.
 - `just gen`: regenerate everything generated from `schema/` and the api.
   `just gen-check` fails when that changes the tree (CI runs it).
-- `just lint`, `just test`: every component, plus a jscpd duplication check.
+- `just lint`, `just test`: every component, plus a jscpd duplication check and
+  zizmor on `.github` (`just lint-workflows`).
 - `just e2e-smoke`: the UI's Playwright smoke test against the real api and bench.
 - `just e2e-local-tls-off` / `e2e-local-mutual-tls`: api plus the real bench binary, no cluster.
 - `just e2e-tls-off` / `e2e-mutual-tls`: the chart on a kind cluster.
@@ -114,6 +115,7 @@ Root recipes run the same-named recipe of every component, in the order
   Kubernetes Secrets that the operator creates first; examples use placeholders
   and `*.localtest.me`.
 - **Pin versions exactly**, including container images (by digest in
-  `deploy/release/images.lock`). Ask before adding a dependency.
+  `deploy/release/images.lock`) and GitHub Actions (by commit SHA, with the
+  version as a comment). Ask before adding a dependency.
 - Comments explain *why*. They never point at documents outside this
   repository, except https://docs.servtuner.dev.
