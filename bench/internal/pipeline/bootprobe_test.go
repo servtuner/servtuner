@@ -102,3 +102,51 @@ func TestBootProbeOverTLS(t *testing.T) {
 		t.Errorf("c_kv = %v, want 4", *result.CKv)
 	}
 }
+
+// fakeBootedSGLang serves /server_info with SGLang's KV pool.
+func fakeBootedSGLang(serverInfo string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/server_info" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(serverInfo))
+	})
+}
+
+func sglangProbeRequest(t *testing.T, endpoint string) spec.BootProbeRequest {
+	t.Helper()
+	var request spec.BootProbeRequest
+	document := `{"target": {"type": "sglang", "endpoint": "` + endpoint + `", "model": "m", "tls": {"enabled": false}},
+		"knobs": {"sglang.mem_fraction_static": 0.8}, "tokens_per_request": 4096}`
+	if err := json.Unmarshal([]byte(document), &request); err != nil {
+		t.Fatal(err)
+	}
+	return request
+}
+
+func TestBootProbeReadsSGLangsKVPool(t *testing.T) {
+	server := tlstest.NewPlainServer(t, fakeBootedSGLang(`{"max_total_num_tokens": 409600, "page_size": 16, "version": "0.5.23"}`))
+	result, err := BootProbe(context.Background(), t.TempDir(), sglangProbeRequest(t, server.URL+"/v1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Outcome != spec.TuningBootOutcomeFeasible || result.CKv == nil || *result.CKv != 100 {
+		t.Errorf("c_kv = %v, want 409600 / 4096 = 100", result.CKv)
+	}
+	if result.NumGpuBlocks == nil || *result.NumGpuBlocks != 25600 {
+		t.Errorf("pages = %v, want 409600 / 16", result.NumGpuBlocks)
+	}
+	if result.Knobs["sglang.mem_fraction_static"] != 0.8 {
+		t.Errorf("knobs = %v", result.Knobs)
+	}
+}
+
+func TestBootProbeNeedsSGLangsKVPool(t *testing.T) {
+	server := tlstest.NewPlainServer(t, fakeBootedSGLang(`{"version": "0.5.23"}`))
+	_, err := BootProbe(context.Background(), t.TempDir(), sglangProbeRequest(t, server.URL+"/v1"))
+	if err == nil || !strings.Contains(err.Error(), "max_total_num_tokens") {
+		t.Errorf("err = %v", err)
+	}
+}

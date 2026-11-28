@@ -6317,7 +6317,7 @@ export interface components {
         TargetInfo: {
             /**
              * Cache Config
-             * @description vLLM cache_config_info labels.
+             * @description vLLM cache_config_info labels, or SGLang's KV pool from /server_info (max_total_num_tokens, page_size).
              */
             cache_config?: {
                 [key: string]: string;
@@ -6629,7 +6629,10 @@ export interface components {
             /** @description The knob set that was booted. servtuner propose rejects an empty one: it would match every configuration. */
             knobs: components["schemas"]["TuningKnobSet"];
             kv_sizing?: components["schemas"]["TuningKvSizing"] | null;
-            /** Num Gpu Blocks */
+            /**
+             * Num Gpu Blocks
+             * @description The KV cache's size in vLLM blocks, or SGLang's KV pool in pages (max_total_num_tokens / page_size): boots of equal size are one configuration.
+             */
             num_gpu_blocks?: number | null;
             outcome: components["schemas"]["TuningBootOutcome"];
             /**

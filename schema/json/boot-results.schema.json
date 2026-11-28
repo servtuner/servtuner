@@ -49,6 +49,7 @@
           "minimum": 0
         },
         "num_gpu_blocks": {
+          "description": "The KV cache's size in vLLM blocks, or SGLang's KV pool in pages (max_total_num_tokens / page_size): boots of equal size are one configuration.",
           "type": "integer",
           "minimum": 0
         },

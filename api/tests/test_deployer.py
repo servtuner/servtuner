@@ -767,3 +767,55 @@ def test_a_managed_sglangs_runs_name_an_sglang_target() -> None:
     target = run_target(NAME, NAMESPACE, ManagedTargetSpec.model_validate(SGLANG))
     assert target["type"] == "sglang"
     assert run_target(NAME, NAMESPACE, PLAIN)["type"] == "vllm"
+
+
+@pytest.mark.parametrize(
+    ("line", "rule", "kind"),
+    [
+        (
+            "RuntimeError: Not enough memory. Please try to increase --mem-fraction-static.",
+            "kv-pool-empty",
+            "infeasible",
+        ),
+        (
+            "Possible solutions:\n"
+            "1. set --mem-fraction-static to a smaller value (e.g., 0.8 or 0.7)",
+            "cuda-graph-oom",
+            "infeasible",
+        ),
+        (
+            "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB",
+            "cuda-oom",
+            "infeasible",
+        ),
+        (
+            "ValueError: User-specified context_length (65536) is greater than the derived"
+            " context_length (32768).",
+            "context-length-too-long",
+            "infeasible",
+        ),
+        (
+            "Rank 0 scheduler died during initialization (exit code: -9). If exit code is -9"
+            " (SIGKILL), a common cause is the OS OOM killer.",
+            "scheduler-oom-killed",
+            "deploy_defect",
+        ),
+        (
+            "launch_server.py: error: unrecognized arguments: --max-num-seqs=8",
+            "unknown-flag",
+            "render_bug",
+        ),
+    ],
+)
+def test_classify_sglang_boot_failure(line: str, rule: str, kind: str) -> None:
+    log = "\n".join(["loading..."] * 50 + [line] + ["traceback line"] * 30)
+    log += "\nInitialization failed. Please see the error messages above."
+    failure = classify_boot_failure(log, 1, "Error", "sglang")
+    assert (failure.rule, failure.kind) == (rule, kind)
+
+
+def test_an_unknown_sglang_failure_names_sglang() -> None:
+    failure = classify_boot_failure("something odd\n", 1, "Error", "sglang")
+    assert failure.rule == "unrecognized" and "SGLang exited" in failure.message
+    vllm_rule = "No available memory for the cache blocks"
+    assert classify_boot_failure(vllm_rule, 1, "Error", "sglang").rule == "unrecognized"

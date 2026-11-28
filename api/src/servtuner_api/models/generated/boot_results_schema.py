@@ -67,7 +67,13 @@ class TuningBootResult(BaseModel):
             ge=0.0,
         ),
     ] = None
-    num_gpu_blocks: Annotated[int | None, Field(ge=0)] = None
+    num_gpu_blocks: Annotated[
+        int | None,
+        Field(
+            description="The KV cache's size in vLLM blocks, or SGLang's KV pool in pages (max_total_num_tokens / page_size): boots of equal size are one configuration.",
+            ge=0,
+        ),
+    ] = None
     kv_sizing: TuningKvSizing | None = None
     vllm_version: Annotated[
         str | None,

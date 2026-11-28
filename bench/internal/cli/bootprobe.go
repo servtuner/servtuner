@@ -15,10 +15,12 @@ func newBootProbeCommand(streams streams) *cobra.Command {
 	var requestPath, secretsDirFlag string
 	command := &cobra.Command{
 		Use:   "boot-probe --input <boot-probe-request.json>",
-		Short: "Read a booted vLLM's KV capacity and print a boot result",
-		Long: "Reads vllm:cache_config_info from the target's /metrics through the TLS and credential code " +
-			"a run uses, and prints a tuningBootResult (boot-results.schema.json) with num_gpu_blocks and " +
-			"c_kv = num_gpu_blocks x block_size / tokens_per_request. The tuning loop feeds it to servtuner propose " +
+		Short: "Read a booted vLLM's or SGLang's KV capacity and print a boot result",
+		Long: "Reads the KV capacity through the TLS and credential code a run uses, and prints a " +
+			"tuningBootResult (boot-results.schema.json): for vLLM, vllm:cache_config_info from /metrics, with " +
+			"c_kv = num_gpu_blocks x block_size / tokens_per_request; for SGLang, max_total_num_tokens from " +
+			"/server_info, with c_kv = max_total_num_tokens / tokens_per_request and the pool in pages as " +
+			"num_gpu_blocks. The tuning loop feeds it to servtuner propose " +
 			". Exits 1 when the target cannot be read or serves no cache config, 2 for an " +
 			"invalid request.",
 		Args: cobra.NoArgs,

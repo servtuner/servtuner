@@ -59,6 +59,10 @@ func TestSGLangInfoInBothTransportModes(t *testing.T) {
 		if !reflect.DeepEqual(info.Knobs, wantSGLangKnobs()) {
 			t.Errorf("knobs = %v\nwant %v", info.Knobs, wantSGLangKnobs())
 		}
+		// The KV pool, for the boot probe: tokens, and tokens per page.
+		if info.TargetInfo.CacheConfig[SGLangMaxTotalNumTokens] != "412345" || info.TargetInfo.CacheConfig[SGLangPageSize] != "1" {
+			t.Errorf("cache_config = %v", info.TargetInfo.CacheConfig)
+		}
 	})
 }
 

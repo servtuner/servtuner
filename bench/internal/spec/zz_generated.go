@@ -10544,7 +10544,8 @@ func (j *TargetCheck) UnmarshalJSON(value []byte) error {
 
 // What the workload reports about itself.
 type TargetInfo struct {
-	// vLLM cache_config_info labels.
+	// vLLM cache_config_info labels, or SGLang's KV pool from /server_info
+	// (max_total_num_tokens, page_size).
 	CacheConfig TargetInfoCacheConfig `json:"cache_config,omitempty,omitzero"`
 
 	// Model ids from /v1/models.
@@ -10554,7 +10555,8 @@ type TargetInfo struct {
 	Version *string `json:"version,omitempty,omitzero"`
 }
 
-// vLLM cache_config_info labels.
+// vLLM cache_config_info labels, or SGLang's KV pool from /server_info
+// (max_total_num_tokens, page_size).
 type TargetInfoCacheConfig map[string]string
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -11368,7 +11370,8 @@ type TuningBootResult struct {
 	// KvSizing corresponds to the JSON schema field "kv_sizing".
 	KvSizing *TuningKvSizing `json:"kv_sizing,omitempty,omitzero"`
 
-	// NumGpuBlocks corresponds to the JSON schema field "num_gpu_blocks".
+	// The KV cache's size in vLLM blocks, or SGLang's KV pool in pages
+	// (max_total_num_tokens / page_size): boots of equal size are one configuration.
 	NumGpuBlocks *int `json:"num_gpu_blocks,omitempty,omitzero"`
 
 	// Outcome corresponds to the JSON schema field "outcome".
