@@ -9,7 +9,6 @@
     "analyzer_version",
     "objective",
     "varied_knobs",
-    "is_factorial",
     "comparability",
     "excluded_runs",
     "configurations",
@@ -36,10 +35,6 @@
         "type": "string",
         "minLength": 1
       }
-    },
-    "is_factorial": {
-      "description": "True when every combination of the varied knobs' values was run. With two or more varied knobs and no factorial design, effects are not claimed to be independent.",
-      "type": "boolean"
     },
     "reference_stage_index": {
       "description": "The highest stage valid in every compared run; the latency side of the Pareto set is read there. Absent when no stage is valid in all of them.",
@@ -125,7 +120,6 @@
         "slos_differ",
         "experiment_differs",
         "too_few_configurations",
-        "not_factorial",
         "coverage_incomplete"
       ]
     },

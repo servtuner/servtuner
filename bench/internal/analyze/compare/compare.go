@@ -118,11 +118,6 @@ func Compare(runs []Run, objective spec.ObjectiveName, analyzerVersion string) (
 		return spec.Comparison{}, err
 	}
 	result.VariedKnobs = variedKnobs(configurations)
-	result.IsFactorial = isFactorial(configurations, result.VariedKnobs)
-	if len(result.VariedKnobs) >= 2 && !result.IsFactorial {
-		result.Comparability.Issues = append(result.Comparability.Issues, issue(spec.ComparisonIssueCodeNotFactorial,
-			"not every combination of %s was run: effects are not claimed to be independent", strings.Join(result.VariedKnobs, ", ")))
-	}
 	if len(configurations) < 2 {
 		result.Comparability.Issues = append(result.Comparability.Issues, issue(spec.ComparisonIssueCodeTooFewConfigurations,
 			"only one configuration: there is nothing to compare it with"))
@@ -264,38 +259,6 @@ func variedKnobs(configurations []configuration) []string {
 	}
 	sort.Strings(varied)
 	return varied
-}
-
-// isFactorial reports whether every combination of the varied knobs' values
-// was run. One varied knob is trivially factorial; none is not a design.
-func isFactorial(configurations []configuration, varied []string) bool {
-	if len(varied) == 0 {
-		return false
-	}
-	combinations := 1
-	seen := map[string]bool{}
-	for _, name := range varied {
-		values := map[string]bool{}
-		for _, config := range configurations {
-			values[knobValueOrAbsent(config.knobs, name)] = true
-		}
-		combinations *= len(values)
-	}
-	for _, config := range configurations {
-		var parts []string
-		for _, name := range varied {
-			parts = append(parts, knobValueOrAbsent(config.knobs, name))
-		}
-		seen[strings.Join(parts, "\x00")] = true
-	}
-	return len(seen) == combinations
-}
-
-func knobValueOrAbsent(knobs spec.RunSpecKnobs, name string) string {
-	if value, ok := knobs[name]; ok {
-		return valueKey(value)
-	}
-	return "<absent>"
 }
 
 // comparability checks that the runs measured the same thing. It looks at

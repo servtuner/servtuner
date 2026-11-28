@@ -49,7 +49,6 @@ class ComparisonIssueCode(Enum):
     slos_differ = "slos_differ"
     experiment_differs = "experiment_differs"
     too_few_configurations = "too_few_configurations"
-    not_factorial = "not_factorial"
     coverage_incomplete = "coverage_incomplete"
 
 
@@ -250,12 +249,6 @@ class Comparison(BaseModel):
     varied_knobs: Annotated[
         list[VariedKnob],
         Field(description="Knobs whose values differ between configurations, sorted."),
-    ]
-    is_factorial: Annotated[
-        bool,
-        Field(
-            description="True when every combination of the varied knobs' values was run. With two or more varied knobs and no factorial design, effects are not claimed to be independent."
-        ),
     ]
     reference_stage_index: Annotated[
         int | None,

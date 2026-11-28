@@ -140,8 +140,8 @@ func TestSeparatedRepeatsWinWithHighConfidence(t *testing.T) {
 	if result.Objective != spec.ObjectiveNameSloRpsPerCore {
 		t.Errorf("default objective for bifrost = %s, want slo_rps_per_core", result.Objective)
 	}
-	if !reflect.DeepEqual(result.VariedKnobs, []string{"bifrost.concurrency"}) || !result.IsFactorial {
-		t.Errorf("varied %v factorial %v", result.VariedKnobs, result.IsFactorial)
+	if !reflect.DeepEqual(result.VariedKnobs, []string{"bifrost.concurrency"}) {
+		t.Errorf("varied %v", result.VariedKnobs)
 	}
 	if len(result.Configurations) != 2 || result.Configurations[0].Id != "c1" || len(result.Configurations[0].RunIds) != 3 {
 		t.Fatalf("configurations: %+v", result.Configurations)
@@ -243,18 +243,16 @@ func TestExcludedRunsTakeNoPart(t *testing.T) {
 	}
 }
 
-func TestTwoKnobsWithoutEveryCombinationAreNotFactorial(t *testing.T) {
+func TestTheBestConfigurationWinsWhenSeveralKnobsChangeTogether(t *testing.T) {
+	// The comparison ranks whole configurations; it never needs every combination of knob values.
 	a := spec.RunSpecKnobs{"x": float64(1), "y": "a"}
 	b := spec.RunSpecKnobs{"x": float64(2), "y": "b"}
 	result := mustCompare(t, runs(fixture{id: "A", knobs: a, sloMax: 100}, fixture{id: "B", knobs: b, sloMax: 300}), spec.ObjectiveNameSloMaxRps)
-	if result.IsFactorial || !hasIssue(result.Comparability, spec.ComparisonIssueCodeNotFactorial) {
-		t.Fatalf("factorial %v issues %+v", result.IsFactorial, result.Comparability.Issues)
+	if !result.Comparability.IsComparable || len(result.Comparability.Issues) != 0 {
+		t.Fatalf("comparable %v issues %+v", result.Comparability.IsComparable, result.Comparability.Issues)
 	}
-	c := spec.RunSpecKnobs{"x": float64(1), "y": "b"}
-	d := spec.RunSpecKnobs{"x": float64(2), "y": "a"}
-	full := mustCompare(t, runs(fixture{id: "A", knobs: a, sloMax: 1}, fixture{id: "B", knobs: b, sloMax: 2}, fixture{id: "C", knobs: c, sloMax: 3}, fixture{id: "D", knobs: d, sloMax: 4}), spec.ObjectiveNameSloMaxRps)
-	if !full.IsFactorial {
-		t.Errorf("a 2x2 design is factorial")
+	if result.Recommendation == nil || fmt.Sprint(result.Recommendation.Knobs["y"]) != "b" {
+		t.Fatalf("recommendation %+v, want the configuration with x=2, y=b", result.Recommendation)
 	}
 }
 
