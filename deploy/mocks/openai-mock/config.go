@@ -58,6 +58,11 @@ type Config struct {
 	// VLLM, when set, makes the mock answer as vLLM does (vllm.go): /health and
 	// vLLM's metric names, including cache_config_info.
 	VLLM *VLLMEmulation
+
+	// Emulate names a server whose interface the mock adds: empty, or sglang (sglang.go).
+	Emulate string
+	// SGLang is set from Emulate sglang: SGLang's info endpoints and metric names.
+	SGLang *SGLangEmulation
 }
 
 // Over-capacity behaviours when MaxConcurrency requests are already being served.
@@ -111,6 +116,9 @@ func defaultConfig() Config {
 // Validate rejects contradictory settings so a misconfigured mock fails at
 // startup instead of silently serving the wrong transport.
 func (c Config) Validate() error {
+	if c.Emulate != "" && c.Emulate != emulateSGLang {
+		return fmt.Errorf("--emulate %q: only %q is emulated", c.Emulate, emulateSGLang)
+	}
 	switch c.TLS {
 	case tlsOff:
 		if c.CertFile != "" || c.KeyFile != "" || c.ClientCAFile != "" || c.ClientAuth != "" {
@@ -210,6 +218,7 @@ func loadConfig(args []string, environment func(string) string, usageOutput io.W
 	flags.IntVar(&faults.MemoryPerRequestBytes, "memory-per-request-bytes", env.Int("MEMORY_PER_REQUEST_BYTES", faults.MemoryPerRequestBytes), "fault: bytes held while each request is served")
 	flags.IntVar(&faults.MemoryRampBytesPerSecond, "memory-ramp-bytes-per-second", env.Int("MEMORY_RAMP_BYTES_PER_SECOND", faults.MemoryRampBytesPerSecond), "fault: retained bytes added every second (a leak)")
 	flags.IntVar(&faults.MemoryRampMaxBytes, "memory-ramp-max-bytes", env.Int("MEMORY_RAMP_MAX_BYTES", faults.MemoryRampMaxBytes), "fault: where the memory ramp stops")
+	flags.StringVar(&cfg.Emulate, "emulate", env.String("EMULATE", cfg.Emulate), "also answer as this server: empty, or sglang (its info endpoints and metric names)")
 	flags.BoolVar(&cfg.SendRoleOnlyFirstChunk, "role-only-first-chunk", env.Bool("ROLE_ONLY_FIRST_CHUNK", cfg.SendRoleOnlyFirstChunk), "send headers and a role-only chunk immediately, so TTFB differs from TTFT")
 
 	if err := flags.Parse(args); err != nil {
@@ -220,6 +229,9 @@ func loadConfig(args []string, environment func(string) string, usageOutput io.W
 	}
 	if err := env.Err(); err != nil {
 		return Config{}, err
+	}
+	if cfg.Emulate == emulateSGLang {
+		cfg.SGLang = defaultSGLangEmulation()
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err

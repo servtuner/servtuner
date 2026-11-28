@@ -65,6 +65,9 @@ func newHandlers(cfg Config) (main, metricsOnly http.Handler, m *metrics) {
 		mux.HandleFunc("GET /health", health) // vLLM's path, which the deployer's probes use
 		registerVLLMMetrics(m, *cfg.VLLM)
 	}
+	if cfg.SGLang != nil {
+		registerSGLang(mux, m, cfg)
+	}
 	if cfg.MetricsListenAddress == "" {
 		mux.Handle("GET /metrics", s.metrics.handler())
 		return mux, nil, m

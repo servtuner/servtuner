@@ -71,6 +71,21 @@ The image also installs the binary as `/usr/local/bin/vllm`. Invoked as `vllm se
 
 Every other flag is accepted and ignored: the mock emulates the interface, not the engine.
 
+### As SGLang (observing)
+
+`--emulate sglang` (`OPENAI_MOCK_EMULATE`, chart value `mock.emulate`) adds what servtuner reads from an SGLang
+v0.5.23 server, so an `sglang` target runs on kind without a GPU:
+
+- `/server_info` (and the deprecated `/get_server_info`): flat resolved server arguments, the launch command,
+  `max_total_num_tokens`, `version` and `frontend`; `/model_info` (and `/get_model_info`), `/health`,
+  `/health_generate`;
+- SGLang's metric names and labels: running, queued, paused and retracted requests, `token_usage` and the KV
+  token gauges, the KV pool size and context length (scheduler series: `model_name`, `engine_type`, `tp_rank`,
+  `pp_rank`, `moe_ep_rank`), and the token, cached-token and abort counters (tokenizer series). The latency
+  histograms are not emulated; the client measures latency.
+
+Starting as `sglang serve` for a managed SGLang is not emulated yet.
+
 ### Fault knobs
 
 Off by default. Each makes the mock misbehave the way a real target does, so every Bifrost and
