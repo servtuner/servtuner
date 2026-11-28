@@ -128,6 +128,18 @@ def check(condition: bool, description: str) -> None:
     print(f"ok   {description}", flush=True)
 
 
+def polled_json(response: httpx2.Response) -> Any:
+    """A polled response's JSON body, or None to poll again. Right after an install or a pod
+    change the ingress or gateway answers 503 for a few seconds, and a port-forward can reset:
+    neither is the result being waited for. A real failure still ends the wait with its timeout."""
+    if not response.is_success:
+        return None
+    try:
+        return response.json()
+    except ValueError:
+        return None
+
+
 def wait_for(
     description: str, probe: Callable[[], Any], timeout_seconds: float = TIMEOUT_SECONDS
 ) -> Any:
@@ -192,8 +204,8 @@ def exercise_run(
     run_id: str = created.json()["id"]
 
     def terminal_run() -> dict[str, object] | None:
-        run = client.get(f"/runs/{run_id}").json()
-        return run if run["status"] in TERMINAL_STATES else None
+        run = polled_json(client.get(f"/runs/{run_id}"))
+        return run if run and run["status"] in TERMINAL_STATES else None
 
     run = wait_for(f"run {run_id} to finish", terminal_run, timeout_seconds)
     check(run["status"] == "succeeded", f"run {run_id} succeeded (was {run['status']})")
@@ -226,7 +238,8 @@ def exercise_schedule(
     schedule_id: str = created.json()["id"]
 
     def finished_run() -> dict[str, Any] | None:
-        runs = client.get(f"/schedules/{schedule_id}").json()["runs"]
+        schedule = polled_json(client.get(f"/schedules/{schedule_id}"))
+        runs = schedule["runs"] if schedule else []
         return runs[0] if runs and runs[0]["status"] in TERMINAL_STATES else None
 
     description = f"schedule {schedule_id} to launch and finish a run"

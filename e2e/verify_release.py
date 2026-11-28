@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx2
-from common import REPOSITORY, TERMINAL_STATES, check, stop_process, wait_for
+from common import REPOSITORY, TERMINAL_STATES, check, polled_json, stop_process, wait_for
 
 RELEASES = "https://github.com/servtuner/servtuner/releases/download"
 REGISTRY = "ghcr.io/servtuner"
@@ -485,9 +485,8 @@ def verify_cluster(
         run_id = created.json()["id"]
 
         def finished() -> dict[str, Any] | None:
-            current = client.get(f"/api/runs/{run_id}")
-            body: dict[str, Any] = current.json() if current.is_success else {}
-            return body if body.get("status") in TERMINAL_STATES else None
+            body: dict[str, Any] | None = polled_json(client.get(f"/api/runs/{run_id}"))
+            return body if body and body.get("status") in TERMINAL_STATES else None
 
         final = wait_for(f"run {run_id}", finished, RUN_TIMEOUT_SECONDS)
         check(
