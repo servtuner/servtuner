@@ -62,11 +62,14 @@ func TestSGLangMetricsCarrySGLangsNamesAndLabels(t *testing.T) {
 		`sglang:max_total_num_tokens{engine_type="unified",model_name="mock-model",moe_ep_rank="0",pp_rank="0",tp_rank="0"} 400000`,
 		`sglang:prompt_tokens_total{is_streaming="true",model_name="mock-model"} 0`,
 		`sglang:cached_tokens_total{cache_source="device",model_name="mock-model"} 0`,
-		`sglang:num_retracted_requests_total{`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("/metrics lacks %s", want)
 		}
+	}
+	// SGLang creates its retraction counters at the first retraction; the mock never retracts.
+	if strings.Contains(text, "sglang:num_retracted_requests_total") {
+		t.Error("a server that never retracted has no retraction counter")
 	}
 	if strings.Contains(text, "vllm:") {
 		t.Error("the SGLang emulation must not export vLLM's names")

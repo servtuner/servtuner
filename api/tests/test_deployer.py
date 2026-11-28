@@ -778,10 +778,52 @@ def test_a_managed_sglangs_runs_name_an_sglang_target() -> None:
             "infeasible",
         ),
         (
-            "Possible solutions:\n"
+            # Recorded live (#33): SGLang 0.5.23 on an RTX 3070, --mem-fraction-static=0.05.
+            "ValueError: Loaded weights leave no GPU memory for the KV cache under"
+            " --mem-fraction-static=0.05. Raise --mem-fraction-static above 0.147 (minimum viable"
+            " = 1 - available/pre = 0.1460).",
+            "kv-pool-empty",
+            "infeasible",
+        ),
+        (
+            "Capture cuda graph failed: out of memory\nPossible solutions:\n"
             "1. set --mem-fraction-static to a smaller value (e.g., 0.8 or 0.7)",
             "cuda-graph-oom",
             "infeasible",
+        ),
+        # Recorded live (#33) on a host without a CUDA toolkit. SGLang's generic suggestions
+        # follow the failure, so it must not read as a CUDA graph OOM.
+        (
+            "FileNotFoundError: [Errno 2] No such file or directory: 'ninja'\n"
+            "Fail when using backend: breakable for prefill runner.\nPossible suggestions:\n"
+            "1. disable the prefill CUDA graph by --cuda-graph-backend-prefill=disabled\n"
+            "2. if it is an OOM problem, set --mem-fraction-static to a smaller value (e.g., 0.8"
+            " or 0.7) or set --cuda-graph-max-bs-prefill to a smaller value (e.g., 2048)",
+            "cuda-toolchain-missing",
+            "deploy_defect",
+        ),
+        (
+            "RuntimeError: Could not find nvcc and default"
+            " cuda_home='/usr/local/cuda' doesn't exist",
+            "cuda-toolchain-missing",
+            "deploy_defect",
+        ),
+        (
+            'cuda_toolkit.h:41:8: error: #error "CUDA compiler and CUDA toolkit headers are'
+            ' incompatible, please check your include paths"',
+            "cuda-toolchain-missing",
+            "deploy_defect",
+        ),
+        (
+            "/usr/bin/ld: cannot find -lcuda: No such file or directory",
+            "cuda-toolchain-missing",
+            "deploy_defect",
+        ),
+        (
+            "usage: sglang serve [-h] --model-path MODEL_PATH\n"
+            "sglang serve: error: unrecognized arguments: --not-a-real-flag 1",
+            "unknown-flag",
+            "render_bug",
         ),
         (
             "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB",

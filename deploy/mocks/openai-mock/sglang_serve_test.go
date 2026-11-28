@@ -45,15 +45,15 @@ func TestSGLangArgsBecomeTheMocksConfig(t *testing.T) {
 func TestSGLangFailsAsSGLangDoes(t *testing.T) {
 	var stderr bytes.Buffer
 	code := runSGLang(deployedSGLangArgs, envOf(map[string]string{"SGLANG_MOCK_UNKNOWN_FLAGS": "--max-running-requests"}), io.Discard, &stderr, noSleep)
-	if code != sglangArgparseExit || !strings.Contains(stderr.String(), "error: unrecognized arguments: --max-running-requests") {
+	if code != sglangArgparseExit || !strings.Contains(stderr.String(), "sglang serve: error: unrecognized arguments: --max-running-requests") {
 		t.Errorf("unknown flag: exit %d, %q", code, stderr.String())
 	}
 	stderr.Reset()
 	env := envOf(map[string]string{"SGLANG_MOCK_INFEASIBLE": "--tp-size=1; --tp-size=2,--mem-fraction-static=0.41"})
 	code = runSGLang(deployedSGLangArgs, env, io.Discard, &stderr, noSleep)
 	log := stderr.String()
-	if code != sglangFailureExit || !strings.Contains(log, "Not enough memory. Please try to increase --mem-fraction-static.") ||
-		!strings.HasSuffix(strings.TrimSpace(log), "Initialization failed. Please see the error messages above.") {
+	if code != sglangSelfKilledExit || !strings.Contains(log, "Loaded weights leave no GPU memory for the KV cache under --mem-fraction-static=") ||
+		!strings.HasSuffix(strings.TrimSpace(log), "It usually means the child failed.") {
 		t.Errorf("infeasible: exit %d, %q", code, log)
 	}
 	if code := runSGLang([]string{"-c", "print(1)"}, noEnv, io.Discard, io.Discard, noSleep); code != sglangArgparseExit {

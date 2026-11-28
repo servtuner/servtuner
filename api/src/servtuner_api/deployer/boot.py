@@ -158,9 +158,11 @@ BOOT_RULES: tuple[BootRule, ...] = (
 )
 
 
-# SGLang v0.5.23's boot-failure messages (from its source; checked live by #33's recording). The
+# SGLang v0.5.23's boot-failure messages, recorded live on a GPU (#33) where they could be. The
 # argument parser, the hub, offline and certificate rules are vLLM's own words too, so they are
-# shared. SGLang reports a dead scheduler with its exit code, -9 meaning the OS OOM killer.
+# shared. SGLang reports a dead scheduler with its exit code, -9 meaning the OS OOM killer. Rules
+# are tried in order: a missing CUDA toolchain prints SGLang's generic "set --mem-fraction-static
+# to a smaller value" suggestion too, so it is ruled out before cuda-graph-oom.
 SGLANG_BOOT_RULES: tuple[BootRule, ...] = (
     BootRule(
         "unknown-flag",
@@ -177,18 +179,37 @@ SGLANG_BOOT_RULES: tuple[BootRule, ...] = (
         ),
         "SGLang refused a flag value servtuner rendered: a rendering bug",
     ),
-    # model_executor/pool_configurator.py: the KV pool would hold no token.
+    # The KV pool would hold no token: mem_cache/kv_cache_configurator.py says so (seen live, exit
+    # 137 as SGLang kills its own process tree), model_executor/pool_configurator.py in older paths.
     BootRule(
         "kv-pool-empty",
         "infeasible",
-        re.compile(r"Not enough memory\. Please try to increase --mem-fraction-static"),
+        re.compile(
+            r"(Loaded weights leave no GPU memory for the KV cache"
+            r"|Not enough memory\. Please try to increase --mem-fraction-static)"
+        ),
         "no GPU memory was left for the KV pool: mem_fraction_static is too low",
     ),
-    # model_executor/runner_backend_utils: CUDA graph capture ran out of memory.
+    # A kernel SGLang or FlashInfer compiles on first use could not be built: no nvcc or ninja,
+    # a compiler that does not match the CUDA headers, or no libcuda to link. All seen live on a
+    # host without a CUDA toolkit: the image or host is broken, not the configuration.
+    BootRule(
+        "cuda-toolchain-missing",
+        "deploy_defect",
+        re.compile(
+            r"(Could not find nvcc|No such file or directory: 'ninja'|Ninja build failed"
+            r"|CUDA compiler and CUDA toolkit headers are incompatible|cannot find -lcuda)"
+        ),
+        "SGLang could not compile a GPU kernel: the image or host lacks a working CUDA toolchain",
+    ),
+    # model_executor/runner_backend_utils: CUDA graph capture ran out of memory. Its suggestion
+    # follows any capture failure, so an out-of-memory error must precede it.
     BootRule(
         "cuda-graph-oom",
         "infeasible",
-        re.compile(r"set --mem-fraction-static to a smaller value"),
+        re.compile(
+            r"(?s)(out of memory|OutOfMemoryError).*set --mem-fraction-static to a smaller value"
+        ),
         "CUDA graph capture ran out of memory: mem_fraction_static or cuda_graph_max_bs_decode"
         " is too high",
     ),
