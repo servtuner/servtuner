@@ -116,7 +116,7 @@ helm get values prometheus -n monitoring -o yaml > live.yaml     # note the exis
 helm upgrade prometheus prometheus-community/prometheus -n monitoring --reuse-values -f merged.yaml
 ```
 
-The keep-regex is `vllm:.*|bifrost_.*|http_request.*|http_response.*|litellm_.*|openai_mock_.*`. The job sets the
+The keep-regex is `vllm:.*|sglang:.*|bifrost_.*|http_request.*|http_response.*|litellm_.*|openai_mock_.*`. The job sets the
 `namespace` and `pod` labels on every series. Check afterwards: `up{job="servtuner-targets"} == 1`.
 
 ## 3. Install a Bifrost for servtuner

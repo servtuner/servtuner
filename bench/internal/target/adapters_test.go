@@ -281,7 +281,7 @@ func TestAdapterForCoversEveryTargetTypeWithItsCatalogs(t *testing.T) {
 		spec.TargetTypeBifrost:          {CatalogBifrost, CatalogKubernetes},
 		spec.TargetTypeLitellm:          {CatalogLiteLLM, CatalogKubernetes},
 		spec.TargetTypeOpenaiCompatible: {CatalogKubernetes},
-		spec.TargetTypeSglang:           {CatalogKubernetes},
+		spec.TargetTypeSglang:           {CatalogSGLang, CatalogKubernetes},
 	}
 	for targetType, catalogs := range want {
 		adapter, err := AdapterFor(targetType)

@@ -11,12 +11,12 @@ import (
 )
 
 var catalogNames = []spec.CatalogName{
-	spec.CatalogNameKubernetes, spec.CatalogNameBifrost, spec.CatalogNameVllm, spec.CatalogNameLitellm, spec.CatalogNameDcgm,
+	spec.CatalogNameKubernetes, spec.CatalogNameBifrost, spec.CatalogNameVllm, spec.CatalogNameLitellm, spec.CatalogNameSglang, spec.CatalogNameDcgm,
 }
 
 // targetCatalogs are the catalogs whose series come from the servtuner-targets job,
 // where every selector must say so.
-var targetCatalogs = []spec.CatalogName{spec.CatalogNameBifrost, spec.CatalogNameVllm, spec.CatalogNameLitellm}
+var targetCatalogs = []spec.CatalogName{spec.CatalogNameBifrost, spec.CatalogNameVllm, spec.CatalogNameLitellm, spec.CatalogNameSglang}
 
 func renderInputFor(catalog Catalog, interval time.Duration) RenderInput {
 	return RenderInput{Selectors: testSelectors, StageWindow: 2 * time.Minute, Interval: interval}
@@ -48,6 +48,7 @@ func TestCatalogRolesAndOptionality(t *testing.T) {
 		spec.CatalogNameBifrost:    spec.JobRoleTarget,
 		spec.CatalogNameVllm:       spec.JobRoleTarget,
 		spec.CatalogNameLitellm:    spec.JobRoleTarget,
+		spec.CatalogNameSglang:     spec.JobRoleTarget,
 		spec.CatalogNameDcgm:       spec.JobRoleDcgm,
 	}
 	for name, role := range wantRole {

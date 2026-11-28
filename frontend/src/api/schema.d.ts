@@ -1915,7 +1915,7 @@ export interface components {
          * CatalogName
          * @enum {string}
          */
-        CatalogName: "kubernetes" | "bifrost" | "vllm" | "litellm" | "dcgm" | "extra";
+        CatalogName: "kubernetes" | "bifrost" | "vllm" | "litellm" | "sglang" | "dcgm" | "extra";
         /** Caveat */
         Caveat: string;
         /**

@@ -24,6 +24,7 @@ const (
 	CatalogVLLM       = "vllm"
 	CatalogLiteLLM    = "litellm"
 	CatalogBifrost    = "bifrost"
+	CatalogSGLang     = "sglang"
 )
 
 // Knobs maps a RunSpec knob name (for example "vllm.max_num_seqs") to the value
