@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -26,6 +27,10 @@ type fixture struct {
 	gpus      int
 	// neverFailed: every stage met the SLOs, so SLO-max is a lower bound.
 	neverFailed bool
+	// targetType defaults to bifrost; model and hardware to none.
+	targetType spec.TargetType
+	model      string
+	hardware   string
 }
 
 func (f fixture) run() Run {
@@ -65,7 +70,14 @@ func (f fixture) run() Run {
 		workload = "sha256:w"
 	}
 	experiment := "exp"
-	runSpec := spec.RunSpec{Experiment: &experiment, Knobs: f.knobs, Target: spec.Target{Type: spec.TargetTypeBifrost}, Load: spec.Load{Pacing: spec.PacingPoisson}}
+	targetType := f.targetType
+	if targetType == "" {
+		targetType = spec.TargetTypeBifrost
+	}
+	if f.hardware != "" {
+		analysis.HardwareProfileId = &f.hardware
+	}
+	runSpec := spec.RunSpec{Experiment: &experiment, Knobs: f.knobs, Target: spec.Target{Type: targetType, Model: f.model}, Load: spec.Load{Pacing: spec.PacingPoisson}}
 	if f.targetRPS > 0 {
 		runSpec.Analysis = &spec.Analysis{TargetRps: &f.targetRPS}
 	}
@@ -391,5 +403,75 @@ func TestDefaultObjectivePerTargetType(t *testing.T) {
 		if got := DefaultObjective(targetType); got != want {
 			t.Errorf("%s: objective %s, want %s", targetType, got, want)
 		}
+	}
+}
+
+// vLLM against SGLang: the same workload, model, hardware and SLOs make the
+// server a compared dimension, a varied knob.
+func serverFixture(id string, server spec.TargetType, sloMax float64) fixture {
+	return fixture{id: id, sloMax: sloMax, gpus: 1, targetType: server, model: "qwen-0.5b", hardware: "rtx-3070x1"}
+}
+
+func TestVLLMAndSGLangCompareAsTheServerDimension(t *testing.T) {
+	input := runs(serverFixture("A", spec.TargetTypeVllm, 100), serverFixture("B", spec.TargetTypeSglang, 140))
+	result := mustCompare(t, input, "")
+	if !result.Comparability.IsComparable {
+		t.Fatalf("comparability: %+v", result.Comparability)
+	}
+	if len(result.VariedKnobs) != 1 || result.VariedKnobs[0] != ServerKnob {
+		t.Errorf("varied knobs = %v, want [server]", result.VariedKnobs)
+	}
+	if result.Comparability.TargetType != nil {
+		t.Errorf("a mixed comparison has no one target type: %v", *result.Comparability.TargetType)
+	}
+	servers := map[string]bool{}
+	for _, configuration := range result.Configurations {
+		server, _ := configuration.Knobs[ServerKnob].(string)
+		servers[server] = true
+	}
+	if !servers["vllm"] || !servers["sglang"] || len(result.Configurations) != 2 {
+		t.Errorf("configurations = %+v", result.Configurations)
+	}
+	if result.Rankings[0].Objective != spec.ObjectiveNameSloRpsPerGpu {
+		t.Errorf("objective = %s, want the model servers' default", result.Rankings[0].Objective)
+	}
+}
+
+func TestVLLMAndSGLangNeedTheSameModelAndKnownHardware(t *testing.T) {
+	otherModel := serverFixture("B", spec.TargetTypeSglang, 140)
+	otherModel.model = "llama-8b"
+	result := mustCompare(t, runs(serverFixture("A", spec.TargetTypeVllm, 100), otherModel), "")
+	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeTargetTypeDiffers) {
+		t.Errorf("different models: %+v", result.Comparability)
+	}
+	otherGPU := serverFixture("B", spec.TargetTypeSglang, 140)
+	otherGPU.hardware = "a100x1"
+	result = mustCompare(t, runs(serverFixture("A", spec.TargetTypeVllm, 100), otherGPU), "")
+	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
+		t.Errorf("different hardware: %+v", result.Comparability)
+	}
+	unknownA, unknownB := serverFixture("A", spec.TargetTypeVllm, 100), serverFixture("B", spec.TargetTypeSglang, 140)
+	unknownA.hardware, unknownB.hardware = "", ""
+	result = mustCompare(t, runs(unknownA, unknownB), "")
+	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeHardwareDiffers) {
+		t.Errorf("unknown hardware: %+v", result.Comparability)
+	}
+}
+
+func TestRoutersAndModelServersStillNeverMix(t *testing.T) {
+	router := serverFixture("B", spec.TargetTypeBifrost, 140)
+	result := mustCompare(t, runs(serverFixture("A", spec.TargetTypeVllm, 100), router), "")
+	if result.Comparability.IsComparable || !hasIssue(result.Comparability, spec.ComparisonIssueCodeTargetTypeDiffers) {
+		t.Errorf("vllm and bifrost: %+v", result.Comparability)
+	}
+	if slices.Contains(result.VariedKnobs, ServerKnob) {
+		t.Error("the server knob is only for vLLM against SGLang")
+	}
+}
+
+func TestOneServerComparisonsAreUnchanged(t *testing.T) {
+	result := mustCompare(t, runs(serverFixture("A", spec.TargetTypeSglang, 100), serverFixture("B", spec.TargetTypeSglang, 140)), "")
+	if slices.Contains(result.VariedKnobs, ServerKnob) || result.Comparability.TargetType == nil || *result.Comparability.TargetType != spec.TargetTypeSglang {
+		t.Errorf("varied %v, target type %v", result.VariedKnobs, result.Comparability.TargetType)
 	}
 }
