@@ -30,6 +30,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -156,13 +157,51 @@ func Compare(runs []Run, objective spec.ObjectiveName, analyzerVersion string) (
 	return result, nil
 }
 
+// ServerKnob is the pseudo-knob that names a run's model server when a
+// comparison spans vLLM and SGLang: the server becomes a compared dimension,
+// a varied knob like any other.
+const ServerKnob = "server"
+
+// crossServerTypes are the target types one comparison may mix: model servers
+// that serve the same models on the same GPUs. Routers never mix.
+var crossServerTypes = map[spec.TargetType]bool{spec.TargetTypeVllm: true, spec.TargetTypeSglang: true}
+
+// isCrossServer reports whether the runs mix model servers that may be
+// compared with each other (comparability decides whether they may here).
+func isCrossServer(runs []Run) bool {
+	types := map[spec.TargetType]bool{}
+	for _, run := range runs {
+		if !crossServerTypes[run.Spec.Target.Type] {
+			return false
+		}
+		types[run.Spec.Target.Type] = true
+	}
+	return len(types) > 1
+}
+
+// declaredKnobs are a run's knobs, plus ServerKnob when the comparison mixes
+// model servers.
+func declaredKnobs(run Run, crossServer bool) spec.RunSpecKnobs {
+	if !crossServer {
+		return run.Spec.Knobs
+	}
+	knobs := spec.RunSpecKnobs{ServerKnob: string(run.Spec.Target.Type)}
+	for name, value := range run.Spec.Knobs {
+		knobs[name] = value
+	}
+	return knobs
+}
+
 // group puts runs with identical declared knobs into one configuration,
-// ordered by each configuration's first run id.
+// ordered by each configuration's first run id. When the runs mix vLLM and
+// SGLang, the server is part of the knobs, so the two never share one.
 func group(runs []Run) ([]configuration, error) {
 	byKey := map[string]int{}
 	var configurations []configuration
+	crossServer := isCrossServer(runs)
 	for _, run := range runs {
-		key, err := knobKey(run.Spec.Knobs)
+		declared := declaredKnobs(run, crossServer)
+		key, err := knobKey(declared)
 		if err != nil {
 			return nil, fmt.Errorf("run %s: %w", run.ID, err)
 		}
@@ -171,7 +210,7 @@ func group(runs []Run) ([]configuration, error) {
 			index = len(configurations)
 			byKey[key] = index
 			knobs := spec.RunSpecKnobs{}
-			for name, value := range run.Spec.Knobs {
+			for name, value := range declared {
 				knobs[name] = value
 			}
 			configurations = append(configurations, configuration{id: fmt.Sprintf("c%d", index+1), knobs: knobs})
@@ -273,7 +312,19 @@ func comparability(all, included []Run) spec.Comparability {
 			result.Issues = append(result.Issues, issue(code, "%s differ between runs: %s", what, strings.Join(values, "; ")))
 		}
 	}
-	breaking(spec.ComparisonIssueCodeTargetTypeDiffers, "target types", func(run Run) string { return string(run.Spec.Target.Type) })
+	if isCrossServer(included) {
+		// vLLM against SGLang: comparable only on the same model and hardware
+		// (the workload and SLOs are checked below, as for any comparison).
+		breaking(spec.ComparisonIssueCodeTargetTypeDiffers, "models (vLLM and SGLang runs must serve the same model)", func(run Run) string { return run.Spec.Target.Model })
+		isUnknown := func(run Run) bool { return hardware(run) == unknownHardware }
+		if values := distinct(included, hardware); len(values) > 1 || slices.ContainsFunc(included, isUnknown) {
+			result.IsComparable = false
+			result.Issues = append(result.Issues, issue(spec.ComparisonIssueCodeHardwareDiffers,
+				"vLLM and SGLang runs must run on the same, known hardware (GPU model and count): %s", strings.Join(values, "; ")))
+		}
+	} else {
+		breaking(spec.ComparisonIssueCodeTargetTypeDiffers, "target types", func(run Run) string { return string(run.Spec.Target.Type) })
+	}
 	breaking(spec.ComparisonIssueCodeWorkloadDiffers, "workload hashes", workloadHash)
 	breaking(spec.ComparisonIssueCodeArrivalDiffers, "arrival processes", func(run Run) string { return string(run.Spec.Load.Pacing) })
 	breaking(spec.ComparisonIssueCodeSlosDiffer, "SLOs", func(run Run) string { return canonical(run.Spec.Slos) })
@@ -282,7 +333,7 @@ func comparability(all, included []Run) spec.Comparability {
 		result.Issues = append(result.Issues, issue(spec.ComparisonIssueCodeLadderDiffers,
 			"the runs offered different load at some stage: stages cannot be compared by index"))
 	}
-	if values := distinct(included, hardware); len(values) > 1 {
+	if values := distinct(included, hardware); len(values) > 1 && !isCrossServer(included) {
 		result.Issues = append(result.Issues, issue(spec.ComparisonIssueCodeHardwareDiffers,
 			"hardware profiles differ between runs: %s (comparable only if the hardware is what the experiment varies)", strings.Join(values, "; ")))
 	}
@@ -298,8 +349,12 @@ func comparability(all, included []Run) spec.Comparability {
 		if hash := workloadHash(included[0]); hash != "" {
 			result.WorkloadHash = &hash
 		}
-		targetType := included[0].Spec.Target.Type
-		result.TargetType = &targetType
+		// A comparison of vLLM against SGLang has no one target type; the
+		// server is a varied knob instead.
+		if !isCrossServer(included) {
+			targetType := included[0].Spec.Target.Type
+			result.TargetType = &targetType
+		}
 		result.WorkloadPreset = sharedPreset(included)
 	}
 	return result
@@ -328,9 +383,12 @@ func workloadHash(run Run) string {
 	return run.Model.Identity.WorkloadHash
 }
 
+// unknownHardware is a run without a hardware profile.
+const unknownHardware = "unknown"
+
 func hardware(run Run) string {
 	if run.Analysis.HardwareProfileId == nil {
-		return "unknown"
+		return unknownHardware
 	}
 	return *run.Analysis.HardwareProfileId
 }
