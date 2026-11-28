@@ -882,6 +882,7 @@ const CatalogNameDcgm CatalogName = "dcgm"
 const CatalogNameExtra CatalogName = "extra"
 const CatalogNameKubernetes CatalogName = "kubernetes"
 const CatalogNameLitellm CatalogName = "litellm"
+const CatalogNameSglang CatalogName = "sglang"
 const CatalogNameVllm CatalogName = "vllm"
 
 var enumValues_CatalogName = []interface{}{
@@ -889,6 +890,7 @@ var enumValues_CatalogName = []interface{}{
 	"bifrost",
 	"vllm",
 	"litellm",
+	"sglang",
 	"dcgm",
 	"extra",
 }

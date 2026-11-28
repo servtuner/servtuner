@@ -1100,6 +1100,7 @@
           "bifrost",
           "vllm",
           "litellm",
+          "sglang",
           "dcgm",
           "extra"
         ],

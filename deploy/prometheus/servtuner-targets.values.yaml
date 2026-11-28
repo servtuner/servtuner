@@ -30,7 +30,7 @@ extraScrapeConfigs: |
     # Keep only the metrics servtuner's catalogs use (cardinality).
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: "vllm:.*|bifrost_.*|http_request.*|http_response.*|litellm_.*|openai_mock_.*"
+        regex: "vllm:.*|sglang:.*|bifrost_.*|http_request.*|http_response.*|litellm_.*|openai_mock_.*"
         action: keep
   # Authenticated targets need one job each, with credentials mounted into Prometheus
   # from a Secret (add the mount via the chart's server.extraSecretMounts):

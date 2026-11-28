@@ -22,7 +22,7 @@ extraScrapeConfigs: |
           pod: vllm-lan
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: "vllm:.*"
+        regex: "vllm:.*|sglang:.*"
         action: keep
   # The off-cluster host's GPU (dcgm-exporter 4.9+; the dcgm catalog). The
   # job name contains "dcgm", so bench reads it as the dcgm role. hostname is

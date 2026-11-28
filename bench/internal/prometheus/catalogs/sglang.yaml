@@ -1,0 +1,101 @@
+# SGLang server-side series (checked 2026-11-28 against the v0.5.23 source,
+# python/sglang/srt/observability/metrics_collector.py; still to confirm on a
+# live v0.5.23 /metrics). Exported only with --enable-metrics. Counters are
+# declared with the _total suffix in their names.
+#
+# Two collectors, two label sets:
+# - Scheduler series (queue, KV, retraction gauges, queue_time_seconds) carry
+#   model_name, engine_type, tp_rank, pp_rank, moe_ep_rank, and dp_rank with data
+#   parallel. One rank per DP group exports them by default; with
+#   enable_metrics_for_all_schedulers every TP rank does, with equal values. The
+#   series are stored raw, per rank: consumers take the max over tp_rank, then sum
+#   over dp_rank, never a plain sum. (A tp_rank="0" filter would drop DP groups
+#   under DP attention, whose logging ranks have other global TP ranks.)
+# - Tokenizer series (latency histograms, token and request counters) carry
+#   model_name, plus is_streaming or cache_source where noted.
+#
+# Histograms are stored raw. Default buckets: TTFT and E2E from 0.1 s, ITL from
+# 2 ms; flags can override them, so quantiles always come from the buckets
+# recorded. Gauge peaks are max_over_time and quantile_over_time over the stage
+# window, on raw samples.
+name: sglang
+version: 1
+job_role: target
+description: SGLang latency histograms, queue, KV-cache and retraction gauges, token, cache and abort counters.
+marker:
+  query: count(sglang:num_running_reqs{<<.Selector>>})
+queries:
+  # Latency histograms (tokenizer). TTFT, TPOT and the token counters split by
+  # is_streaming.
+  - name: ttft_seconds
+    query: '{__name__=~"sglang:time_to_first_token_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: itl_seconds
+    query: '{__name__=~"sglang:inter_token_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: tpot_seconds
+    description: Recorded once per finished request.
+    query: '{__name__=~"sglang:request_time_per_output_token_seconds_(bucket|sum|count)",<<.Selector>>}'
+  - name: e2e_seconds
+    query: '{__name__=~"sglang:e2e_request_latency_seconds_(bucket|sum|count)",<<.Selector>>}'
+  # Scheduler histogram: waiting time before a request first runs.
+  - name: queue_time_seconds
+    query: '{__name__=~"sglang:queue_time_seconds_(bucket|sum|count)",<<.Selector>>}'
+
+  # Counters, raw (tokenizer). cached_tokens_total over prompt_tokens_total is the
+  # prefix reuse ratio; cache_source splits device, host and storage hits.
+  - name: num_requests_total
+    query: sglang:num_requests_total{<<.Selector>>}
+  - name: prompt_tokens_total
+    query: sglang:prompt_tokens_total{<<.Selector>>}
+  - name: generation_tokens_total
+    query: sglang:generation_tokens_total{<<.Selector>>}
+  - name: cached_tokens_total
+    query: sglang:cached_tokens_total{<<.Selector>>}
+  - name: num_aborted_requests_total
+    query: sglang:num_aborted_requests_total{<<.Selector>>}
+  # Counters, raw (scheduler): retraction is SGLang's preemption, a running
+  # request sent back to the queue when the KV cache runs out.
+  - name: num_retracted_requests_total
+    query: sglang:num_retracted_requests_total{<<.Selector>>}
+  - name: num_retracted_input_tokens_total
+    query: sglang:num_retracted_input_tokens_total{<<.Selector>>}
+
+  # Gauges (scheduler): the raw series, then the peak and the 95th percentile
+  # over a rolling stage window, for sizing.
+  - name: num_running_reqs
+    query: sglang:num_running_reqs{<<.Selector>>}
+  - name: num_running_reqs_max
+    query: max_over_time(sglang:num_running_reqs{<<.Selector>>}[<<.Window>>])
+  - name: num_queue_reqs
+    query: sglang:num_queue_reqs{<<.Selector>>}
+  - name: num_queue_reqs_max
+    query: max_over_time(sglang:num_queue_reqs{<<.Selector>>}[<<.Window>>])
+  - name: num_queue_reqs_p95
+    query: quantile_over_time(0.95, sglang:num_queue_reqs{<<.Selector>>}[<<.Window>>])
+  - name: num_paused_reqs
+    query: sglang:num_paused_reqs{<<.Selector>>}
+  - name: num_retracted_reqs
+    query: sglang:num_retracted_reqs{<<.Selector>>}
+  - name: token_usage
+    description: Fraction 0 to 1 of the KV pool in use.
+    query: sglang:token_usage{<<.Selector>>}
+  - name: token_usage_max
+    query: max_over_time(sglang:token_usage{<<.Selector>>}[<<.Window>>])
+  - name: token_usage_p95
+    query: quantile_over_time(0.95, sglang:token_usage{<<.Selector>>}[<<.Window>>])
+  - name: kv_used_tokens
+    query: sglang:kv_used_tokens{<<.Selector>>}
+  - name: kv_available_tokens
+    query: sglang:kv_available_tokens{<<.Selector>>}
+  - name: kv_evictable_tokens
+    description: Tokens held only by the prefix cache, reclaimable on demand.
+    query: sglang:kv_evictable_tokens{<<.Selector>>}
+  - name: gen_throughput
+    description: SGLang's own decode tokens per second, sampled; the client and the counters stay authoritative.
+    query: sglang:gen_throughput{<<.Selector>>}
+
+  # Configuration exported as gauges: the KV pool size in tokens (the tuning
+  # loop's capacity) and the context length.
+  - name: max_total_num_tokens
+    query: sglang:max_total_num_tokens{<<.Selector>>}
+  - name: context_len
+    query: sglang:context_len{<<.Selector>>}

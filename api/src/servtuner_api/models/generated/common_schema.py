@@ -114,6 +114,7 @@ class CatalogName(Enum):
     bifrost = "bifrost"
     vllm = "vllm"
     litellm = "litellm"
+    sglang = "sglang"
     dcgm = "dcgm"
     extra = "extra"
 
