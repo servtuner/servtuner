@@ -2,6 +2,13 @@
 
 `servtuner launcher` runs on a GPU host outside Kubernetes and starts and stops
 `vllm serve` for the api.
+
+It runs SGLang too when `sglang` (`--sglang`) names the Python of SGLang's virtualenv:
+`PUT /server` says which server to start (`{"server": "vllm"|"sglang", "args", "env"}`), and
+`GET /server/version?server=sglang` reads the installed SGLang's version. SGLang reads no API key from
+its environment, so the launcher writes the key to `sglang-api-key.yaml` (0600) in `log_dir` and passes
+it as `--config`: the key is never in the process's argv.
+
 Two systemd units keep it running: it starts at boot, restarts if it fails,
 and logs to the journal. A stop (or a reboot) stops vLLM first, so the GPU is
 freed.
@@ -15,7 +22,7 @@ freed.
 
 `launcher.yaml` here is a commented example. Every key matches a flag
 (`listen`, `tls`, `client_auth`, `tls_cert_file`, `tls_key_file`, `tls_client_ca_file`, `token_file`,
-`api_key_file`, `vllm`, `log_dir`), and a flag on the command line wins.
+`api_key_file`, `vllm`, `sglang`, `log_dir`), and a flag on the command line wins.
 Unknown keys are refused. The launcher reads the first of:
 
 1. `--config <file>`,
@@ -48,7 +55,7 @@ sudo systemctl daemon-reload && sudo systemctl enable --now servtuner-launcher
 
 For vLLM's API key, put it in `/etc/servtuner/vllm-api-key` (0600) and
 uncomment its `LoadCredential=` line. Logs: `journalctl -u servtuner-launcher -f`;
-vLLM's own log is `/var/lib/servtuner-launcher/vllm.log`, which the api's log
+The server's own log is `/var/lib/servtuner-launcher/server.log`, which the api's log
 panel reads.
 
 ## Install as a user service (a workstation, WSL2)
@@ -81,7 +88,7 @@ panel reads.
 
 5. Check it: `systemctl --user status servtuner-launcher`, and its log with
    `journalctl --user -u servtuner-launcher -f` (vLLM's own log stays in
-   `~/servtuner-launcher/vllm.log`, which the api's log panel reads).
+   `~/servtuner-launcher/server.log`, which the api's log panel reads).
 
 ## WSL2
 

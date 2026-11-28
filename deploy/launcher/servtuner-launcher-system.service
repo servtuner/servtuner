@@ -10,7 +10,7 @@ Wants=network-online.target
 Type=simple
 User=servtuner
 Group=servtuner
-# /var/lib/servtuner-launcher for vllm.log (log_dir in the config), owned by the service user.
+# /var/lib/servtuner-launcher for server.log (log_dir in the config), owned by the service user.
 StateDirectory=servtuner-launcher
 WorkingDirectory=/var/lib/servtuner-launcher
 LoadCredential=launcher-token:/etc/servtuner/launcher-token

@@ -23,7 +23,9 @@ type Config struct {
 	TokenFile       string `yaml:"token_file"`
 	APIKeyFile      string `yaml:"api_key_file"`
 	VLLM            string `yaml:"vllm"`
-	LogDir          string `yaml:"log_dir"`
+	// SGLang is the Python of SGLang's virtualenv; empty means this host runs no SGLang.
+	SGLang string `yaml:"sglang"`
+	LogDir string `yaml:"log_dir"`
 }
 
 const (

@@ -62,7 +62,8 @@ func newLauncherCommand(streams streams) *cobra.Command {
 				return failure(fmt.Errorf("create %s: %w", config.LogDir, err))
 			}
 			supervisor := launcher.New(launcher.Options{
-				VLLM: config.VLLM, LogDir: config.LogDir, Token: token, APIKey: apiKey, BaseEnv: os.Environ(),
+				VLLM: config.VLLM, SGLangPython: config.SGLang, LogDir: config.LogDir, Token: token, APIKey: apiKey,
+				BaseEnv: os.Environ(),
 			})
 			return serveLauncher(streams, config.Listen, tlsConfig, supervisor)
 		},
@@ -73,9 +74,10 @@ func newLauncherCommand(streams streams) *cobra.Command {
 	set.StringVar(&flags.Listen, "listen", launcherDefaults.Listen, "address to serve the launcher API on (listen)")
 	set.StringVar(&flags.TokenFile, "token-file", "", "file holding the bearer token every request must carry (token_file)")
 	set.StringVar(&flags.APIKeyFile, "api-key-file", "",
-		"file holding vLLM's --api-key value, given to vLLM as VLLM_API_KEY (api_key_file)")
+		"file holding the server's API key: given to vLLM as VLLM_API_KEY, to SGLang in a --config file (api_key_file)")
 	set.StringVar(&flags.VLLM, "vllm", launcherDefaults.VLLM, "the vllm executable (vllm)")
-	set.StringVar(&flags.LogDir, "log-dir", launcherDefaults.LogDir, "directory for vllm.log (log_dir)")
+	set.StringVar(&flags.SGLang, "sglang", "", "the Python of SGLang's virtualenv; empty runs no SGLang (sglang)")
+	set.StringVar(&flags.LogDir, "log-dir", launcherDefaults.LogDir, "directory for server.log (log_dir)")
 	set.StringVar(&flags.TLS, "tls", "", "serve over TLS: true or false; required (tls)")
 	set.StringVar(&flags.ClientAuth, "client-auth", "", "client certificates with --tls true: required, optional or none (client_auth)")
 	set.StringVar(&flags.TLSCertFile, "tls-cert-file", "", "server certificate, with --tls true (tls_cert_file)")
@@ -99,7 +101,7 @@ func launcherConfig(command *cobra.Command) (launcher.Config, error) {
 	}
 	for flag, value := range map[string]*string{
 		"listen": &config.Listen, "token-file": &config.TokenFile, "api-key-file": &config.APIKeyFile,
-		"vllm": &config.VLLM, "log-dir": &config.LogDir, "tls": &config.TLS, "client-auth": &config.ClientAuth,
+		"vllm": &config.VLLM, "sglang": &config.SGLang, "log-dir": &config.LogDir, "tls": &config.TLS, "client-auth": &config.ClientAuth,
 		"tls-cert-file": &config.TLSCertFile, "tls-key-file": &config.TLSKeyFile, "tls-client-ca-file": &config.TLSClientCAFile,
 	} {
 		// A flag's own default is the fallback, so the file wins over it but not over a typed flag.
