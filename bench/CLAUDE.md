@@ -151,7 +151,7 @@ bench/                       # Go module
     launcher/                # servtuner launcher: start, stop and report on vllm serve on a plain host (the tuning loop)
     propose/                 # tuning loop's next-configuration choice: search space, boot results, tiers, advisor steps, grid, confirm
     analyze/                 # quality, aggregate, capacity, sizing, queueing, charts,
-                             #   advisors/{vllm,bifrost,litellm,cross}, compare, report, rules/*.yaml
+                             #   advisors/{vllm,sglang,bifrost,litellm,cross}, compare, report, rules/*.yaml
   testdata/                  # recorded engine outputs, Prometheus responses, specs
 ```
 

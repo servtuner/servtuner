@@ -51,6 +51,9 @@ func Recommend(run input.Run, analysis spec.AnalysisResult) (Outputs, error) {
 	if err := adviseLiteLLM(run, analysis, stages, &outputs); err != nil {
 		return Outputs{}, err
 	}
+	if err := adviseSGLang(run, analysis, stages, &outputs); err != nil {
+		return Outputs{}, err
+	}
 	if err := checkBursts(run, analysis, stages, &outputs); err != nil {
 		return Outputs{}, err
 	}
