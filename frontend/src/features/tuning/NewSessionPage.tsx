@@ -78,7 +78,8 @@ export function NewSessionPage() {
   } catch (error) {
     spaceError = (error as Error).message;
   }
-  const { query: knobCatalog, catalog } = useKnobsByName();
+  const targetServer = target?.spec.placement === "kubernetes" ? (target.spec.server ?? "vllm") : "vllm";
+  const { query: knobCatalog, catalog } = useKnobsByName(targetServer);
   const tuned = tunedKnobsOf(parsedSpace);
   const base = entriesOf(baseOf(parsedSpace));
   const hasKnobProblem =

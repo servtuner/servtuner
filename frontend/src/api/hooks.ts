@@ -8,6 +8,7 @@ import type {
   HostCreate,
   PriceBook,
   KnobDescription,
+  KnobServer,
   VllmKnobs,
   TuningSession,
   TuningSessionCreate,
@@ -126,16 +127,17 @@ export function useSearchSpaces() {
   return useQuery({ queryKey: ["search-spaces"], queryFn: () => client.listSearchSpaces(), staleTime: Infinity });
 }
 
-/** Every vLLM flag as a knob, with vLLM's own description and limits (GET /knobs); it changes
- * only with the pinned vLLM, so it is read once. */
-export function useKnobCatalog() {
+/** Every flag of a model server (vLLM by default, or SGLang) as a knob, with the server's own
+ * description and limits (GET /knobs?server=); it changes only with the pinned version, so it is
+ * read once per server. */
+export function useKnobCatalog(server: KnobServer = "vllm") {
   const client = useApiClient();
-  return useQuery({ queryKey: ["knobs"], queryFn: () => client.getKnobCatalog(), staleTime: Infinity });
+  return useQuery({ queryKey: ["knobs", server], queryFn: () => client.getKnobCatalog(server), staleTime: Infinity });
 }
 
 /** GET /knobs by knob name (empty until it loads), with the query for its error. */
-export function useKnobsByName() {
-  const query = useKnobCatalog();
+export function useKnobsByName(server: KnobServer = "vllm") {
+  const query = useKnobCatalog(server);
   const catalog = useMemo(
     () => new Map<string, KnobDescription>((query.data?.knobs ?? []).map((knob) => [knob.name, knob])),
     [query.data],
