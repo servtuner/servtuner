@@ -1,6 +1,6 @@
 """The recommendation's notes and KV sizing."""
 
-from servtuner_api.managed_targets.spec import HostTargetSpec
+from servtuner_api.managed_targets.spec import HostTargetSpec, ManagedTargetSpec
 from servtuner_api.recommendation import recommend
 
 SPEC = HostTargetSpec.model_validate(
@@ -54,3 +54,33 @@ def test_no_sizing_without_a_logged_boot() -> None:
         boot_results=[],
     )
     assert (recommendation["notes"], recommendation["kv_sizing"]) == ([], None)
+
+
+def test_the_command_starts_each_server_its_own_way() -> None:
+    def command(spec: ManagedTargetSpec | HostTargetSpec, knob_args: list[str]) -> str:
+        best: dict[str, object] = {"config_id": "c-1", "knobs": {"vllm.max_num_seqs": 32}}
+        request = {"preset": "chat-short@1", "slos": {"ttft_p95": "500ms"}}
+        return recommend(
+            spec, request, best, confirmed=True, knob_args=knob_args, history=[], boot_results=[]
+        )["command"]
+
+    sglang = ManagedTargetSpec.model_validate(
+        {
+            "server": "sglang",
+            "image": "lmsysorg/sglang:v0.5.23-runtime",
+            "model": "Qwen/Qwen3-32B",
+            "served_model_name": "qwen",
+            "gpus": 1,
+            "cpu": "8",
+            "memory": "64Gi",
+            "base_flags": ["--context-length=32768"],
+            "model_cache": {"size": "100Gi"},
+        }
+    )
+    assert command(sglang, ["--max-running-requests=64", "--tp-size=1"]) == (
+        "python3 -m sglang.launch_server --model-path=Qwen/Qwen3-32B --served-model-name=qwen"
+        " --context-length=32768 --max-running-requests=64 --tp-size=1"
+    )
+    assert command(SPEC, ["--max-num-seqs=32"]) == (
+        "vllm serve Qwen/Qwen2.5-0.5B-Instruct --max-num-seqs=32"
+    )

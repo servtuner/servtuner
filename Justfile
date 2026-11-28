@@ -108,6 +108,11 @@ e2e-airgap version *flags:
 verify-release version *flags:
     PYTHONPATH=api uv run --project api python e2e/verify_release.py {{version}} {{flags}}
 
+# The tuning loop against the mock as a managed SGLang on kind (needs kube-prometheus-stack, as the
+# vLLM session does): boot probes, an infeasible tp=4 boot, runs, a recommendation and teardown.
+e2e-tuning-sglang:
+    PYTHONPATH=api uv run --project api python e2e/cluster.py tls-off --runner kubernetes --tuning --tuning-server sglang --image-tag {{image_tag}}
+
 # The managed vLLM from the UI on kind (Playwright, needs node and Chrome): add the mock as a
 # managed vLLM, deploy, read its log, redeploy, benchmark, tune and delete it. About 30 minutes.
 e2e-managed-ui:

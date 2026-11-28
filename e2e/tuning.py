@@ -53,6 +53,77 @@ SPACE: dict[str, Any] = {
     },
     "confirm": {"top": 2, "repeats": 2},
 }
+# The same session against the mock as a managed SGLang (deploy/mocks/README.md, "As SGLang"): it
+# fails to boot with --tp-size=4 (SGLang's empty-KV-pool message) and caps concurrency at
+# --max-running-requests, as the vLLM session's mock does at --max-num-seqs.
+SGLANG_TARGET_NAME = "sglang-mock"
+SGLANG_TARGET_ENV = {
+    "SGLANG_MOCK_BOOT_SECONDS": "5",
+    "SGLANG_MOCK_INFEASIBLE": "--tp-size=4",
+    "OPENAI_MOCK_TTFT": "100ms",
+    "OPENAI_MOCK_ITL": "2ms",
+}
+SGLANG_SPACE: dict[str, Any] = {
+    **SPACE,
+    "knobs": [
+        {"name": "sglang.tp_size", "tier": "feasibility", "values": [1, 4]},
+        {
+            "name": "sglang.max_running_requests",
+            "tier": "scheduler",
+            "min": 4,
+            "max": 64,
+            "default": 8,
+        },
+    ],
+}
+
+
+class ServerCase:
+    """What differs between the vLLM and the SGLang sessions: target, space and checks."""
+
+    def __init__(
+        self,
+        server: str,
+        name: str,
+        env: dict[str, str],
+        space: dict[str, Any],
+        parallel_knob: str,
+        infeasible_rule: str,
+        parallel_flag: str,
+        command: str,
+    ) -> None:
+        self.server, self.name, self.env, self.space = server, name, env, space
+        self.command = command
+        self.parallel_knob, self.infeasible_rule, self.parallel_flag = (
+            parallel_knob,
+            infeasible_rule,
+            parallel_flag,
+        )
+
+
+SERVER_CASES = {
+    "vllm": ServerCase(
+        "vllm",
+        TARGET_NAME,
+        TARGET_ENV,
+        SPACE,
+        "vllm.tensor_parallel_size",
+        "no-kv-blocks",
+        "--tensor-parallel-size=1",
+        "vllm serve mock/vllm ",
+    ),
+    "sglang": ServerCase(
+        "sglang",
+        SGLANG_TARGET_NAME,
+        SGLANG_TARGET_ENV,
+        SGLANG_SPACE,
+        "sglang.tp_size",
+        "kv-pool-empty",
+        "--tp-size=1",
+        "python3 -m sglang.launch_server --model-path=mock/sglang ",
+    ),
+}
+
 # Four runs of about four minutes, two boot probes and two deploys, with margin.
 SESSION_TIMEOUT_SECONDS = 50 * 60
 POLL_SECONDS = 15
@@ -74,20 +145,24 @@ def exercise_tuning(
     image: str,
     target_namespace: str,
     kubectl_output: Callable[..., str],
+    server: str = "vllm",
 ) -> str:
-    """Run one session end to end; returns a run id of the session for the UI check."""
+    """Run one session end to end against the mock as a managed vLLM (or SGLang, ``server``);
+    returns a run id of the session for the UI check."""
+    case = SERVER_CASES[server]
     created = api.post(
         "/managed-targets",
         json={
-            "name": TARGET_NAME,
+            "name": case.name,
             "namespace": target_namespace,
             "spec": {
+                "server": case.server,
                 "image": image,
-                "model": "mock/vllm",
+                "model": f"mock/{case.server}",
                 "gpus": 0,
                 "cpu": "500m",
                 "memory": "256Mi",
-                "env": TARGET_ENV,
+                "env": case.env,
                 "model_cache": {"size": "64Mi"},
             },
         },
@@ -103,7 +178,7 @@ def exercise_tuning(
             "managed_target_id": target["id"],
             "preset": "chat-short@1",
             "slos": {"ttft_p95": "2s", "e2e_p95": "30s"},
-            "space": SPACE,
+            "space": case.space,
             "budget": {"max_runs": 4, "max_hours": 1},
             "stage_duration": "60s",
             "warmup": "30s",
@@ -123,12 +198,12 @@ def exercise_tuning(
         if entry.get("boot_result", {}).get("outcome") == "infeasible"
     ]
     check(
-        any(result["knobs"].get("vllm.tensor_parallel_size") == 4 for result in infeasible),
+        any(result["knobs"].get(case.parallel_knob) == 4 for result in infeasible),
         f"the tp=4 boot is not recorded as infeasible: {session['history']}",
     )
     check(
-        all(result.get("reason", "").startswith("no-kv-blocks") for result in infeasible),
-        f"an infeasible boot has another rule than no-kv-blocks: {infeasible}",
+        all(result.get("reason", "").startswith(case.infeasible_rule) for result in infeasible),
+        f"an infeasible boot has another rule than {case.infeasible_rule}: {infeasible}",
     )
     run_ids = [run_id for entry in session["history"] for run_id in entry.get("run_ids", [])]
     check(bool(run_ids), f"the session ran nothing: {session['history']}")
@@ -136,7 +211,11 @@ def exercise_tuning(
     check("succeeded" in statuses.values(), f"no run of the session succeeded: {statuses}")
     recommendation = outcome.get("recommendation") or {}
     check(
-        "--tensor-parallel-size=1" in recommendation.get("command", ""),
+        recommendation.get("command", "").startswith(case.command),
+        f"the recommendation does not start {case.server} its own way: {outcome}",
+    )
+    check(
+        case.parallel_flag in recommendation.get("command", ""),
         f"the recommendation does not use the configuration that boots: {outcome}",
     )
     print(
@@ -147,7 +226,7 @@ def exercise_tuning(
     replicas = kubectl_output(
         "get",
         "deployment",
-        TARGET_NAME,
+        case.name,
         "-n",
         target_namespace,
         "-o",
@@ -155,7 +234,7 @@ def exercise_tuning(
     )
     check(
         replicas.strip() == "0",
-        f"the managed vLLM was not scaled to zero: replicas {replicas!r}",
+        f"the managed {case.server} was not scaled to zero: replicas {replicas!r}",
     )
     deleted = api.delete(f"/managed-targets/{target['id']}")
     check(
@@ -168,7 +247,7 @@ def exercise_tuning(
         "-n",
         target_namespace,
         "-l",
-        f"servtuner.dev/managed-target={TARGET_NAME}",
+        f"servtuner.dev/managed-target={case.name}",
         "-o",
         "name",
     )

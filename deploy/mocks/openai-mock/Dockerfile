@@ -12,6 +12,8 @@ COPY --from=build /openai-mock /openai-mock
 # The same binary as `vllm serve ...`: it emulates vLLM when invoked under that name (vllm.go), so a managed
 # target can run this image on kind.
 COPY --from=build /openai-mock /usr/local/bin/vllm
+# And as `python3 -m sglang.launch_server ...`: a managed SGLang (sglang_serve.go).
+COPY --from=build /openai-mock /usr/local/bin/python3
 USER nonroot:nonroot
 EXPOSE 8000
 ENTRYPOINT ["/openai-mock"]
