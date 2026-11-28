@@ -19,13 +19,6 @@ func newOpenAICompatibleAdapter() TargetAdapter {
 	return modelsAdapter{kubeReader{spec.TargetTypeOpenaiCompatible}, []string{CatalogKubernetes}}
 }
 
-// newSGLangAdapter is SGLang's adapter until its own exists: the model list,
-// the Kubernetes snapshot and the sglang catalog. The SGLang adapter (server
-// info and knobs) replaces it.
-func newSGLangAdapter() TargetAdapter {
-	return modelsAdapter{kubeReader{spec.TargetTypeSglang}, []string{CatalogSGLang, CatalogKubernetes}}
-}
-
 // Info implements TargetAdapter.
 func (a modelsAdapter) Info(ctx context.Context, endpoint Endpoint) (Info, error) {
 	info := Info{Knobs: Knobs{}}

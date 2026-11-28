@@ -141,7 +141,7 @@ bench/                       # Go module
                              #   TTFB comes from the worker's httptrace, TPOT from usage
       inferenceperf/         # renders inference-perf config, runs the pinned CLI, parses its reports
     target/                  # TargetAdapter: Snapshot(), Info(), DefaultCatalogs()
-                             #   vllm, litellm, bifrost, openaicompatible
+                             #   vllm, sglang, litellm, bifrost, openaicompatible
     prometheus/              # range queries, retries, /api/v1/targets, optional-catalog probing
       catalogs/*.yaml        # versioned PromQL (embedded with go:embed)
     tlsconfig/               # TLS on/off, client certificate, server clientAuth policy; trust = system pool + ca.crt
