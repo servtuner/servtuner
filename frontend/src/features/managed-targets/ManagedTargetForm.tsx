@@ -16,10 +16,11 @@ import {
   Textarea,
 } from "@mantine/core";
 import { useState } from "react";
-import { type ManagedTargetSave, useHosts, useKnobCatalog, useRunDefaults } from "../../api/hooks";
+import { type ManagedTargetSave, useHosts, useKnobCatalog, useManagedTargets, useRunDefaults } from "../../api/hooks";
 import type { HostCredentialSlot, ManagedTarget } from "../../api/types";
 import { FIELD_GRID_STYLE } from "../../components/layout";
 import { unknownFlags } from "../knobs/baseFlags";
+import { generateName } from "./names";
 import {
   type ModelServer,
   buildBody,
@@ -90,6 +91,11 @@ function FormBody({
     },
   });
   const isHost = state.placement === "host";
+  const targets = useManagedTargets();
+  const rename = () => {
+    const taken = (targets.data ?? []).map((target) => target.name);
+    setState((current) => ({ ...current, fields: { ...current.fields, name: generateName(taken) } }));
+  };
   const server = isHost ? "vllm" : state.server;
   const serverName = server === "sglang" ? "SGLang" : "vLLM";
   const knobCatalog = useKnobCatalog(server);
@@ -137,7 +143,18 @@ function FormBody({
         </Stack>
       )}
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
-        <TextInput label="Name" required {...field("name")} />
+        <TextInput
+          label="Name"
+          required
+          description={
+            existing ? undefined : (
+              <Anchor component="button" type="button" size="xs" onClick={rename}>
+                Pick another name
+              </Anchor>
+            )
+          }
+          {...field("name")}
+        />
         {!isHost && (
           <TextInput
             label="Namespace"

@@ -415,6 +415,7 @@ describe("managed server list", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Add a managed server" }));
+    await userEvent.clear(screen.getByLabelText(/^Name(?!space)/)); // replace the generated name
     await userEvent.type(screen.getByLabelText(/^Name(?!space)/), "llama");
     await userEvent.type(screen.getByLabelText(/^Namespace/), "servtuner-tune-llama");
     expect(screen.getByLabelText(/^Image/)).toHaveValue("vllm/vllm-openai:v0.34.0"); // the pinned version, prefilled
@@ -467,6 +468,7 @@ describe("managed server list", () => {
     await user.click(await screen.findByRole("button", { name: "Add a managed server" }));
     await user.click(screen.getByText("A host with servtuner launcher"));
     const fill = async (label: RegExp, value: string) => user.type(screen.getByLabelText(label), value);
+    await user.clear(screen.getByLabelText(/^Name(?!space)/)); // replace the generated name
     await fill(/^Name(?!space)/, "rtx");
     expect(screen.queryByLabelText(/^Namespace/)).toBeNull(); // a host's namespace is a metrics label, under Advanced
     await fill(/^Model/, "Qwen/Qwen2.5-0.5B-Instruct");

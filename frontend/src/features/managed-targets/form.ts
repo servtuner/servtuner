@@ -1,3 +1,4 @@
+import { generateName } from "./names";
 import { parseDocument, stringify } from "yaml";
 import type { HostCredentialSlot, ManagedTarget, ManagedTargetCreate } from "../../api/types";
 
@@ -151,7 +152,7 @@ export function initialState(
 ): FormState {
   if (!existing)
     return {
-      fields: { ...BLANK, image: withRegistry(VLLM_GPU_IMAGE, registry) },
+      fields: { ...BLANK, name: generateName(), image: withRegistry(VLLM_GPU_IMAGE, registry) },
       placement,
       server: "vllm",
       gpus: DEFAULT_GPUS,
