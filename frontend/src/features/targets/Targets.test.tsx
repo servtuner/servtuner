@@ -86,8 +86,8 @@ describe("targets", () => {
     const row = (await screen.findByRole("link", { name: "vllm-lan" })).closest("tr")!;
     expect(within(row).getByText("API key set")).toBeInTheDocument();
     expect(within(row).getByText("not checked")).toBeInTheDocument();
-    // A vLLM servtuner should deploy belongs under Managed vLLM; the page says so.
-    expect(screen.getAllByRole("link", { name: "Managed vLLM" })).toHaveLength(2); // nav and the hint
+    // A vLLM servtuner should deploy belongs under Managed Servers; the page says so.
+    expect(screen.getAllByRole("link", { name: "Managed Servers" })).toHaveLength(2); // nav and the hint
 
     await userEvent.click(screen.getByRole("button", { name: "New target" }));
     await userEvent.type(screen.getByLabelText(/^Name/), "litellm-prod");

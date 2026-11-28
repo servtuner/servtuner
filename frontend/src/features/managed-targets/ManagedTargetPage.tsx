@@ -39,7 +39,7 @@ import { ManagedTargetForm } from "./ManagedTargetForm";
 import { placementLine } from "./summary";
 
 /**
- * One managed vLLM: what servtuner deploys, whether it booted, and
+ * One managed server: what servtuner deploys, whether it booted, and
  * deploy, scale down and delete, so bringing a vLLM up never needs kubectl or curl.
  */
 export function ManagedTargetPage() {
@@ -58,7 +58,7 @@ function ManagedTargetView({ target }: { target: ManagedTarget }) {
   return (
     <Stack gap="lg">
       <Anchor component={Link} to="/managed-targets" size="sm">
-        All managed vLLMs
+        All managed servers
       </Anchor>
       <Group justify="space-between" align="flex-start" gap="md">
         <div>

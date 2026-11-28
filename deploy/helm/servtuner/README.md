@@ -91,7 +91,7 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_RUNS_NAMESPACE` | namespace for bench Jobs, ConfigMaps, Secrets | namespace name (release namespace by default) | api |
 | `SERVTUNER_BENCH_SERVICE_ACCOUNT` | ServiceAccount for bench Jobs | name | api (runner) |
 | `SERVTUNER_BENCH_IMAGE` | bench image for Jobs | image reference | api (runner) |
-| `SERVTUNER_IMAGE_REGISTRY` | `global.imageRegistry` without a trailing slash, or empty; offered as the registry of managed vLLM images | host[:port][/path] | api |
+| `SERVTUNER_IMAGE_REGISTRY` | `global.imageRegistry` without a trailing slash, or empty; offered as the registry of managed server images | host[:port][/path] | api |
 | `SERVTUNER_OFFLINE` | `offline`: no public datasheet fallback, AWS pricing refused; passed to bench Jobs | `true` / `false` | api, bench |
 | `SERVTUNER_BENCH_CPU`, `_MEMORY` | the bench pod's requests, equal to its limits (Guaranteed QoS); `bench.resources` | Kubernetes quantities; default `2`, `2Gi` | api (runner) |
 | `SERVTUNER_BENCH_TARGET_ANTI_AFFINITY` | keep the bench pod off the nodes of the workloads under test (`target.workload` and every upstream's); `bench.targetAntiAffinity` | `required` (default), `preferred` (single-node clusters) | api (runner) |
@@ -100,7 +100,7 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_IMAGE_PULL_SECRETS` | `global.imagePullSecrets` and `imagePullSecrets` names for bench pods, comma-separated, each once | names | api (runner) |
 | `SERVTUNER_DATA_FS_GROUP` | the bench pod's `fsGroup`, so it can write the data volume (`api.fsGroup`) | integer; default `10001` | api (runner) |
 | `SERVTUNER_PROMETHEUS_URL` | Prometheus base URL, used as a RunSpec default | URL | api, bench |
-| `SERVTUNER_TUNING_MONITOR` | How Prometheus finds a managed vLLM: `podmonitor` (Prometheus Operator) or `scrape-annotations` (community chart), from `tuning.monitor` | `podmonitor` \| `scrape-annotations` | api |
+| `SERVTUNER_TUNING_MONITOR` | How Prometheus finds a managed server: `podmonitor` (Prometheus Operator) or `scrape-annotations` (community chart), from `tuning.monitor` | `podmonitor` \| `scrape-annotations` | api |
 | `SERVTUNER_AUTH_MODE` | User auth: `local` checks every route; `none` checks nothing, the explicit opt-out | `local` (default) \| `none` | api |
 | `SERVTUNER_AUTH_METHODS` | How users sign in under `local`, in chain order | comma list of `local`, `forward_header`; default `local` | api |
 | `SERVTUNER_AUTH_SETUP_TOKEN_FILE` | The setup token that creates the first admin (read from a Secret file, never stored); without it no admin can be created | path | api |
@@ -113,7 +113,7 @@ releases (`deploy/helmfile.yaml`). The whole procedure is in `INSTALL.md`.
 | `SERVTUNER_AUTH_FORWARD_DISPLAY_NAME_HEADER` | Optional header with a new user's display name | header name | api |
 | `SERVTUNER_AUTH_FORWARD_EMAIL_HEADER` | Optional header with a new user's email | header name | api |
 | `SERVTUNER_AUTH_FORWARD_PROVISIONING` | What a forwarded subject with no servtuner user gets | `refuse` (default) \| `viewer` | api |
-| `SERVTUNER_TUNING_NAMESPACES` | Namespaces where managed vLLM targets may be stored and deployed, from `rbac.tuning.namespaces`; unset grants none | comma-separated names | api |
+| `SERVTUNER_TUNING_NAMESPACES` | Namespaces where managed server targets may be stored and deployed, from `rbac.tuning.namespaces`; unset grants none | comma-separated names | api |
 | `SERVTUNER_STORAGE_BACKEND` | bundle store | `file`, `s3` | api, bench |
 | `SERVTUNER_DATA_DIR` | data directory (file backend) | path | api, bench |
 | `SERVTUNER_DATA_CLAIM` | PVC to mount in Jobs at the data directory (file backend) | claim name | api (runner) |

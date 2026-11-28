@@ -42,7 +42,7 @@ const CAPACITY_FACTORS = [0.7, 1, 1.3];
 const STAGE_DURATION = "60s";
 
 /**
- * The template pointed at a managed vLLM: its run target and run labels (as the tuning loop's
+ * The template pointed at a managed server: its run target and run labels (as the tuning loop's
  * runs have them), the last deployment's knobs declared so bench checks them against what vLLM
  * really got, its host's prices (run_analysis), and, when an earlier run measured it,
  * stages around its SLO-max.

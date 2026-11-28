@@ -8,7 +8,7 @@ imagePullSecrets: []       # added to global.imagePullSecrets
 # Air-gapped and mirrored installs. imageRegistry replaces the registry host
 # of every image this chart renders and keeps its repository path, the way `hauler store copy` names
 # images: "ghcr.io/cloudnative-pg/postgresql:17" -> "<imageRegistry>/cloudnative-pg/postgresql:17".
-# The api also offers it as the default registry for managed vLLM images.
+# The api also offers it as the default registry for managed server images.
 global:
   imageRegistry: ""
   imagePullSecrets: []     # [{name: regcred}]
@@ -220,7 +220,7 @@ rbac:
   tuning:
     namespaces: []
 
-# Managed targets: how Prometheus finds a managed vLLM. podmonitor needs the
+# Managed targets: how Prometheus finds a managed server. podmonitor needs the
 # Prometheus Operator; scrape-annotations labels the pod servtuner.dev/scrape=true for the community chart's
 # servtuner-targets job (deploy/prometheus/), which cannot verify a tls target, so tls needs podmonitor.
 tuning:

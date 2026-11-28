@@ -21,7 +21,7 @@ describe("run overview", () => {
     expect(within(invalidStage).getAllByText("n/a")).toHaveLength(2);
   });
 
-  it("links the run to its managed vLLM and tuning session, from its labels", async () => {
+  it("links the run to its managed server and tuning session, from its labels", async () => {
     const labelled = {
       ...succeededRunDetail,
       labels: {

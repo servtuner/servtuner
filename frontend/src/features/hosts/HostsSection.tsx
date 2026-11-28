@@ -6,7 +6,7 @@ import { QueryError } from "../../components/QueryError";
 import { HostForm } from "./HostForm";
 import { hardwareLine, priceLine } from "./summary";
 
-/** The machines managed vLLMs run on: each recorded once, with its hardware and price. */
+/** The machines managed servers run on: each recorded once, with its hardware and price. */
 export function HostsSection() {
   const hosts = useHosts();
   const create = useSaveHost();

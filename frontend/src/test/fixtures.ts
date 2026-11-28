@@ -154,7 +154,7 @@ export const workloadPresets: WorkloadPreset[] = [
   },
 ];
 
-/** A Kubernetes managed vLLM, never deployed. */
+/** A Kubernetes managed server, never deployed. */
 export const managedTarget: ManagedTarget = {
   id: "01JMANAGED0000000000000000A",
   name: "qwen",

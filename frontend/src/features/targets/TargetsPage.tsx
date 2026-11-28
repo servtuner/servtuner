@@ -52,7 +52,7 @@ export function TargetsPage() {
         These are systems someone else deploys (a router, an API, a vLLM you run yourself). To have servtuner deploy a
         vLLM and change its flags for you, add it under{" "}
         <Anchor component={Link} to="/managed-targets">
-          Managed vLLM
+          Managed Servers
         </Anchor>
         .
       </Text>

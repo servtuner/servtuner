@@ -90,7 +90,7 @@ describe("tuning", () => {
     expect(screen.getByRole("link", { name: "New session" })).not.toHaveAttribute("data-disabled");
   });
 
-  it("sends a user with no managed vLLM to add one first", async () => {
+  it("sends a user with no managed server to add one first", async () => {
     server.use(
       http.get(`${API}/tuning-sessions`, () => HttpResponse.json([])),
       http.get(`${API}/managed-targets`, () => HttpResponse.json([])),

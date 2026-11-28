@@ -131,7 +131,7 @@ ENV_PROMETHEUS_URL = "SERVTUNER_PROMETHEUS_URL"
 
 
 # Air-gapped installs: the registry the chart rewrote every image to (offered as the
-# managed vLLM image registry), and whether the install has no internet access.
+# managed server image registry), and whether the install has no internet access.
 ENV_IMAGE_REGISTRY = "SERVTUNER_IMAGE_REGISTRY"
 ENV_OFFLINE = "SERVTUNER_OFFLINE"
 
@@ -141,7 +141,7 @@ ENV_OFFLINE = "SERVTUNER_OFFLINE"
 ENV_TUNING_NAMESPACES = "SERVTUNER_TUNING_NAMESPACES"
 
 
-# How Prometheus finds a managed vLLM: podmonitor (the Prometheus Operator, the default) or
+# How Prometheus finds a managed server: podmonitor (the Prometheus Operator, the default) or
 # scrape-annotations (the community chart's servtuner-targets job), from tuning.monitor.
 ENV_TUNING_MONITOR = "SERVTUNER_TUNING_MONITOR"
 

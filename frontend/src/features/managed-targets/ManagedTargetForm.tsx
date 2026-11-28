@@ -47,7 +47,7 @@ type FieldProps = {
 type Field = (key: keyof FormFields) => FieldProps;
 
 /**
- * Create or edit a managed vLLM: on Kubernetes, in a namespace the chart granted, or on a
+ * Create or edit a managed server: on Kubernetes, in a namespace the chart granted, or on a
  * host through its servtuner launcher.
  */
 type FormProps = {
@@ -401,7 +401,7 @@ function HostFields({
       <SimpleGrid cols={{ base: 1, md: 2 }} style={FIELD_GRID_STYLE}>
         <Select
           label="Host"
-          description="The machine it runs on: its hardware and price (Hosts, below the managed vLLMs)"
+          description="The machine it runs on: its hardware and price (Hosts, below the managed servers)"
           placeholder={hosts.data?.length ? "None" : "No host saved yet"}
           clearable
           data={(hosts.data ?? []).map((host) => ({ value: host.id, label: host.name }))}

@@ -22,7 +22,7 @@ import { UsersPage } from "../features/users/UsersPage";
 import { Layout } from "./Layout";
 import { NotFoundPage } from "./NotFoundPage";
 
-// / is the overview (managed vLLMs, tuning, recent runs).
+// / is the overview (managed servers, tuning, recent runs).
 export const routes: RouteObject[] = [
   {
     element: <Layout />,

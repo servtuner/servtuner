@@ -15,7 +15,7 @@ const RECENT_RUNS = 5;
 const RECENT_SESSIONS = 3;
 
 /**
- * The home page: what servtuner deploys and what it is doing. Managed vLLMs with their state, the
+ * The home page: what servtuner deploys and what it is doing. Managed servers with their state, the
  * tuning sessions (active ones first), and the newest runs, each linking to its own page.
  */
 export function OverviewPage() {
@@ -61,7 +61,7 @@ function ManagedVllms() {
   const targets = useManagedTargets();
   return (
     <Section
-      title="Managed vLLM"
+      title="Managed Servers"
       to="/managed-targets"
       action={
         <Group gap="xs">

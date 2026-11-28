@@ -67,7 +67,7 @@ Each folder has its own `CLAUDE.md` that covers its purpose and design.
      is an explicit, per-connection opt-in. What each connection did is
      recorded in every run, and TLS settings never appear on a connection
      without TLS.
-   - Every service has its own certificate. A managed vLLM is plain HTTP by
+   - Every service has its own certificate. A managed server is plain HTTP by
      default, with TLS (no client certificates yet) as its opt-in.
    - Certificates come from `kubernetes.io/tls` Secrets, issued by cert-manager
      or named by the user. Components read files only.
