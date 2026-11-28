@@ -11,6 +11,7 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +44,17 @@ var (
 	VLLMQueueTime    = ref(spec.CatalogNameVllm, "queue_time_seconds")
 	VLLMPrefillTime  = ref(spec.CatalogNameVllm, "prefill_time_seconds")
 	VLLMDecodeTime   = ref(spec.CatalogNameVllm, "decode_time_seconds")
+
+	// SGLang's counterparts, read when a run has no vLLM series. Scheduler
+	// series (running, queue, token usage, retractions) are per rank; the
+	// Deriver keeps one TP rank per pod and DP group (sglangPrimaryRanks).
+	SGLangRunning    = ref(spec.CatalogNameSglang, "num_running_reqs")
+	SGLangQueue      = ref(spec.CatalogNameSglang, "num_queue_reqs")
+	SGLangTokenUsage = ref(spec.CatalogNameSglang, "token_usage")
+	SGLangRetracted  = ref(spec.CatalogNameSglang, "num_retracted_requests_total")
+	SGLangGenerated  = ref(spec.CatalogNameSglang, "generation_tokens_total")
+	SGLangPrompt     = ref(spec.CatalogNameSglang, "prompt_tokens_total")
+	SGLangCached     = ref(spec.CatalogNameSglang, "cached_tokens_total")
 
 	LiteLLMQueueTime = ref(spec.CatalogNameLitellm, "request_queue_time_seconds")
 	BifrostActive    = ref(spec.CatalogNameBifrost, "active_requests")
@@ -174,19 +186,36 @@ func (d *Deriver) Signal(signal input.Signal) ([]input.Sample, bool, error) {
 	case input.Restarts:
 		samples, err = d.combined(PodRestarts, d.isTarget, total)
 	case input.RequestsRunning:
-		samples, err = d.combined(VLLMRunning, d.isTargetOrUnlabelled, total)
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.combined(VLLMRunning, d.isTargetOrUnlabelled, total) },
+			func() ([]input.Sample, error) { return d.sglangCombined(SGLangRunning, total) })
 	case input.GenerationTokens:
-		samples, err = d.cumulative(VLLMGenerated, "")
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.cumulative(VLLMGenerated, "") },
+			func() ([]input.Sample, error) { return d.cumulative(SGLangGenerated, "") })
 	case input.RequestsWaiting:
-		samples, err = d.combined(VLLMWaiting, d.isTargetOrUnlabelled, total)
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.combined(VLLMWaiting, d.isTargetOrUnlabelled, total) },
+			func() ([]input.Sample, error) { return d.sglangCombined(SGLangQueue, total) })
 	case input.PrefixCacheHits:
-		samples, err = d.cumulative(VLLMPrefixHits, "")
+		// SGLang's cached prompt tokens and prompt tokens are vLLM's prefix
+		// cache hits and queries: both count tokens.
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.cumulative(VLLMPrefixHits, "") },
+			func() ([]input.Sample, error) { return d.cumulative(SGLangCached, "") })
 	case input.PrefixCacheQueries:
-		samples, err = d.cumulative(VLLMPrefixQuery, "")
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.cumulative(VLLMPrefixQuery, "") },
+			func() ([]input.Sample, error) { return d.cumulative(SGLangPrompt, "") })
 	case input.Preemptions:
-		samples, err = d.cumulative(VLLMPreemptions, "")
+		// SGLang retracts a running request where vLLM preempts it.
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.cumulative(VLLMPreemptions, "") },
+			func() ([]input.Sample, error) { return d.sglangCumulative(SGLangRetracted) })
 	case input.KVCacheUsage:
-		samples, err = d.combined(VLLMKVCacheUsage, d.isTargetOrUnlabelled, largest)
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.combined(VLLMKVCacheUsage, d.isTargetOrUnlabelled, largest) },
+			func() ([]input.Sample, error) { return d.sglangCombined(SGLangTokenUsage, largest) })
 	case input.QueueSecondsSum:
 		samples, err = d.cumulative(LiteLLMQueueTime, "_sum")
 	case input.QueueCount:
@@ -202,7 +231,9 @@ func (d *Deriver) Signal(signal input.Signal) ([]input.Sample, bool, error) {
 	case input.GPUMemoryFreeFraction:
 		samples, err = d.framebufferFree()
 	case input.PromptTokens:
-		samples, err = d.cumulative(VLLMPromptTokens, "")
+		samples, err = d.eitherServer(
+			func() ([]input.Sample, error) { return d.cumulative(VLLMPromptTokens, "") },
+			func() ([]input.Sample, error) { return d.cumulative(SGLangPrompt, "") })
 	case input.VLLMQueueSecondsSum:
 		samples, err = d.cumulative(VLLMQueueTime, "_sum")
 	case input.VLLMQueueCount:
@@ -524,4 +555,81 @@ func flatten(byTime map[time.Time][]float64, op func([]float64) float64) []input
 	}
 	sort.Slice(samples, func(i, j int) bool { return samples[i].At.Before(samples[j].At) })
 	return samples
+}
+
+// eitherServer is the vLLM derivation, or the SGLang one when vLLM's series
+// are empty: a run has one model server, so at most one of them has data.
+func (d *Deriver) eitherServer(vllm, sglang func() ([]input.Sample, error)) ([]input.Sample, error) {
+	samples, err := vllm()
+	if err != nil || len(samples) > 0 {
+		return samples, err
+	}
+	return sglang()
+}
+
+// sglangPrimaryRanks keeps the target's series of an SGLang scheduler entry,
+// one per pod and DP group: the lowest TP rank. The TP ranks of a group report
+// the same batch, so summing them would count it once per rank.
+func (d *Deriver) sglangPrimaryRanks(entry input.SeriesRef) ([]input.Series, error) {
+	series, err := d.matrix(entry)
+	if err != nil {
+		return nil, err
+	}
+	group := func(labels map[string]string) string { return labels["pod"] + "\x00" + labels["dp_rank"] }
+	rank := func(labels map[string]string) int {
+		value, err := strconv.Atoi(labels["tp_rank"])
+		if err != nil {
+			return 0
+		}
+		return value
+	}
+	primary := map[string]int{}
+	for _, one := range series {
+		if !d.isTargetOrUnlabelled(one.Labels) {
+			continue
+		}
+		key := group(one.Labels)
+		if current, seen := primary[key]; !seen || rank(one.Labels) < current {
+			primary[key] = rank(one.Labels)
+		}
+	}
+	var kept []input.Series
+	taken := map[string]bool{}
+	for _, one := range series {
+		key := group(one.Labels)
+		if !d.isTargetOrUnlabelled(one.Labels) || taken[key] || rank(one.Labels) != primary[key] {
+			continue
+		}
+		taken[key] = true
+		kept = append(kept, one)
+	}
+	return kept, nil
+}
+
+// sglangCombined merges an SGLang scheduler gauge's primary ranks, timestamp
+// by timestamp, with op.
+func (d *Deriver) sglangCombined(entry input.SeriesRef, op func([]float64) float64) ([]input.Sample, error) {
+	series, err := d.sglangPrimaryRanks(entry)
+	if err != nil {
+		return nil, err
+	}
+	chosen := make([][]input.Sample, 0, len(series))
+	for _, one := range series {
+		chosen = append(chosen, one.Samples)
+	}
+	return merge(chosen, op), nil
+}
+
+// sglangCumulative is cumulative over an SGLang scheduler counter's primary
+// ranks.
+func (d *Deriver) sglangCumulative(entry input.SeriesRef) ([]input.Sample, error) {
+	series, err := d.sglangPrimaryRanks(entry)
+	if err != nil {
+		return nil, err
+	}
+	totals := make([][]input.Sample, 0, len(series))
+	for _, one := range series {
+		totals = append(totals, runningTotal(one.Samples))
+	}
+	return mergeCarryForward(totals), nil
 }
