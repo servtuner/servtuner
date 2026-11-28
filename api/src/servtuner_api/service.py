@@ -57,6 +57,7 @@ from servtuner_api.models import (
     validate,
 )
 from servtuner_api.models.generated.bundle.recommendations_schema import Recommendation
+from servtuner_api.models.generated.knob_catalog_schema import Server as KnobServer
 from servtuner_api.planner import Planner
 from servtuner_api.price_book import PriceBookService
 from servtuner_api.records.base import (
@@ -349,9 +350,9 @@ class RunService:
         """The workload presets the bench binary carries."""
         return self._validator.workload_presets()
 
-    def knob_catalog(self) -> KnobCatalog:
-        """Every vLLM flag as a knob, from vLLM's source at the pinned version."""
-        return self._validator.knob_catalog()
+    def knob_catalog(self, server: KnobServer = KnobServer.vllm) -> KnobCatalog:
+        """Every flag of a model server as a knob, from its source at the pinned version."""
+        return self._validator.knob_catalog(server)
 
     def search_space_templates(self) -> list[SearchSpaceTemplate]:
         """The starting search spaces the bench binary carries."""

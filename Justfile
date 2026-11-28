@@ -51,6 +51,12 @@ jscpd:
 vllm-catalog vllm_src venv version:
     VLLM_TARGET_DEVICE=cpu {{venv}}/bin/python -I tools/vllm-catalog/dump.py {{vllm_src}} {{version}} > bench/internal/target/vllm_catalog.json
 
+# Regenerate bench's SGLang knob catalog from SGLang's own field declarations when the pinned SGLang
+# changes. Dev-time only, never in CI: it needs an SGLang checkout at the tag (git clone --branch
+# v0.5.23 https://github.com/sgl-project/sglang). It parses the source; it imports neither SGLang nor torch.
+sglang-catalog sglang_src version:
+    python3 -I tools/sglang-catalog/dump.py {{sglang_src}} {{version}} > bench/internal/target/sglang_catalog.json
+
 # Local end to end, no cluster: Postgres container + api + the real bench binary (needs docker, go, openssl).
 e2e-local-mutual-tls: (_e2e-local "mutual-tls")
 e2e-local-tls-off: (_e2e-local "tls-off")

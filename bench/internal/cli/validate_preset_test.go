@@ -94,7 +94,27 @@ func TestKnobsPrintsTheCatalog(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.stdout), &printed); err != nil {
 		t.Fatal(err)
 	}
-	if printed.VllmVersion == "" || len(printed.Knobs) < 250 {
-		t.Errorf("vLLM %q, %d knobs: want every single-value flag of the pinned version", printed.VllmVersion, len(printed.Knobs))
+	if printed.Server != spec.KnobCatalogServerVllm || printed.Version == "" || len(printed.Knobs) < 250 {
+		t.Errorf("%s %q, %d knobs: want every single-value vLLM flag of the pinned version", printed.Server, printed.Version, len(printed.Knobs))
+	}
+}
+
+func TestKnobsPrintsSGLangsCatalog(t *testing.T) {
+	got := run("knobs", "--server", "sglang")
+	if got.code != ExitOK {
+		t.Fatalf("exit %d: %s", got.code, got.stderr)
+	}
+	if err := spec.Validate(spec.SchemaKnobCatalog, []byte(got.stdout)); err != nil {
+		t.Fatalf("breaks its schema: %v", err)
+	}
+	var printed spec.KnobCatalog
+	if err := json.Unmarshal([]byte(got.stdout), &printed); err != nil {
+		t.Fatal(err)
+	}
+	if printed.Server != spec.KnobCatalogServerSglang || printed.Version != "v0.5.23" || len(printed.Knobs) < 300 {
+		t.Errorf("%s %q, %d knobs", printed.Server, printed.Version, len(printed.Knobs))
+	}
+	if got := run("knobs", "--server", "tgi"); got.code == ExitOK {
+		t.Error("an unknown server must fail")
 	}
 }

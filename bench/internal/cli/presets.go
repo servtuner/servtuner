@@ -39,18 +39,24 @@ func newSpacesCommand(streams streams) *cobra.Command {
 }
 
 func newKnobsCommand(streams streams) *cobra.Command {
-	return &cobra.Command{
-		Use:   "knobs",
-		Short: "Print every vLLM flag as a knob, with vLLM's own description and limits, as JSON",
-		Long: "Prints the knob catalog embedded in this binary as one KnobCatalog " +
-			"document: every vllm serve flag with its label, kind, default, choices and limits, read " +
-			"from vLLM's source at the pinned version, marking the knobs servtuner captures and tunes. " +
-			"The api serves it at GET /knobs, so the catalog has one source.",
+	server := string(spec.KnobCatalogServerVllm)
+	command := &cobra.Command{
+		Use:   "knobs [--server vllm|sglang]",
+		Short: "Print every flag of a model server as a knob, with the server's own description and limits, as JSON",
+		Long: "Prints a knob catalog embedded in this binary as one KnobCatalog document: every " +
+			"flag of vllm serve (the default) or of SGLang's server (--server sglang) that is a knob, with " +
+			"its label, kind, default, choices and limits, read from the server's source at the pinned " +
+			"version, marking the knobs servtuner captures and tunes. The api serves it at " +
+			"GET /knobs[?server=sglang], so each catalog has one source.",
 		Args: cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
-			return printCatalog(streams, "knob catalog", target.KnobCatalog)
+			return printCatalog(streams, "knob catalog", func() (spec.KnobCatalog, error) {
+				return target.KnobCatalogFor(spec.KnobCatalogServer(server))
+			})
 		},
 	}
+	command.Flags().StringVar(&server, "server", server, "the model server: vllm or sglang")
+	return command
 }
 
 // printCatalog writes an embedded catalog as one JSON line.

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from servtuner_api.errors import ForeignStoreError, InvalidDocumentError, UnknownRunsError
 from servtuner_api.models import KnobCatalog, Plan, SearchSpaceTemplate, WorkloadPreset
+from servtuner_api.models.generated.knob_catalog_schema import Server as KnobServer
 from servtuner_api.planner import MissingCapacityModelError, PlanError, PlannerUnavailableError
 from servtuner_api.resources.planning import PlanCreate, ScenarioCreate, ScenarioResource
 from servtuner_api.resources.runs import RunDefaults, SpecValidationResource
@@ -105,12 +106,12 @@ async def validate_spec(request: Request, service: Service) -> SpecValidationRes
 
 
 @router.get("/knobs", response_model_exclude_none=True)
-def knob_catalog(service: Service) -> KnobCatalog:
-    """Every vLLM flag as a knob: label, kind, default, limits and vLLM's own description,
-    read from vLLM's source at the pinned version. Built-in knobs are the
-    ones servtuner captures from a running target."""
+def knob_catalog(service: Service, server: KnobServer = KnobServer.vllm) -> KnobCatalog:
+    """Every flag of a model server (vllm, the default, or sglang) as a knob: label, kind,
+    default, limits and the server's own description, read from its source at the pinned
+    version. Built-in knobs are the ones servtuner captures from a running target."""
     try:
-        return service.knob_catalog()
+        return service.knob_catalog(server)
     except ValidatorUnavailableError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
 
