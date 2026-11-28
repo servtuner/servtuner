@@ -132,7 +132,7 @@ images-check:
     python3 deploy/release/images.py check
 
 # A release for installs with or without internet access: dist/servtuner-<version>/ with the
-# core Hauler archive, SHA256SUMS, THIRD_PARTY_NOTICES and INSTALL.md; --with-vllm adds the vLLM archive,
+# core Hauler archive, SHA256SUMS, THIRD_PARTY_NOTICES and INSTALL.md; --with-vllm adds the vLLM archive, --with-sglang the SGLang one,
 # --with-flashinfer [--sm sm90a ...] FlashInfer's GPU kernels for a host's vLLM or a custom image.
 release version *flags:
     deploy/release/build.sh {{version}} {{flags}}

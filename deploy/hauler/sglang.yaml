@@ -1,0 +1,9 @@
+# The optional SGLang archive: the managed SGLang image.
+# Generated from deploy/release/images.lock by `just images-lock`; never edit by hand.
+apiVersion: content.hauler.cattle.io/v1
+kind: Images
+metadata:
+  name: servtuner-sglang
+spec:
+  images:
+    - name: docker.io/lmsysorg/sglang:v0.5.23-runtime@sha256:354700f4404ab0b8dcb493bc61d5d11e7c2a91f3a7babb4efe741cb75d4b51c0

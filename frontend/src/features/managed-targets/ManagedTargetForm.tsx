@@ -37,6 +37,7 @@ import {
   VLLM_CPU_IMAGE,
   withRegistry,
   withLauncherUrl,
+  withServer,
 } from "./form";
 
 type FieldProps = {
@@ -121,7 +122,7 @@ function FormBody({
           </Text>
           <SegmentedControl
             value={state.server}
-            onChange={(value) => update({ server: value as ModelServer })}
+            onChange={(value) => setState((current) => withServer(current, value as ModelServer, registry))}
             data={[
               { value: "vllm", label: "vLLM" },
               { value: "sglang", label: "SGLang" },
