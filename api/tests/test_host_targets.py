@@ -94,7 +94,7 @@ def deployer(tmp_path: Path, launcher: FakeLauncher, view: Any = None) -> Launch
     store = FileSecretStore(tmp_path / "store")
     store.put("launcher-token", {"token": TOKEN}, "target")
     return LauncherDeployer(
-        render_knobs=lambda knobs: (
+        render_knobs=lambda knobs, server: (
             [f"--max-num-seqs={knobs['vllm.max_num_seqs']}"] if knobs else []
         ),
         checker=FakeChecker(view or check_view("ok")),

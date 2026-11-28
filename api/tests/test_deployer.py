@@ -20,6 +20,7 @@ from servtuner_api.deployer.boot import (
 )
 from servtuner_api.deployer.kubernetes import Deployer, LightkubeManagedCluster
 from servtuner_api.deployer.manifests import render_manifests, serving_args
+from servtuner_api.managed_targets.runs import run_target
 from servtuner_api.managed_targets.spec import ManagedTargetSpec
 from servtuner_api.resources.targets import TargetCheckView
 from servtuner_api.secret_store import FileSecretStore
@@ -49,7 +50,7 @@ TLS = ManagedTargetSpec.model_validate(
 def deployer(cluster: FakeCluster, tmp_path: Path, view: TargetCheckView | None = None) -> Deployer:
     return Deployer(
         cluster=cluster,
-        render_knobs=lambda knobs: list(KNOB_ARGS),
+        render_knobs=lambda knobs, server: list(KNOB_ARGS),
         checker=FakeChecker(view or check_view("ok")),
         store=FileSecretStore(tmp_path / "store"),
         prometheus={"url": "http://prometheus.example:9090", "tls": {"enabled": False}},
@@ -692,3 +693,77 @@ def test_a_reason_leaves_out_developer_links() -> None:
     assert user_facing(line).endswith("input_type=ArgsKwargs]")
     assert user_facing("see (https://docs.vllm.ai/en/latest/x.html) for more") == "see for more"
     assert user_facing("no links here") == "no links here"
+
+
+SGLANG: dict[str, Any] = BASE | {
+    "server": "sglang",
+    "image": "lmsysorg/sglang:v0.5.23",
+    "base_flags": ["--context-length=32768"],
+}
+
+
+def test_a_stored_target_without_a_server_is_vllm() -> None:
+    assert PLAIN.server == "vllm"
+    assert container(render_manifests(NAME, NAMESPACE, PLAIN, []))["command"] == ["vllm", "serve"]
+
+
+def test_sglang_manifests_run_its_server_with_metrics_on() -> None:
+    spec = ManagedTargetSpec.model_validate(SGLANG | {"served_model_name": "qwen"})
+    args = serving_args(NAME, spec, ["--mem-fraction-static=0.8"])
+    assert args == [
+        "--model-path=Qwen/Qwen3-32B",
+        "--host=0.0.0.0",
+        "--port=8000",
+        "--download-dir=/models/hf",
+        "--enable-metrics",
+        "--served-model-name=qwen",
+        "--context-length=32768",
+        "--mem-fraction-static=0.8",
+    ]
+    serving = container(render_manifests(NAME, NAMESPACE, spec, args))
+    assert serving["command"] == ["python3", "-m", "sglang.launch_server"]
+    assert serving["args"] == args
+    # /health answers 503 while SGLang starts, so the probes work as they do for vLLM.
+    assert serving["startupProbe"]["httpGet"]["path"] == "/health"
+
+
+def test_sglang_tls_is_a_reloaded_server_certificate() -> None:
+    spec = ManagedTargetSpec.model_validate(
+        SGLANG
+        | {
+            "transport": {
+                "enabled": True,
+                "issuer": {"kind": "ClusterIssuer", "name": "servtuner-ca"},
+            }
+        }
+    )
+    args = serving_args(NAME, spec, [])
+    assert "--ssl-certfile=/etc/servtuner/tls/tls.crt" in args
+    assert "--enable-ssl-refresh" in args
+    assert not any(flag.startswith("--ssl-ca-certs") for flag in args)
+
+
+@pytest.mark.parametrize(
+    ("change", "problem"),
+    [
+        ({"base_flags": ["--port=9000"]}, "servtuner sets --port itself"),
+        ({"base_flags": ["--model-path=x"]}, "servtuner sets --model-path itself"),
+        ({"base_flags": ["--enable-metrics"]}, "servtuner sets --enable-metrics itself"),
+        (
+            {
+                "model_cache": None,
+                "model_source": {"kind": "object_store", "uri": "s3://weights/qwen"},
+            },
+            "cannot stream from an object store",
+        ),
+    ],
+)
+def test_sglang_refuses_owned_flags_and_streaming(change: dict[str, Any], problem: str) -> None:
+    with pytest.raises(ValidationError, match=problem):
+        ManagedTargetSpec.model_validate(SGLANG | change)
+
+
+def test_a_managed_sglangs_runs_name_an_sglang_target() -> None:
+    target = run_target(NAME, NAMESPACE, ManagedTargetSpec.model_validate(SGLANG))
+    assert target["type"] == "sglang"
+    assert run_target(NAME, NAMESPACE, PLAIN)["type"] == "vllm"

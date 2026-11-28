@@ -64,7 +64,7 @@ class LauncherCheck:
 class LauncherDeployer(BootProbes):
     """Deploys a host target through its ``servtuner launcher``: same interface as ``Deployer``."""
 
-    render_knobs: Callable[[Mapping[str, Any]], list[str]]
+    render_knobs: Callable[[Mapping[str, Any], str], list[str]]
     checker: Checker
     store: SecretStore | None
     prometheus: dict[str, Any] | None = None
@@ -76,7 +76,7 @@ class LauncherDeployer(BootProbes):
         self, name: str, namespace: str, any_spec: AnySpec, knobs: Mapping[str, Any]
     ) -> list[str]:
         spec = host_spec(any_spec)
-        args = host_args(spec, self.render_knobs(knobs))
+        args = host_args(spec, self.render_knobs(knobs, "vllm"))  # host targets run vLLM
         env = offline_env(spec.env, self.offline)
         response = self._call(spec, "PUT", "/vllm", json={"args": args, "env": env})
         if response.status_code == HTTP_BAD_REQUEST:

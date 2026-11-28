@@ -161,6 +161,7 @@ export const managedTarget: ManagedTarget = {
   namespace: "servtuner-tune-qwen",
   spec: {
     placement: "kubernetes",
+    server: "vllm",
     image: "vllm/vllm-openai:v0.34.0",
     model: "Qwen/Qwen3-32B",
     gpus: 2,

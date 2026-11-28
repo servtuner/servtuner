@@ -157,7 +157,7 @@ GET    /runs/{id}/datasheet       the uploaded datasheet for that run's bench: r
 GET    /workload-presets          `servtuner presets`: the preset catalog bench carries, read once (503 without a bench binary)
 GET    /knobs                     `servtuner knobs`: every vLLM flag that is a knob, with vLLM's own description and limits
 GET    /search-spaces             `servtuner spaces`: the starting search spaces, read once, the same way
-GET    /managed-targets           and POST, GET/PUT/DELETE /managed-targets/{id}: vLLM templates servtuner deploys
+GET    /managed-targets           and POST, GET/PUT/DELETE /managed-targets/{id}: vLLM (or, with spec.server sglang, SGLang) templates servtuner deploys
                                   (each carries run_labels, the label its runs and its sessions' runs get); only in SERVTUNER_TUNING_NAMESPACES; one per namespace
                                   spec.model_source: hub (default), mirror (HF_ENDPOINT), pvc (a seeded claim, never
                                   deleted) or object_store (vLLM streams s3/gs/az weights; keys by Secret name);

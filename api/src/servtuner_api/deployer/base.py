@@ -102,22 +102,23 @@ class Readiness:
     check: Any = None
 
 
-def bench_vllm_args(bench_binary: Path) -> Callable[[Mapping[str, Any]], list[str]]:
-    """Render knobs through ``servtuner vllm-args`` (bench's knob table, the one source)."""
+def bench_server_args(bench_binary: Path) -> Callable[[Mapping[str, Any], str], list[str]]:
+    """Render knobs through ``servtuner server-args`` (bench's knob tables, the one source):
+    vLLM's, or SGLang's catalog."""
 
-    def render(knobs: Mapping[str, Any]) -> list[str]:
+    def render(knobs: Mapping[str, Any], server: str = "vllm") -> list[str]:
         with tempfile.TemporaryDirectory(prefix="servtuner-knobs-") as directory:
             path = Path(directory) / "knobs.json"
             path.write_text(json.dumps(dict(knobs)))
             completed = subprocess.run(  # noqa: S603 - the binary path is operator configuration
-                [str(bench_binary), "vllm-args", "--knobs", str(path)],
+                [str(bench_binary), "server-args", "--server", server, "--knobs", str(path)],
                 capture_output=True,
                 text=True,
                 timeout=VLLM_ARGS_TIMEOUT_SECONDS,
                 check=False,
             )
         if completed.returncode != 0:
-            lines = completed.stderr.strip().splitlines() or ["servtuner vllm-args failed"]
+            lines = completed.stderr.strip().splitlines() or ["servtuner server-args failed"]
             raise DeployInputError([error_message(line) for line in lines])
         args: list[str] = json.loads(completed.stdout)
         return args

@@ -109,7 +109,7 @@ def run_target(
         else {"enabled": False}
     )
     return {
-        "type": "vllm",
+        "type": spec.server,
         "endpoint": f"{scheme}://{name}.{namespace}.svc:{SERVING_PORT}/v1",
         "model": spec.served_model_name or spec.model,
         "workload": {"namespace": namespace, "selector": {MANAGED_TARGET_LABEL: name}},

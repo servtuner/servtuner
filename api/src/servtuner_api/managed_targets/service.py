@@ -287,7 +287,9 @@ class ManagedTargetService:
     def knob_args(self, target_id: str, knobs: Mapping[str, Any]) -> list[str]:
         """The flags of a knob set, from bench's knob table (for the recommendation)."""
         row = self.get(target_id)
-        return self._require_deployer(parse_spec(row.spec)).render_knobs(knobs)
+        spec = parse_spec(row.spec)
+        server = spec.server if isinstance(spec, ManagedTargetSpec) else "vllm"
+        return self._require_deployer(spec).render_knobs(knobs, server)
 
     def _require_host_deployer(self) -> LauncherDeployer:
         if self._host_deployer is None:
