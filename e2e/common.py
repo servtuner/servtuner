@@ -227,12 +227,14 @@ def exercise_schedule(
     client: httpx2.Client,
     mode: Security,
     timeout_seconds: float = SCHEDULE_TIMEOUT_SECONDS,
+    spec: dict[str, Any] | None = None,
 ) -> str:
     """Create a schedule due now and wait for the api's scheduler to launch and finish its run.
 
     The scheduler wakes every 30 s, so this proves the loop itself, not only the routes.
+    ``spec`` is the schedule's RunSpec; by default the mode's schema example, as in exercise_run.
     """
-    spec = json.loads(example_bytes("runspec", "valid", EXAMPLE_FOR_MODE[mode]))
+    spec = spec or json.loads(example_bytes("runspec", "valid", EXAMPLE_FOR_MODE[mode]))
     created = client.post("/schedules", json={"name": "e2e", "spec": spec, "every_hours": 24})
     check(created.status_code == 201, f"POST /schedules accepted ({created.status_code})")
     schedule_id: str = created.json()["id"]
