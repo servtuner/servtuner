@@ -154,3 +154,15 @@ func KnobCatalogFor(server spec.KnobCatalogServer) (spec.KnobCatalog, error) {
 		return spec.KnobCatalog{}, fmt.Errorf("no knob catalog for server %q (vllm or sglang)", server)
 	}
 }
+
+// ServerOfKnob is the model server a knob belongs to: vllm, sglang, or "" for neither.
+func ServerOfKnob(name string) spec.KnobCatalogServer {
+	switch {
+	case IsVLLMKnob(name):
+		return spec.KnobCatalogServerVllm
+	case IsSGLangKnob(name):
+		return spec.KnobCatalogServerSglang
+	default:
+		return ""
+	}
+}

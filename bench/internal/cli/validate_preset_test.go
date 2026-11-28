@@ -74,7 +74,7 @@ func TestSpacesPrintsTheEmbeddedCatalog(t *testing.T) {
 	for _, template := range printed {
 		names = append(names, template.Name)
 	}
-	want := []string{"memory-bound", "no-gpu", "single-gpu", "two-gpu-tensor-parallel"}
+	want := []string{"memory-bound", "no-gpu", "sglang-single-gpu", "single-gpu", "two-gpu-tensor-parallel"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Errorf("printed %v, want %v (sorted by name)", names, want)
 	}

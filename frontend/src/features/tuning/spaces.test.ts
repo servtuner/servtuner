@@ -18,6 +18,14 @@ describe("starting search spaces", () => {
     expect(fitsTarget(hostOnly, host)).toBe(true);
   });
 
+  it("fit by server: an SGLang space suits an SGLang target only, and a space without servers is vLLM's", () => {
+    const sglangSpace = { ...oneGpu, fits: { ...oneGpu.fits, servers: ["sglang" as const] } };
+    const sglangTarget = { ...withGpus(1), spec: { ...withGpus(1).spec, server: "sglang" } } as ManagedTarget;
+    expect(fitsTarget(sglangSpace, sglangTarget)).toBe(true);
+    expect(fitsTarget(sglangSpace, withGpus(1))).toBe(false);
+    expect(fitsTarget(oneGpu, sglangTarget)).toBe(false);
+  });
+
   it("list the fitting ones first", () => {
     expect(rankForTarget(searchSpaces, host)).toEqual({ fitting: [oneGpu, hostOnly], others: [] });
     expect(rankForTarget(searchSpaces, withGpus(1))).toEqual({ fitting: [oneGpu], others: [hostOnly] });

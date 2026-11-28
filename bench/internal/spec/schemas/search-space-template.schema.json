@@ -51,6 +51,14 @@
           "description": "The most GPUs a Kubernetes target may request.",
           "type": "integer",
           "minimum": 0
+        },
+        "servers": {
+          "description": "The model servers it tunes (its knobs are theirs); vLLM when absent.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "enum": ["vllm", "sglang"]},
+          "default": ["vllm"]
         }
       }
     },

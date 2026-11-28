@@ -2644,6 +2644,14 @@ export interface components {
             min_gpus?: number | null;
             /** Placements */
             placements: components["schemas"]["Placement"][];
+            /**
+             * Servers
+             * @description The model servers it tunes (its knobs are theirs); vLLM when absent.
+             * @default [
+             *       "vllm"
+             *     ]
+             */
+            servers: components["schemas"]["Server"][];
         };
         /**
          * FollowupCreate

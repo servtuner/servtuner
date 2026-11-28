@@ -1,0 +1,21 @@
+# A starting search space (search-space-template.schema.json): edit it in New session as needed.
+name: sglang-single-gpu
+version: 1
+title: SGLang on one GPU
+description: >-
+  SGLang's scheduler knobs on one GPU: how many requests run at once (max_running_requests) and
+  how many tokens one prefill chunk holds (chunked_prefill_size), then the schedule policy (lpm runs
+  requests that share a cached prefix first). The advisors move the running cap within the bounds
+  and the KV pool the boot probe measured.
+fits:
+  placements: [kubernetes]
+  min_gpus: 1
+  max_gpus: 1
+  servers: [sglang]
+space:
+  min_concurrency: 16
+  knobs:
+    - {name: sglang.max_running_requests, tier: scheduler, min: 16, max: 512, default: 128}
+    - {name: sglang.chunked_prefill_size, tier: scheduler, min: 2048, max: 16384, default: 8192}
+    - {name: sglang.schedule_policy, tier: scheduler, values: [fcfs, lpm]}
+  confirm: {top: 2, repeats: 3}
