@@ -78,7 +78,9 @@ class LauncherDeployer(BootProbes):
         spec = host_spec(any_spec)
         args = host_args(spec, self.render_knobs(knobs, "vllm"))  # host targets run vLLM
         env = offline_env(spec.env, self.offline)
-        response = self._call(spec, "PUT", "/vllm", json={"args": args, "env": env})
+        response = self._call(
+            spec, "PUT", "/server", json={"server": "vllm", "args": args, "env": env}
+        )
         if response.status_code == HTTP_BAD_REQUEST:
             raise DeployInputError([f"the launcher refused the request: {response.text.strip()}"])
         self._expect_ok(response)
@@ -87,7 +89,7 @@ class LauncherDeployer(BootProbes):
     @override
     def boot_log(self, name: str, namespace: str, any_spec: AnySpec) -> str:
         response = self._call(
-            host_spec(any_spec), "GET", "/vllm/log", params={"tail": str(SIZING_LOG_TAIL_LINES)}
+            host_spec(any_spec), "GET", "/server/log", params={"tail": str(SIZING_LOG_TAIL_LINES)}
         )
         return response.text if response.status_code == HTTP_OK else ""
 
@@ -95,7 +97,9 @@ class LauncherDeployer(BootProbes):
         """The host's vLLM version before it boots (`vllm --version` through the launcher), or
         None when the launcher cannot say: unreachable, no token, or a launcher too old for it."""
         try:
-            response = self._call(host_spec(any_spec), "GET", "/vllm/version")
+            response = self._call(
+                host_spec(any_spec), "GET", "/server/version", params={"server": "vllm"}
+            )
         except LauncherError, DeployInputError:
             return None
         if response.status_code != HTTP_OK:
@@ -120,7 +124,7 @@ class LauncherDeployer(BootProbes):
         """One status call with the token, explained for a person (Check launcher)."""
         spec = host_spec(any_spec)
         try:
-            response = self._call(spec, "GET", "/vllm")
+            response = self._call(spec, "GET", "/server")
         except DeployInputError as error:
             return LauncherCheck("no_token", "; ".join(error.problems))
         except LauncherError as error:
@@ -147,7 +151,7 @@ class LauncherDeployer(BootProbes):
     @override
     def recent_log(self, name: str, namespace: str, any_spec: AnySpec, tail_lines: int) -> VllmLog:
         spec = host_spec(any_spec)
-        response = self._call(spec, "GET", "/vllm/log", params={"tail": str(tail_lines)})
+        response = self._call(spec, "GET", "/server/log", params={"tail": str(tail_lines)})
         self._expect_ok(response)
         return VllmLog(source=f"launcher {spec.launcher_url}", text=response.text)
 
@@ -156,7 +160,7 @@ class LauncherDeployer(BootProbes):
         self, target_id: str, name: str, namespace: str, any_spec: AnySpec, args: list[str]
     ) -> Readiness:
         spec = host_spec(any_spec)
-        response = self._call(spec, "GET", "/vllm")
+        response = self._call(spec, "GET", "/server")
         self._expect_ok(response)
         status: dict[str, Any] = response.json()
         state = status.get("state")
@@ -166,7 +170,7 @@ class LauncherDeployer(BootProbes):
             exit_code = status.get("exit_code")
             if exit_code == 0:
                 return Readiness("failed", "vLLM exited cleanly before it was ready")
-            log = self._call(spec, "GET", "/vllm/log", params={"tail": str(LOG_TAIL_LINES)})
+            log = self._call(spec, "GET", "/server/log", params={"tail": str(LOG_TAIL_LINES)})
             self._expect_ok(log)
             failure = classify_boot_failure(log.text, exit_code, None)
             state_name = "infeasible" if failure.kind == "infeasible" else "failed"
@@ -192,7 +196,7 @@ class LauncherDeployer(BootProbes):
         """Free the GPU: stop the host's vLLM."""
         if spec is None:
             raise TypeError("a host target's scale-down needs its spec (the launcher's address)")
-        self._expect_ok(self._call(host_spec(spec), "DELETE", "/vllm"))
+        self._expect_ok(self._call(host_spec(spec), "DELETE", "/server"))
 
     def teardown(self, name: str, namespace: str, any_spec: AnySpec, **_: Any) -> None:
         self.scale_to_zero(name, namespace, any_spec)

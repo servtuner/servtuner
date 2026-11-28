@@ -81,9 +81,9 @@ class FakeLauncher:
             if self.machine is None:  # a launcher older than the endpoint
                 return httpx2.Response(404, text="404 page not found")
             return httpx2.Response(200, json=self.machine)
-        if request.url.path == "/vllm/log":
+        if request.url.path == "/server/log":
             return httpx2.Response(200, text=self.log)
-        if request.url.path == "/vllm/version":
+        if request.url.path == "/server/version":
             if self.version is None:  # a launcher older than the endpoint
                 return httpx2.Response(404, text="404 page not found")
             return httpx2.Response(200, json={"version": self.version})
@@ -136,7 +136,7 @@ def test_deploy_starts_vllm_with_the_rendered_args(tmp_path: Path) -> None:
         "--max-model-len=4096",
         "--max-num-seqs=64",
     ]
-    assert launcher.requests == [("PUT", "/vllm", {"args": args, "env": {}})]
+    assert launcher.requests == [("PUT", "/server", {"server": "vllm", "args": args, "env": {}})]
 
 
 def test_an_offline_install_never_lets_flashinfer_download_on_a_host(tmp_path: Path) -> None:
@@ -144,7 +144,7 @@ def test_an_offline_install_never_lets_flashinfer_download_on_a_host(tmp_path: P
     offline = dataclasses.replace(deployer(tmp_path, launcher), offline=True)
     args = offline.deploy("rtx3070", "servtuner-external", SPEC, {})
     assert launcher.requests == [
-        ("PUT", "/vllm", {"args": args, "env": {"FLASHINFER_NO_DOWNLOAD": "1"}})
+        ("PUT", "/server", {"server": "vllm", "args": args, "env": {"FLASHINFER_NO_DOWNLOAD": "1"}})
     ]
 
 
@@ -168,7 +168,7 @@ def test_poll_reads_the_launcher(tmp_path: Path) -> None:
     )
     infeasible = deployed.poll("t", "rtx3070", "servtuner-external", SPEC, args)
     assert (infeasible.state, infeasible.failure.rule) == ("infeasible", "not-enough-free-memory")  # type: ignore[union-attr]
-    assert ("GET", "/vllm/log", None) in launcher.requests
+    assert ("GET", "/server/log", None) in launcher.requests
 
 
 def test_metrics_not_yet_visible_keep_it_pending(tmp_path: Path) -> None:
@@ -183,7 +183,7 @@ def test_scale_to_zero_stops_vllm(tmp_path: Path) -> None:
     deployed = deployer(tmp_path, launcher)
     deployed.deploy("rtx3070", "servtuner-external", SPEC, {})
     deployed.scale_to_zero("rtx3070", "servtuner-external", SPEC)
-    assert launcher.requests[-1][:2] == ("DELETE", "/vllm")
+    assert launcher.requests[-1][:2] == ("DELETE", "/server")
 
 
 def test_refusals_and_failures(tmp_path: Path) -> None:

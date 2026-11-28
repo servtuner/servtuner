@@ -36,8 +36,8 @@ servtuner knobs [--server sglang]   # every vllm serve (or SGLang server) flag t
 servtuner vllm-args --knobs <knobs.json>  # the vLLM container args for a knob set, as JSON, from the knob table
 servtuner server-args --server vllm|sglang --knobs <knobs.json>  # the same for either server (SGLang: its catalog); the api's deployer uses it
 servtuner boot-probe --input <boot-probe-request.json> [--secrets-dir DIR]  # a booted vLLM's num_gpu_blocks and c_kv, as a tuningBootResult
-servtuner launcher [--config F] [--listen ADDR --token-file F --tls true|false [--client-auth required|optional|none]] [--api-key-file F] [--vllm PATH] [--log-dir D]
-                                 # runs vllm serve for the tuning loop on a host outside Kubernetes (internal/launcher);
+servtuner launcher [--config F] [--listen ADDR --token-file F --tls true|false [--client-auth required|optional|none]] [--api-key-file F] [--vllm PATH] [--sglang PYTHON] [--log-dir D]
+                                 # runs vllm serve, or SGLang (PUT /server {server, args, env}), for the tuning loop on a host outside Kubernetes (internal/launcher);
                                  # flags over a YAML config (--config, $SERVTUNER_LAUNCHER_CONFIG, $XDG_CONFIG_HOME/servtuner/launcher.yaml,
                                  # /etc/servtuner/launcher.yaml), secret files defaulting to $CREDENTIALS_DIRECTORY (deploy/launcher/)
 servtuner catalogs [--target-type T] # list PromQL catalogs and the queries they expand to (not built yet)

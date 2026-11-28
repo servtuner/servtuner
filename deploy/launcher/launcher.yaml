@@ -23,4 +23,7 @@ tls: false
 
 # The vllm executable, when it is not on PATH (a virtualenv).
 vllm: vllm
+# The Python of SGLang's virtualenv, to run SGLang too (python -m sglang.launch_server); unset runs no
+# SGLang. Its API key comes from the same api_key_file, given in a --config file only this user reads.
+# sglang: /opt/sglang/bin/python
 log_dir: /var/lib/servtuner-launcher

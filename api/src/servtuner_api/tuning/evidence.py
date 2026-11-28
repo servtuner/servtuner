@@ -89,7 +89,7 @@ def host_vllm_version(managed: ManagedOps, target_id: str) -> str:
     if version is None:
         raise SessionConflictError(
             "the host's launcher did not report its vLLM version (unreachable, or a bench "
-            "launcher older than GET /vllm/version), so earlier sessions cannot be reused"
+            "launcher older than GET /server/version), so earlier sessions cannot be reused"
         )
     return version
 
