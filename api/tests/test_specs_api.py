@@ -147,12 +147,27 @@ def test_the_knob_catalog_comes_from_bench(validate_client: TestClient) -> None:
     assert response.status_code == 200, response.text
     catalog = response.json()
     knobs = {knob["name"]: knob for knob in catalog["knobs"]}
-    assert catalog["vllm_version"] == "v0.34.0"
+    assert catalog["server"] == "vllm" and catalog["version"] == "v0.34.0"
     seqs = knobs["vllm.max_num_seqs"]
     assert seqs["label"] == "Max sequences" and seqs["flag"] == "--max-num-seqs"
     assert seqs["built_in"] is True and seqs["limits"] == {"ge": 1}
     assert seqs["help"].startswith("Maximum number of sequences")
     assert knobs["vllm.max_num_scheduled_tokens"]["built_in"] is False
+
+
+def test_the_sglang_knob_catalog_comes_from_bench(validate_client: TestClient) -> None:
+    """GET /knobs?server=sglang: SGLang's flags from its source, without secrets or owned flags."""
+    response = validate_client.get("/knobs", params={"server": "sglang"})
+    assert response.status_code == 200, response.text
+    catalog = response.json()
+    assert catalog["server"] == "sglang" and catalog["version"] == "v0.5.23"
+    knobs = {knob["name"]: knob for knob in catalog["knobs"]}
+    memory = knobs["sglang.mem_fraction_static"]
+    assert memory["label"] == "Static memory fraction" and memory["flag"] == "--mem-fraction-static"
+    assert memory["built_in"] is True
+    assert "sglang.api_key" not in knobs and "sglang.port" not in knobs
+    assert "--api-key" in catalog["other_flags"]
+    assert validate_client.get("/knobs", params={"server": "tgi"}).status_code == 422
 
 
 def test_a_servtuner_0_1_run_spec_is_refused_with_its_replacement(

@@ -287,7 +287,7 @@ func KnobCatalog() (spec.KnobCatalog, error) {
 		}
 	}
 	sort.Strings(other)
-	return spec.KnobCatalog{VllmVersion: file.VLLMVersion, VllmCommit: file.VLLMCommit, Knobs: knobs, OtherFlags: other}, nil
+	return spec.KnobCatalog{Server: spec.KnobCatalogServerVllm, Version: file.VLLMVersion, Commit: file.VLLMCommit, Knobs: knobs, OtherFlags: other}, nil
 }
 
 // catalogKind is the catalog's name for a knob table kind.

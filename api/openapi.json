@@ -4657,6 +4657,12 @@
       "KnobCatalog": {
         "additionalProperties": false,
         "properties": {
+          "commit": {
+            "description": "The server's source commit at that release.",
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Commit",
+            "type": "string"
+          },
           "knobs": {
             "items": {
               "$ref": "#/components/schemas/KnobDescription"
@@ -4665,28 +4671,28 @@
             "type": "array"
           },
           "other_flags": {
-            "description": "Every other spelling vLLM accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.",
+            "description": "Every other spelling the server accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.",
             "items": {
               "$ref": "#/components/schemas/OtherFlag"
             },
             "title": "Other Flags",
             "type": "array"
           },
-          "vllm_commit": {
-            "pattern": "^[0-9a-f]{40}$",
-            "title": "Vllm Commit",
-            "type": "string"
+          "server": {
+            "$ref": "#/components/schemas/Server",
+            "description": "The model server the catalog describes."
           },
-          "vllm_version": {
-            "description": "The vLLM release the catalog was read from.",
+          "version": {
+            "description": "The server release the catalog was read from.",
             "minLength": 1,
-            "title": "Vllm Version",
+            "title": "Version",
             "type": "string"
           }
         },
         "required": [
-          "vllm_version",
-          "vllm_commit",
+          "server",
+          "version",
+          "commit",
           "knobs",
           "other_flags"
         ],
@@ -4905,8 +4911,8 @@
             ]
           },
           "name": {
-            "description": "The knob's name: vllm.<vLLM's field name>.",
-            "pattern": "^vllm\\.[a-z0-9_]+$",
+            "description": "The knob's name: <server>.<the server's field name>, as vllm.max_num_seqs or sglang.mem_fraction_static.",
+            "pattern": "^(vllm|sglang)\\.[a-z0-9_]+$",
             "title": "Name",
             "type": "string"
           },
@@ -10849,6 +10855,14 @@
         "title": "SensitivityItem",
         "type": "object"
       },
+      "Server": {
+        "enum": [
+          "vllm",
+          "sglang"
+        ],
+        "title": "Server",
+        "type": "string"
+      },
       "ServerChart": {
         "additionalProperties": false,
         "properties": {
@@ -16497,8 +16511,19 @@
     },
     "/knobs": {
       "get": {
-        "description": "Every vLLM flag as a knob: label, kind, default, limits and vLLM's own description,\nread from vLLM's source at the pinned version. Built-in knobs are the\nones servtuner captures from a running target.",
+        "description": "Every flag of a model server (vllm, the default, or sglang) as a knob: label, kind,\ndefault, limits and the server's own description, read from its source at the pinned\nversion. Built-in knobs are the ones servtuner captures from a running target.",
         "operationId": "knob_catalog_knobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "server",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Server",
+              "default": "vllm"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -16509,6 +16534,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Knob Catalog"

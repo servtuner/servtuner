@@ -373,9 +373,9 @@ export interface paths {
         };
         /**
          * Knob Catalog
-         * @description Every vLLM flag as a knob: label, kind, default, limits and vLLM's own description,
-         *     read from vLLM's source at the pinned version. Built-in knobs are the
-         *     ones servtuner captures from a running target.
+         * @description Every flag of a model server (vllm, the default, or sglang) as a knob: label, kind,
+         *     default, limits and the server's own description, read from its source at the pinned
+         *     version. Built-in knobs are the ones servtuner captures from a running target.
          */
         get: operations["knob_catalog_knobs_get"];
         put?: never;
@@ -3182,20 +3182,25 @@ export interface components {
         KneeReason: "latency_slope" | "queueing" | "preemptions";
         /** KnobCatalog */
         KnobCatalog: {
+            /**
+             * Commit
+             * @description The server's source commit at that release.
+             */
+            commit: string;
             /** Knobs */
             knobs: components["schemas"]["KnobDescription"][];
             /**
              * Other Flags
-             * @description Every other spelling vLLM accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.
+             * @description Every other spelling the server accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.
              */
             other_flags: components["schemas"]["OtherFlag"][];
-            /** Vllm Commit */
-            vllm_commit: string;
+            /** @description The model server the catalog describes. */
+            server: components["schemas"]["Server"];
             /**
-             * Vllm Version
-             * @description The vLLM release the catalog was read from.
+             * Version
+             * @description The server release the catalog was read from.
              */
-            vllm_version: string;
+            version: string;
         };
         /** KnobCheck */
         KnobCheck: {
@@ -3291,7 +3296,7 @@ export interface components {
             limits?: components["schemas"]["KnobLimits"] | null;
             /**
              * Name
-             * @description The knob's name: vllm.<vLLM's field name>.
+             * @description The knob's name: <server>.<the server's field name>, as vllm.max_num_seqs or sglang.mem_fraction_static.
              */
             name: string;
             /**
@@ -5477,6 +5482,11 @@ export interface components {
             /** Traffic Factor */
             traffic_factor: number;
         };
+        /**
+         * Server
+         * @enum {string}
+         */
+        Server: "vllm" | "sglang";
         /** ServerChart */
         ServerChart: {
             /** Analyzer Version */
@@ -7841,7 +7851,9 @@ export interface operations {
     };
     knob_catalog_knobs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                server?: components["schemas"]["Server"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7855,6 +7867,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KnobCatalog"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

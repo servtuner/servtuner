@@ -2,15 +2,16 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://servtuner.dev/schema/knob-catalog.schema.json",
   "title": "KnobCatalog",
-  "description": "Every vLLM serve flag that is a knob (one value, not one servtuner sets itself), with its description, type, default and limits taken from vLLM's own source at the pinned version. servtuner knobs prints it from the catalog it embeds; the api serves it at GET /knobs.",
+  "description": "Every serve flag of one model server (vLLM or SGLang) that is a knob (one value, not one servtuner sets itself), with its description, type, default and limits taken from the server's own source at the pinned version. servtuner knobs [--server sglang] prints it from the catalogs it embeds; the api serves it at GET /knobs[?server=sglang].",
   "type": "object",
   "additionalProperties": false,
-  "required": ["vllm_version", "vllm_commit", "knobs", "other_flags"],
+  "required": ["server", "version", "commit", "knobs", "other_flags"],
   "properties": {
-    "vllm_version": {"description": "The vLLM release the catalog was read from.", "type": "string", "minLength": 1},
-    "vllm_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "server": {"description": "The model server the catalog describes.", "type": "string", "enum": ["vllm", "sglang"]},
+    "version": {"description": "The server release the catalog was read from.", "type": "string", "minLength": 1},
+    "commit": {"description": "The server's source commit at that release.", "type": "string", "pattern": "^[0-9a-f]{40}$"},
     "knobs": {"type": "array", "items": {"$ref": "#/definitions/knobDescription"}},
-    "other_flags": {"description": "Every other spelling vLLM accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.", "type": "array", "items": {"type": "string", "pattern": "^-"}}
+    "other_flags": {"description": "Every other spelling the server accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo.", "type": "array", "items": {"type": "string", "pattern": "^-"}}
   },
   "definitions": {
     "knobDescription": {
@@ -19,7 +20,7 @@
       "additionalProperties": false,
       "required": ["name", "label", "flag", "group", "kind", "help", "built_in", "tuned_as_range"],
       "properties": {
-        "name": {"description": "The knob's name: vllm.<vLLM's field name>.", "type": "string", "pattern": "^vllm\\.[a-z0-9_]+$"},
+        "name": {"description": "The knob's name: <server>.<the server's field name>, as vllm.max_num_seqs or sglang.mem_fraction_static.", "type": "string", "pattern": "^(vllm|sglang)\\.[a-z0-9_]+$"},
         "label": {"description": "A short name for people (\"Max sequences\"), never the flag.", "type": "string", "minLength": 1},
         "flag": {"description": "vLLM's long flag; empty for a field set through --compilation-config.", "type": "string"},
         "aliases": {"type": "array", "items": {"type": "string"}, "default": []},

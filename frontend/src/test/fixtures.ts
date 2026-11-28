@@ -204,8 +204,9 @@ export const host: Host = {
 
 /** A slice of GET /knobs: one knob of each kind the deploy form edits. */
 export const knobCatalog: KnobCatalog = {
-  vllm_version: "v0.34.0",
-  vllm_commit: "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
+  server: "vllm",
+  version: "v0.34.0",
+  commit: "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
   // A slice too: --max-model-len stands for the knobs this fixture leaves out.
   other_flags: ["--compilation-config", "--max-model-len", "--port", "--served-model-name", "-cc"],
   knobs: [

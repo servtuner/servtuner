@@ -3514,25 +3514,59 @@ func (j *Knee) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Every vLLM serve flag that is a knob (one value, not one servtuner sets itself),
-// with its description, type, default and limits taken from vLLM's own source at
-// the pinned version. servtuner knobs prints it from the catalog it embeds; the
-// api serves it at GET /knobs.
+// Every serve flag of one model server (vLLM or SGLang) that is a knob (one value,
+// not one servtuner sets itself), with its description, type, default and limits
+// taken from the server's own source at the pinned version. servtuner knobs
+// [--server sglang] prints it from the catalogs it embeds; the api serves it at
+// GET /knobs[?server=sglang].
 type KnobCatalog struct {
+	// The server's source commit at that release.
+	Commit string `json:"commit"`
+
 	// Knobs corresponds to the JSON schema field "knobs".
 	Knobs []KnobDescription `json:"knobs"`
 
-	// Every other spelling vLLM accepts at this version: the flags that are not knobs
-	// (JSON and list flags, the ones servtuner sets), with their aliases and off
-	// spellings, sorted. With the knobs' flags it is how a base flag is told from a
-	// typo.
+	// Every other spelling the server accepts at this version: the flags that are not
+	// knobs (JSON and list flags, the ones servtuner sets), with their aliases and
+	// off spellings, sorted. With the knobs' flags it is how a base flag is told from
+	// a typo.
 	OtherFlags []string `json:"other_flags"`
 
-	// VllmCommit corresponds to the JSON schema field "vllm_commit".
-	VllmCommit string `json:"vllm_commit"`
+	// The model server the catalog describes.
+	Server KnobCatalogServer `json:"server"`
 
-	// The vLLM release the catalog was read from.
-	VllmVersion string `json:"vllm_version"`
+	// The server release the catalog was read from.
+	Version string `json:"version"`
+}
+
+type KnobCatalogServer string
+
+const KnobCatalogServerSglang KnobCatalogServer = "sglang"
+const KnobCatalogServerVllm KnobCatalogServer = "vllm"
+
+var enumValues_KnobCatalogServer = []interface{}{
+	"vllm",
+	"sglang",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *KnobCatalogServer) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_KnobCatalogServer {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_KnobCatalogServer, v)
+	}
+	*j = KnobCatalogServer(v)
+	return nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -3541,28 +3575,31 @@ func (j *KnobCatalog) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &raw); err != nil {
 		return err
 	}
+	if _, ok := raw["commit"]; raw != nil && !ok {
+		return fmt.Errorf("field commit in KnobCatalog: required")
+	}
 	if _, ok := raw["knobs"]; raw != nil && !ok {
 		return fmt.Errorf("field knobs in KnobCatalog: required")
 	}
 	if _, ok := raw["other_flags"]; raw != nil && !ok {
 		return fmt.Errorf("field other_flags in KnobCatalog: required")
 	}
-	if _, ok := raw["vllm_commit"]; raw != nil && !ok {
-		return fmt.Errorf("field vllm_commit in KnobCatalog: required")
+	if _, ok := raw["server"]; raw != nil && !ok {
+		return fmt.Errorf("field server in KnobCatalog: required")
 	}
-	if _, ok := raw["vllm_version"]; raw != nil && !ok {
-		return fmt.Errorf("field vllm_version in KnobCatalog: required")
+	if _, ok := raw["version"]; raw != nil && !ok {
+		return fmt.Errorf("field version in KnobCatalog: required")
 	}
 	type Plain KnobCatalog
 	var plain Plain
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
 	}
-	if matched, _ := regexp.MatchString(`^[0-9a-f]{40}$`, string(plain.VllmCommit)); !matched {
-		return fmt.Errorf("field %s pattern match: must match %s", "VllmCommit", `^[0-9a-f]{40}$`)
+	if matched, _ := regexp.MatchString(`^[0-9a-f]{40}$`, string(plain.Commit)); !matched {
+		return fmt.Errorf("field %s pattern match: must match %s", "Commit", `^[0-9a-f]{40}$`)
 	}
-	if utf8.RuneCountInString(string(plain.VllmVersion)) < 1 {
-		return fmt.Errorf("field %s length: must be >= %d", "vllm_version", 1)
+	if utf8.RuneCountInString(string(plain.Version)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "version", 1)
 	}
 	*j = KnobCatalog(plain)
 	return nil
@@ -3701,7 +3738,8 @@ type KnobDescription struct {
 	// Limits corresponds to the JSON schema field "limits".
 	Limits *KnobLimits `json:"limits,omitempty,omitzero"`
 
-	// The knob's name: vllm.<vLLM's field name>.
+	// The knob's name: <server>.<the server's field name>, as vllm.max_num_seqs or
+	// sglang.mem_fraction_static.
 	Name string `json:"name"`
 
 	// The spellings that turn a boolean off (--no-x, --disable-x).
@@ -3762,8 +3800,8 @@ func (j *KnobDescription) UnmarshalJSON(value []byte) error {
 	if utf8.RuneCountInString(string(plain.Label)) < 1 {
 		return fmt.Errorf("field %s length: must be >= %d", "label", 1)
 	}
-	if matched, _ := regexp.MatchString(`^vllm\.[a-z0-9_]+$`, string(plain.Name)); !matched {
-		return fmt.Errorf("field %s pattern match: must match %s", "Name", `^vllm\.[a-z0-9_]+$`)
+	if matched, _ := regexp.MatchString(`^(vllm|sglang)\.[a-z0-9_]+$`, string(plain.Name)); !matched {
+		return fmt.Errorf("field %s pattern match: must match %s", "Name", `^(vllm|sglang)\.[a-z0-9_]+$`)
 	}
 	if v, ok := raw["negative_flags"]; !ok || v == nil {
 		plain.NegativeFlags = []string{}

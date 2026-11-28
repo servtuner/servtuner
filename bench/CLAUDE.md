@@ -31,7 +31,7 @@ servtuner propose --space space.yaml [--bundles <bundle>,...] [--infeasible boot
                                  # pure: files in, JSON out, byte-identical for the same inputs, no clock or network
 servtuner presets                    # the embedded workload presets as a JSON array (the api serves it at GET /workload-presets)
 servtuner spaces                     # the embedded starting search spaces (schema/search-spaces) as a JSON array (GET /search-spaces)
-servtuner knobs                      # every vllm serve flag that is a knob (KnobCatalog; one value, not servtuner's own): label, kind, default, limits and vLLM's own
+servtuner knobs [--server sglang]   # every vllm serve (or SGLang server) flag that is a knob (KnobCatalog; one value, not servtuner's own): label, kind, default, limits and vLLM's own
                                  # description from internal/target/vllm_catalog.json (generated: just vllm-catalog; GET /knobs)
 servtuner vllm-args --knobs <knobs.json>  # the vLLM container args for a knob set, as JSON, from the knob table (the api's deployer)
 servtuner boot-probe --input <boot-probe-request.json> [--secrets-dir DIR]  # a booted vLLM's num_gpu_blocks and c_kv, as a tuningBootResult

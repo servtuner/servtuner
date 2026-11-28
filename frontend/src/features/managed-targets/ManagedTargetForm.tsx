@@ -153,7 +153,7 @@ function FormBody({
       {unknown.length > 0 && (
         // A warning, not a refusal: the image may be a newer vLLM than the catalog.
         <Text size="xs" c="yellow.8" mt={-8}>
-          vLLM {knobCatalog.data?.vllm_version} has no {unknown.join(", ")}: check the spelling, unless the image runs a
+          vLLM {knobCatalog.data?.version} has no {unknown.join(", ")}: check the spelling, unless the image runs a
           newer vLLM.
         </Text>
       )}

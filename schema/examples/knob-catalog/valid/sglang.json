@@ -1,0 +1,21 @@
+{
+  "server": "sglang",
+  "version": "v0.5.23",
+  "commit": "297e54fd105e974cdf401e5b4d20253a22c16f90",
+  "knobs": [
+    {
+      "name": "sglang.mem_fraction_static",
+      "label": "Static memory fraction",
+      "flag": "--mem-fraction-static",
+      "aliases": [],
+      "negative_flags": [],
+      "group": "Schedule",
+      "kind": "number",
+      "default": null,
+      "help": "The fraction of the memory used for static allocation (model weights and KV cache memory pool).",
+      "built_in": true,
+      "tuned_as_range": false
+    }
+  ],
+  "other_flags": ["--host", "--model-path", "--port"]
+}

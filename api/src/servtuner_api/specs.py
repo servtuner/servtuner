@@ -16,6 +16,7 @@ from pydantic import TypeAdapter
 
 from servtuner_api.cli_contract import error_message
 from servtuner_api.models import KnobCatalog, SearchSpaceTemplate, WorkloadPreset
+from servtuner_api.models.generated.knob_catalog_schema import Server as KnobServer
 
 VALIDATE_TIMEOUT_SECONDS = 15.0
 # bench's exit codes (bench/internal/cli): 0 valid, 2 invalid; both print the report.
@@ -47,7 +48,7 @@ class SpecValidator:
         # The catalogs are embedded in the binary and immutable, so one read of each lasts.
         self._presets: list[WorkloadPreset] | None = None
         self._spaces: list[SearchSpaceTemplate] | None = None
-        self._knobs: KnobCatalog | None = None
+        self._knobs: dict[str, KnobCatalog] = {}
 
     def workload_presets(self) -> list[WorkloadPreset]:
         """The workload presets built into bench (``servtuner presets``), read once."""
@@ -61,19 +62,22 @@ class SpecValidator:
             self._spaces = SPACES_ADAPTER.validate_json(self._catalog("spaces"))
         return self._spaces
 
-    def knob_catalog(self) -> KnobCatalog:
-        """Every vLLM flag as a knob, from vLLM's source (``servtuner knobs``), read once."""
-        if self._knobs is None:
-            self._knobs = KNOBS_ADAPTER.validate_json(self._catalog("knobs"))
-        return self._knobs
+    def knob_catalog(self, server: KnobServer = KnobServer.vllm) -> KnobCatalog:
+        """Every flag of a model server as a knob, from the server's source
+        (``servtuner knobs --server <server>``), read once per server."""
+        if server.value not in self._knobs:
+            self._knobs[server.value] = KNOBS_ADAPTER.validate_json(
+                self._catalog("knobs", "--server", server.value)
+            )
+        return self._knobs[server.value]
 
-    def _catalog(self, command: str) -> str:
+    def _catalog(self, command: str, *arguments: str) -> str:
         if self._bench_binary is None:
             raise ValidatorUnavailableError(
                 f"SERVTUNER_BENCH_BINARY is not set: there is no bench to read {command} from"
             )
         completed = subprocess.run(  # noqa: S603 - the binary path is operator configuration
-            [str(self._bench_binary), command],
+            [str(self._bench_binary), command, *arguments],
             capture_output=True,
             text=True,
             timeout=VALIDATE_TIMEOUT_SECONDS,

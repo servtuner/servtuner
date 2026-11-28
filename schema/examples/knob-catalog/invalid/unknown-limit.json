@@ -1,6 +1,7 @@
 {
-  "vllm_version": "v0.34.0",
-  "vllm_commit": "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
+  "server": "vllm",
+  "version": "v0.34.0",
+  "commit": "62d4bc3c7e33b1b6c906e233e6af2d3506c482ca",
   "knobs": [
     {
       "name": "vllm.max_num_seqs",

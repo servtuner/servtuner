@@ -2,9 +2,14 @@
 #   filename:  knob-catalog.schema.json
 
 from __future__ import annotations
+from enum import Enum
 from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field, RootModel
-from enum import Enum
+
+
+class Server(Enum):
+    vllm = "vllm"
+    sglang = "sglang"
 
 
 class OtherFlag(RootModel[str]):
@@ -40,7 +45,8 @@ class KnobDescription(BaseModel):
     name: Annotated[
         str,
         Field(
-            description="The knob's name: vllm.<vLLM's field name>.", pattern="^vllm\\.[a-z0-9_]+$"
+            description="The knob's name: <server>.<the server's field name>, as vllm.max_num_seqs or sglang.mem_fraction_static.",
+            pattern="^(vllm|sglang)\\.[a-z0-9_]+$",
         ),
     ]
     label: Annotated[
@@ -94,14 +100,18 @@ class KnobCatalog(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    vllm_version: Annotated[
-        str, Field(description="The vLLM release the catalog was read from.", min_length=1)
+    server: Annotated[Server, Field(description="The model server the catalog describes.")]
+    version: Annotated[
+        str, Field(description="The server release the catalog was read from.", min_length=1)
     ]
-    vllm_commit: Annotated[str, Field(pattern="^[0-9a-f]{40}$")]
+    commit: Annotated[
+        str,
+        Field(description="The server's source commit at that release.", pattern="^[0-9a-f]{40}$"),
+    ]
     knobs: list[KnobDescription]
     other_flags: Annotated[
         list[OtherFlag],
         Field(
-            description="Every other spelling vLLM accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo."
+            description="Every other spelling the server accepts at this version: the flags that are not knobs (JSON and list flags, the ones servtuner sets), with their aliases and off spellings, sorted. With the knobs' flags it is how a base flag is told from a typo."
         ),
     ]
