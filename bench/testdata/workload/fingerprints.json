@@ -1,0 +1,54 @@
+{
+  "chat": {
+    "hash": "cc1e818819576fb320af27602f5fe822738b416f2b594d5e9ca8db0d5303bd02",
+    "fingerprint": "c1bc6997cdca0d97174510a4b05ce99f472530e76298023caaa57c66ecbf67cb"
+  },
+  "chat/not-streaming": {
+    "hash": "d3f0a0dbb3b9686327a8c48db132e7689c9cbf38187648cd922e162bc1edb93e",
+    "fingerprint": "cbeb39d37c669c01079d4dbc1cb9cc799ccc221fd7cb065410a8eb2ef8e16f51"
+  },
+  "chat/padding": {
+    "hash": "813542087b77afc7880eb009a80e7776a17412f290be114125c37180ec41386a",
+    "fingerprint": "b0927ba2a8fe723f6b392cd097049cac4576d07649217bf789ee3b9e42b51d8a"
+  },
+  "chat/set-min-tokens": {
+    "hash": "385848ea877f5d97a209cb448d6f3de2581d22fe507e50400001299c071bfeac",
+    "fingerprint": "0b8f60828d8775383ae0be0314cd5cb134228fcf2f6311db8395fe7b62167907"
+  },
+  "completion": {
+    "hash": "5949e903c254e0e055ff8b06741fa95361686bae698de8bfdda8edf448387324",
+    "fingerprint": "c73f30ef187274de08e93a73bf62fadc698b8b7d38dd7e038ca1bced37470bf1"
+  },
+  "embeddings": {
+    "hash": "1c9a1748c5f313dcad753c8593d7bc74d871b958434a3a0408f45a06d6963b11",
+    "fingerprint": "a61c8cf1f9c4d6f5e9d0c5770c59e348851618b2b8bfd1aeed0f2be34e3539a7"
+  },
+  "preset/agent-prefix@1": {
+    "hash": "1cc235154142cd35e255f1467d8f06cc595b60e783e9b978830e1552dfb26b7c",
+    "fingerprint": "08c39de3fd39a9b0bd26da265db63bce4b8255d9283a17fd7ec7325a49a9c3fe"
+  },
+  "preset/chat-long@1": {
+    "hash": "9114a763c75f0785757b9a1cc8bfb099e4b55055597f786061dccb859ade0733",
+    "fingerprint": "05f988e637807a5128ee1e53c30561d607915f61fa1e5014e5d56337307cc3db"
+  },
+  "preset/chat-multiturn@1": {
+    "hash": "c73620d4a8a84390af516519c8d08f784eaba60c6e93b081bb212f20420c6bd7",
+    "fingerprint": "c15ec92ccd32c3b0839f94287c1b63a5b60c314033e8bf87c9f4ed4726f2744e"
+  },
+  "preset/chat-short@1": {
+    "hash": "a37a327b591d86f794babee2f4f004d30c4d847a3de0fe5c846cd50b456c4c17",
+    "fingerprint": "38329600da3fe5404bf256d72f669a784d636e85044cf72128a91b6ed117995b"
+  },
+  "preset/decode-long@1": {
+    "hash": "30e5b688668afb84dc7694b5eb4b95c6fd12a0aa02fb76861ec0cfed6b267288",
+    "fingerprint": "99a40af282d8eb38470d90e030a13e994fcf451af663a3c2b3b7d0c1cc8d3004"
+  },
+  "preset/rag-prefill@1": {
+    "hash": "6cc291cdeed35b5ef9fa36f7b05a66fa8e1cea5fc8e1179bb9bef007f5cf7f95",
+    "fingerprint": "1b30022740a73ab616b6bc0fedbe01dfd188c34ddad11595aea2a25c8549b1fd"
+  },
+  "preset/summarize@1": {
+    "hash": "7c99520424600d29e9903820118ecfce0701af8321f4dddac1416d15473254ee",
+    "fingerprint": "c2354d8cecf6b3733f8c22af81809dcefdcc516c8d591f03acee0d556630706b"
+  }
+}
