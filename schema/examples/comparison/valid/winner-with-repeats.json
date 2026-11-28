@@ -3,7 +3,6 @@
   "experiment": "bifrost-concurrency",
   "objective": "slo_rps_per_core",
   "varied_knobs": ["bifrost.concurrency"],
-  "is_factorial": true,
   "reference_stage_index": 1,
   "comparability": {
     "is_comparable": true,

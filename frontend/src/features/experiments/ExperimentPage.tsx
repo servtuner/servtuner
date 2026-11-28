@@ -202,7 +202,6 @@ function Comparability({ comparison }: { comparison: Comparison }) {
 }
 
 function Configurations({ comparison }: { comparison: Comparison }) {
-  const text = useKnobText();
   const winner = comparison.recommendation?.configuration_id;
   return (
     <Stack gap="xs">
@@ -254,12 +253,6 @@ function Configurations({ comparison }: { comparison: Comparison }) {
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
-      {!comparison.is_factorial && comparison.varied_knobs.length >= 2 && (
-        <Text size="xs" c="dimmed">
-          Not every combination of {comparison.varied_knobs.map(text.label).join(" and ")} was run, so the effects of
-          each knob are not separated.
-        </Text>
-      )}
     </Stack>
   );
 }

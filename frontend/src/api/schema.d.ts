@@ -1991,11 +1991,6 @@ export interface components {
              * @description The runs' experiment name, when they all share one.
              */
             experiment?: string | null;
-            /**
-             * Is Factorial
-             * @description True when every combination of the varied knobs' values was run. With two or more varied knobs and no factorial design, effects are not claimed to be independent.
-             */
-            is_factorial: boolean;
             /** @description The primary objective: the one the recommendation and the Pareto set use. */
             objective: components["schemas"]["ObjectiveName"];
             /**
@@ -2035,7 +2030,7 @@ export interface components {
          * ComparisonIssueCode
          * @enum {string}
          */
-        ComparisonIssueCode: "workload_differs" | "target_type_differs" | "hardware_differs" | "arrival_differs" | "ladder_differs" | "slos_differ" | "experiment_differs" | "too_few_configurations" | "not_factorial" | "coverage_incomplete";
+        ComparisonIssueCode: "workload_differs" | "target_type_differs" | "hardware_differs" | "arrival_differs" | "ladder_differs" | "slos_differ" | "experiment_differs" | "too_few_configurations" | "coverage_incomplete";
         /**
          * ComparisonResource
          * @description Runs lined up by knob and by stage. Every list of values is in ``runs`` order.

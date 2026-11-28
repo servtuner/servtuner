@@ -2,7 +2,6 @@
   "analyzer_version": "1.5.0",
   "objective": "slo_max_rps",
   "varied_knobs": ["vllm.max_num_seqs"],
-  "is_factorial": true,
   "comparability": {
     "is_comparable": false,
     "issues": [

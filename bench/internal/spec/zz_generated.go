@@ -1383,11 +1383,6 @@ type Comparison struct {
 	// The runs' experiment name, when they all share one.
 	Experiment *string `json:"experiment,omitempty,omitzero"`
 
-	// True when every combination of the varied knobs' values was run. With two or
-	// more varied knobs and no factorial design, effects are not claimed to be
-	// independent.
-	IsFactorial bool `json:"is_factorial"`
-
 	// The primary objective: the one the recommendation and the Pareto set use.
 	Objective ObjectiveName `json:"objective"`
 
@@ -1456,7 +1451,6 @@ const ComparisonIssueCodeCoverageIncomplete ComparisonIssueCode = "coverage_inco
 const ComparisonIssueCodeExperimentDiffers ComparisonIssueCode = "experiment_differs"
 const ComparisonIssueCodeHardwareDiffers ComparisonIssueCode = "hardware_differs"
 const ComparisonIssueCodeLadderDiffers ComparisonIssueCode = "ladder_differs"
-const ComparisonIssueCodeNotFactorial ComparisonIssueCode = "not_factorial"
 const ComparisonIssueCodeSlosDiffer ComparisonIssueCode = "slos_differ"
 const ComparisonIssueCodeTargetTypeDiffers ComparisonIssueCode = "target_type_differs"
 const ComparisonIssueCodeTooFewConfigurations ComparisonIssueCode = "too_few_configurations"
@@ -1471,7 +1465,6 @@ var enumValues_ComparisonIssueCode = []interface{}{
 	"slos_differ",
 	"experiment_differs",
 	"too_few_configurations",
-	"not_factorial",
 	"coverage_incomplete",
 }
 
@@ -1536,9 +1529,6 @@ func (j *Comparison) UnmarshalJSON(value []byte) error {
 	}
 	if _, ok := raw["excluded_runs"]; raw != nil && !ok {
 		return fmt.Errorf("field excluded_runs in Comparison: required")
-	}
-	if _, ok := raw["is_factorial"]; raw != nil && !ok {
-		return fmt.Errorf("field is_factorial in Comparison: required")
 	}
 	if _, ok := raw["objective"]; raw != nil && !ok {
 		return fmt.Errorf("field objective in Comparison: required")

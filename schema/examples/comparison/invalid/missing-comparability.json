@@ -5,7 +5,6 @@
   "varied_knobs": [
     "bifrost.concurrency"
   ],
-  "is_factorial": true,
   "reference_stage_index": 1,
   "excluded_runs": [
     {
