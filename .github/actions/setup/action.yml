@@ -1,5 +1,17 @@
 name: Setup toolchains
-description: Read .tool-versions (the only place toolchain versions are defined) and install just and uv.
+description: >-
+  Read .tool-versions (the only place toolchain versions are defined), install just and uv, and on request Go,
+  Node.js and the release tools (helm, helmfile, hauler), so each CI job installs only what it uses.
+inputs:
+  go:
+    description: Install Go
+    default: "false"
+  node:
+    description: Install Node.js
+    default: "false"
+  release-tools:
+    description: Install helm, helmfile and hauler, checksum-verified (.github/scripts/install-release-tools.sh)
+    default: "false"
 outputs:
   go:
     description: Go version
@@ -25,3 +37,15 @@ runs:
       with:
         version: ${{ steps.pins.outputs.uv }} # zizmor: ignore[unpinned-tools] pinned in .tool-versions
         python-version: ${{ steps.pins.outputs.python }}
+    - if: inputs.go == 'true'
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      with:
+        go-version: ${{ steps.pins.outputs.go }}
+        cache: false
+    - if: inputs.node == 'true'
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: ${{ steps.pins.outputs.nodejs }}
+    - if: inputs.release-tools == 'true'
+      shell: bash
+      run: .github/scripts/install-release-tools.sh "$RUNNER_TEMP/bin"
