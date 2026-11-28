@@ -279,6 +279,13 @@ SGLANG_OWNED_FLAGS = frozenset(
 ModelServer = Literal["vllm", "sglang"]
 
 
+def checked_sglang_flags(flags: list[str]) -> None:
+    """An SGLang target's base flags: none of the flags servtuner sets on SGLang."""
+    owned = sorted({flag.split("=", 1)[0] for flag in flags} & SGLANG_OWNED_FLAGS)
+    if owned:
+        raise ValueError(f"servtuner sets {', '.join(owned)} itself")
+
+
 def checked_base_flags(flags: list[str]) -> list[str]:
     """Flags never tuned, and none the deployer sets itself."""
     owned = sorted({flag.split("=", 1)[0] for flag in flags} & SERVTUNER_OWNED_FLAGS)
@@ -341,9 +348,7 @@ class ManagedTargetSpec(BaseModel):
             raise ValueError(
                 "an SGLang target cannot stream from an object store: use hub, mirror or pvc"
             )
-        owned = sorted({flag.split("=", 1)[0] for flag in self.base_flags} & SGLANG_OWNED_FLAGS)
-        if owned:
-            raise ValueError(f"servtuner sets {', '.join(owned)} itself")
+        checked_sglang_flags(self.base_flags)
         return self
 
     @model_validator(mode="after")
@@ -390,13 +395,16 @@ class TargetMetricsRef(BaseModel):
 
 
 class HostTargetSpec(BaseModel):
-    """A vLLM on a host outside Kubernetes, run by ``servtuner launcher`` there. The launcher's
-    token and vLLM's API key are Secrets in the runs namespace, by name only."""
+    """A model server (vLLM, or SGLang) on a host outside Kubernetes, run by ``servtuner
+    launcher`` there. The launcher's token and the server's API key are Secrets in the runs
+    namespace, by name only."""
 
     model_config = ConfigDict(extra="forbid")
 
     placement: Literal["host"]
-    # The host record this vLLM runs on: its hardware and price. Optional: targets
+    # Which server the launcher starts; targets stored before hosts could run SGLang are vLLM.
+    server: ModelServer = "vllm"
+    # The host record this server runs on: its hardware and price. Optional: targets
     # saved before hosts existed have none.
     host_id: str | None = Field(default=None, min_length=26, max_length=26)
     launcher_url: str = Field(pattern=r"^https?://[^/\s]+/?$", max_length=512)
@@ -422,6 +430,12 @@ class HostTargetSpec(BaseModel):
     @classmethod
     def _base_flags(cls, flags: list[str]) -> list[str]:
         return checked_base_flags(flags)
+
+    @model_validator(mode="after")
+    def _sglang_flags(self) -> HostTargetSpec:
+        if self.server == "sglang":
+            checked_sglang_flags(self.base_flags)
+        return self
 
 
 def _placement(value: Any) -> str:

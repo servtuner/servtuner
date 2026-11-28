@@ -216,6 +216,7 @@ describe("managed target page", () => {
       ...managedTarget,
       spec: {
         placement: "host",
+        server: "vllm",
         launcher_url: "http://gpu-host.localtest.me:9123",
         endpoint: "http://gpu-host.localtest.me:8000/v1",
         model: "Qwen/Qwen2.5-0.5B-Instruct",
@@ -242,6 +243,7 @@ describe("managed target page", () => {
       ...managedTarget,
       spec: {
         placement: "host",
+        server: "vllm",
         host_id: host.id,
         launcher_url: "http://gpu-host.localtest.me:9123",
         endpoint: "http://gpu-host.localtest.me:8000/v1",
@@ -445,6 +447,19 @@ describe("managed server list", () => {
     });
   });
 
+  it("offers SGLang for a host target, and labels its fields by the chosen server", async () => {
+    const user = userEvent.setup();
+    server.use(http.get(`${API}/managed-targets`, () => HttpResponse.json([])));
+    renderApp("/managed-targets");
+    await user.click(await screen.findByRole("button", { name: "Add a managed server" }));
+    await user.click(screen.getByText("A host with servtuner launcher"));
+    expect(screen.getByLabelText(/^vLLM endpoint/)).toBeInTheDocument();
+    await user.click(screen.getByText("SGLang"));
+    expect(screen.getByLabelText(/^SGLang endpoint/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^SGLang API key$/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^vLLM (endpoint|API key)/)).toBeNull();
+  });
+
   it("saves a host target with pasted keys, sent write-only after the target", async () => {
     const user = userEvent.setup();
     const calls: string[] = [];
@@ -485,6 +500,7 @@ describe("managed server list", () => {
       namespace: "servtuner-external", // the default label for a host
       spec: {
         placement: "host",
+        server: "vllm",
         launcher_url: "http://gpu-host.localtest.me:9123",
         endpoint: "http://gpu-host.localtest.me:8000/v1",
         metrics: { job: "servtuner-external", pod: "rtx" },

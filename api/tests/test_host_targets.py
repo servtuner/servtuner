@@ -139,6 +139,46 @@ def test_deploy_starts_vllm_with_the_rendered_args(tmp_path: Path) -> None:
     assert launcher.requests == [("PUT", "/server", {"server": "vllm", "args": args, "env": {}})]
 
 
+SGLANG_SPEC = SPEC.model_copy(update={"server": "sglang", "base_flags": ["--schedule-policy=lpm"]})
+
+
+def test_an_sglang_host_target_starts_sglang(tmp_path: Path) -> None:
+    launcher = FakeLauncher()
+    args = deployer(tmp_path, launcher).deploy("rtx3070", "servtuner-external", SGLANG_SPEC, {})
+    assert args == [
+        "--model-path=Qwen/Qwen2.5-0.5B-Instruct",
+        "--host=0.0.0.0",
+        "--port=8000",
+        "--enable-metrics",
+        "--served-model-name=tiny",
+        "--schedule-policy=lpm",
+    ]
+    assert launcher.requests == [("PUT", "/server", {"server": "sglang", "args": args, "env": {}})]
+    assert run_target("rtx3070", "servtuner-external", SGLANG_SPEC)["type"] == "sglang"
+
+
+def test_an_sglang_host_boot_failure_reads_with_sglangs_rules(tmp_path: Path) -> None:
+    launcher = FakeLauncher()
+    launcher.status = {"state": "exited", "exit_code": 137}
+    # SGLang 0.5.23's words, recorded live (bench/internal/target/testdata/sglang/).
+    launcher.log = (
+        "ValueError: Loaded weights leave no GPU memory for the KV cache under"
+        " --mem-fraction-static=0.05.\n"
+    )
+    readiness = deployer(tmp_path, launcher).poll(
+        "t", "rtx3070", "servtuner-external", SGLANG_SPEC, []
+    )
+    assert readiness.state == "infeasible"
+    assert readiness.reason.startswith("kv-pool-empty")
+
+
+def test_an_sglang_host_target_refuses_the_flags_servtuner_sets() -> None:
+    with pytest.raises(ValueError, match="--model-path"):
+        HostTargetSpec.model_validate(
+            {**SPEC.model_dump(), "server": "sglang", "base_flags": ["--model-path=other"]}
+        )
+
+
 def test_an_offline_install_never_lets_flashinfer_download_on_a_host(tmp_path: Path) -> None:
     launcher = FakeLauncher()
     offline = dataclasses.replace(deployer(tmp_path, launcher), offline=True)

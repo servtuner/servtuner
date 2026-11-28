@@ -37,11 +37,21 @@ class LauncherError(RuntimeError):
 
 
 def host_args(spec: HostTargetSpec, knob_args: list[str]) -> list[str]:
-    """vllm serve's args on a host: the model, where it listens, the base flags, then the knobs."""
-    args = [spec.model, "--host=0.0.0.0", f"--port={spec.port}"]
+    """The server's args on a host: the model, where it listens, the base flags, then the knobs.
+    vllm serve takes the model first; SGLang takes --model-path and needs --enable-metrics for
+    the series runs read. The launcher adds the program and passes the API key itself."""
+    if spec.server == "sglang":
+        args = [f"--model-path={spec.model}", "--host=0.0.0.0", f"--port={spec.port}"]
+        args.append("--enable-metrics")
+    else:
+        args = [spec.model, "--host=0.0.0.0", f"--port={spec.port}"]
     if spec.served_model_name:
         args.append(f"--served-model-name={spec.served_model_name}")
     return args + spec.base_flags + knob_args
+
+
+# How messages name each model server.
+SERVER_NAMES = {"vllm": "vLLM", "sglang": "SGLang"}
 
 
 HTTP_UNAUTHORIZED = 401
@@ -76,10 +86,10 @@ class LauncherDeployer(BootProbes):
         self, name: str, namespace: str, any_spec: AnySpec, knobs: Mapping[str, Any]
     ) -> list[str]:
         spec = host_spec(any_spec)
-        args = host_args(spec, self.render_knobs(knobs, "vllm"))  # host targets run vLLM
+        args = host_args(spec, self.render_knobs(knobs, spec.server))
         env = offline_env(spec.env, self.offline)
         response = self._call(
-            spec, "PUT", "/server", json={"server": "vllm", "args": args, "env": env}
+            spec, "PUT", "/server", json={"server": spec.server, "args": args, "env": env}
         )
         if response.status_code == HTTP_BAD_REQUEST:
             raise DeployInputError([f"the launcher refused the request: {response.text.strip()}"])
@@ -97,9 +107,8 @@ class LauncherDeployer(BootProbes):
         """The host's vLLM version before it boots (`vllm --version` through the launcher), or
         None when the launcher cannot say: unreachable, no token, or a launcher too old for it."""
         try:
-            response = self._call(
-                host_spec(any_spec), "GET", "/server/version", params={"server": "vllm"}
-            )
+            spec = host_spec(any_spec)
+            response = self._call(spec, "GET", "/server/version", params={"server": spec.server})
         except LauncherError, DeployInputError:
             return None
         if response.status_code != HTTP_OK:
@@ -140,7 +149,9 @@ class LauncherDeployer(BootProbes):
             )
         status: dict[str, Any] = response.json()
         state = str(status.get("state", "unknown"))
-        running = "running vLLM" if state == "running" else f"vLLM {state}"
+        # The launcher names the server it started; one from before SGLang support ran only vLLM.
+        server_name = SERVER_NAMES.get(str(status.get("server", "vllm")), "the server")
+        running = f"running {server_name}" if state == "running" else f"{server_name} {state}"
         return LauncherCheck(
             "ok",
             f"reached, token accepted: {running}",
@@ -160,6 +171,7 @@ class LauncherDeployer(BootProbes):
         self, target_id: str, name: str, namespace: str, any_spec: AnySpec, args: list[str]
     ) -> Readiness:
         spec = host_spec(any_spec)
+        server_name = SERVER_NAMES[spec.server]
         response = self._call(spec, "GET", "/server")
         self._expect_ok(response)
         status: dict[str, Any] = response.json()
@@ -169,18 +181,18 @@ class LauncherDeployer(BootProbes):
         if state == "exited":
             exit_code = status.get("exit_code")
             if exit_code == 0:
-                return Readiness("failed", "vLLM exited cleanly before it was ready")
+                return Readiness("failed", f"{server_name} exited cleanly before it was ready")
             log = self._call(spec, "GET", "/server/log", params={"tail": str(LOG_TAIL_LINES)})
             self._expect_ok(log)
-            failure = classify_boot_failure(log.text, exit_code, None)
+            failure = classify_boot_failure(log.text, exit_code, None, server=spec.server)
             state_name = "infeasible" if failure.kind == "infeasible" else "failed"
             return Readiness(state_name, f"{failure.rule}: {failure.message}", failure=failure)
         if state != "running":
-            return Readiness("failed", f"vLLM is {state} on the host")
+            return Readiness("failed", f"{server_name} is {state} on the host")
         if status.get("args") != args:
-            return Readiness(
-                "failed", f"vLLM runs other args than rendered: {status.get('args')} != {args}"
-            )
+            ran = status.get("args")
+            reason = f"{server_name} runs other args than rendered: {ran} != {args}"
+            return Readiness("failed", reason)
         request: dict[str, Any] = {"target": run_target(name, namespace, spec)}
         if self.prometheus is not None:
             request["prometheus"] = self.prometheus
